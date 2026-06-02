@@ -48,13 +48,36 @@ export default function Chat({
   const [busy, setBusy] = useState(false);
   const [artifacts, setArtifacts] = useState<{ title: string; uri: string; kind: string }[]>([]);
   const [tool, setTool] = useState<string | null>(null);
+  const [docs, setDocs] = useState<{ id: string; title: string }[]>([]);
   const sessionId = useRef<string>(crypto.randomUUID());
+
+  async function uploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("session_id", sessionId.current);
+    try {
+      const res = await fetch(`${backendUrl}/api/documents`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (data.document_id) setDocs((d) => [...d, { id: data.document_id, title: data.title }]);
+    } catch {
+      /* ignore */
+    }
+    e.target.value = "";
+  }
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim() || busy) return;
     const userMsg = input.trim();
+    const docIds = docs.map((d) => d.id);
     setInput("");
+    setDocs([]);
     setMessages((m) => [...m, { role: "user", text: userMsg }, { role: "assistant", text: "" }]);
     setBusy(true);
 
@@ -65,7 +88,7 @@ export default function Chat({
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ message: userMsg }),
+        body: JSON.stringify({ message: userMsg, document_ids: docIds.length ? docIds : undefined }),
       });
       if (!res.ok || !res.body) throw new Error(`backend ${res.status}`);
 
@@ -156,7 +179,24 @@ export default function Chat({
         </div>
       )}
 
+      {docs.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingBottom: 6 }}>
+          {docs.map((d) => (
+            <span key={d.id} style={{ background: "var(--panel)", padding: "4px 8px", borderRadius: 6, fontSize: 12 }}>
+              📎 {d.title}
+            </span>
+          ))}
+        </div>
+      )}
+
       <form onSubmit={send} style={{ display: "flex", gap: 8, paddingBottom: 12 }}>
+        <label
+          title="Adjuntar documento"
+          style={{ display: "flex", alignItems: "center", padding: "0 12px", borderRadius: 10, border: "1px solid #2a2f3a", background: "var(--panel)", cursor: "pointer", fontSize: 18 }}
+        >
+          📎
+          <input type="file" onChange={uploadFile} style={{ display: "none" }} accept=".pdf,.docx,.txt" />
+        </label>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
