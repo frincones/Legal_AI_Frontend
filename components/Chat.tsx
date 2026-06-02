@@ -46,6 +46,8 @@ export default function Chat({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [artifacts, setArtifacts] = useState<{ title: string; uri: string; kind: string }[]>([]);
+  const [tool, setTool] = useState<string | null>(null);
   const sessionId = useRef<string>(crypto.randomUUID());
 
   async function send(e: React.FormEvent) {
@@ -74,6 +76,12 @@ export default function Chat({
             copy[copy.length - 1] = { role: "assistant", text: copy[copy.length - 1].text + data.text };
             return copy;
           });
+        } else if (event === "tool_call") {
+          setTool(data.name);
+        } else if (event === "tool_result") {
+          setTool(null);
+        } else if (event === "artifact") {
+          setArtifacts((a) => [...a, { title: data.title, uri: data.uri, kind: data.kind }]);
         } else if (event === "error") {
           setMessages((m) => {
             const copy = [...m];
@@ -90,6 +98,7 @@ export default function Chat({
       });
     } finally {
       setBusy(false);
+      setTool(null);
     }
   }
 
@@ -122,7 +131,30 @@ export default function Chat({
             {m.text || (m.role === "assistant" && busy ? "…" : "")}
           </div>
         ))}
+        {tool && (
+          <div style={{ alignSelf: "flex-start", color: "var(--muted)", fontSize: 13 }}>
+            🔧 generando documento ({tool})…
+          </div>
+        )}
       </div>
+
+      {artifacts.length > 0 && (
+        <div style={{ borderTop: "1px solid #2a2f3a", padding: "10px 0", display: "grid", gap: 6 }}>
+          <span style={{ color: "var(--muted)", fontSize: 12 }}>Documentos generados</span>
+          {artifacts.map((a, i) => (
+            <a
+              key={i}
+              href={a.uri}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: "flex", gap: 8, alignItems: "center", background: "var(--panel)", padding: "8px 12px", borderRadius: 8, textDecoration: "none" }}
+            >
+              📄 <span style={{ color: "var(--text)" }}>{a.title}</span>
+              <span style={{ marginLeft: "auto", color: "var(--accent)", fontSize: 13 }}>Descargar ({a.kind})</span>
+            </a>
+          ))}
+        </div>
+      )}
 
       <form onSubmit={send} style={{ display: "flex", gap: 8, paddingBottom: 12 }}>
         <input
