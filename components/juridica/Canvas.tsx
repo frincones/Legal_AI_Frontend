@@ -274,6 +274,8 @@ export function VersionBar({
   onSelect,
   compare,
   onToggleCompare,
+  onAccept,
+  onReject,
   position = "bottom",
 }: {
   versions: number[];
@@ -281,6 +283,8 @@ export function VersionBar({
   onSelect: (v: number) => void;
   compare: boolean;
   onToggleCompare: () => void;
+  onAccept?: () => void;
+  onReject?: () => void;
   position?: "top" | "bottom";
 }) {
   return (
@@ -329,15 +333,15 @@ export function VersionBar({
       </button>
       {compare ? (
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-sm btn-secondary">
+          <button className="btn btn-sm btn-secondary" onClick={onReject}>
             <Icon name="x" size={14} /> Rechazar
           </button>
-          <button className="btn btn-sm btn-primary">
+          <button className="btn btn-sm btn-primary" onClick={onAccept}>
             <Icon name="check" size={14} /> Aceptar cambios
           </button>
         </div>
       ) : (
-        <button className="btn btn-sm btn-gold">
+        <button className="btn btn-sm btn-gold" onClick={onAccept}>
           <Icon name="check" size={15} /> Aceptar
         </button>
       )}
@@ -401,6 +405,7 @@ export function Canvas({
   accessToken,
   initialMessage,
   reusePatronId,
+  reuseTitle,
   narrow = false,
   pushToast,
 }: {
@@ -408,6 +413,7 @@ export function Canvas({
   accessToken: string;
   initialMessage?: string;
   reusePatronId?: string;   // F4: parte de un patrón validado de la biblioteca (reuse_patron_id)
+  reuseTitle?: string;      // F4: título de la plantilla reutilizada (para el banner)
   narrow?: boolean;
   pushToast?: (text: string, kind?: string) => void;
 }) {
@@ -596,20 +602,37 @@ export function Canvas({
   }
 
   // F5 — Export PDF on-demand: el backend convierte el DOCX guardado a PDF (E2B aislado).
+  // Descarga vía <a download> (no window.open, que el navegador bloquea como popup tras el await).
   async function downloadPdf() {
     if (!activeArtifact || pdfBusy) return;
     setPdfBusy(true);
+    if (pushToast) pushToast("Generando PDF… (puede tardar unos segundos)", "info");
     try {
       const res = await fetch(`${backendUrl}/api/artifacts/${activeArtifact.id}/pdf?version=${activeArtifact.version}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      if (!res.ok) throw new Error(`pdf ${res.status}`);
+      if (!res.ok) {
+        let detail = `${res.status}`;
+        try {
+          const j = await res.json();
+          if (j?.detail) detail = j.detail;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(detail);
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(activeArtifact.title || "documento").replace(/[^\w.-]+/g, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch {
-      if (pushToast) pushToast("PDF no disponible · descarga el DOCX", "info");
+      if (pushToast) pushToast("PDF descargado", "gold");
+    } catch (err: any) {
+      if (pushToast) pushToast(`No se pudo generar el PDF: ${err.message}`, "info");
     } finally {
       setPdfBusy(false);
     }
@@ -631,6 +654,23 @@ export function Canvas({
   const chatPane = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-surface)", minWidth: 0 }}>
       <div ref={chatRef} className="no-scrollbar" style={{ flex: 1, overflow: "auto", padding: "22px 22px 8px" }}>
+        {/* F4 — Banner de reutilización: indica con qué plantilla se trabaja en el chat vacío. */}
+        {reusePatronId && messages.length === 0 && (
+          <div className="fade-up" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", textAlign: "center", gap: 16, padding: "0 24px" }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--primary-soft)", display: "grid", placeItems: "center" }}>
+              <Icon name="book" size={26} style={{ color: "var(--primary)" }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 16.5, fontWeight: 650, marginBottom: 6 }}>
+                Reutilizando la plantilla{reuseTitle ? " «" + reuseTitle + "»" : ""}
+              </div>
+              <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.55, margin: 0, maxWidth: 420 }}>
+                Partiré de este documento verificado y solo cambiaré los datos de tu caso. Escribe abajo los datos
+                (partes, cuantías, juzgado, fechas…) y generaré una versión nueva.
+              </p>
+            </div>
+          </div>
+        )}
         {messages.map((m, i) => {
           if (m.role === "user")
             return (
@@ -824,6 +864,18 @@ export function Canvas({
               if (maxV > 1) setCurrentVersion(maxV);
             }
             setCompare(!compare);
+          }}
+          onAccept={() => {
+            // Aceptar los cambios: la versión actual queda como definitiva, salimos de comparación.
+            setCompare(false);
+            if (pushToast) pushToast(`Cambios aceptados · v${currentVersion} es la versión vigente`, "gold");
+          }}
+          onReject={() => {
+            // Rechazar: volvemos a la versión anterior y salimos de comparación.
+            const prev = versions.filter((v) => v < currentVersion).pop() ?? currentVersion;
+            setCurrentVersion(prev);
+            setCompare(false);
+            if (pushToast) pushToast(`Cambios rechazados · volviste a v${prev}`, "info");
           }}
           position="bottom"
         />

@@ -73,6 +73,7 @@ export default function JuridicaApp({
   const [libDocs, setLibDocs] = useState<LibraryItem[]>([]);
   const [libTemplates, setLibTemplates] = useState<LibraryItem[]>([]);
   const [reusePatronId, setReusePatronId] = useState<string | undefined>(undefined);
+  const [reuseTitle, setReuseTitle] = useState<string | undefined>(undefined);
   const toastId = useRef(0);
 
   // F1.3 — recientes reales desde el backend (/api/sessions). Aditivo; si falla, el sidebar usa el mock.
@@ -149,6 +150,7 @@ export default function JuridicaApp({
     const effectiveMode = modeOverride ?? mode;
     if (modeOverride) setMode(modeOverride);
     setReusePatronId(undefined);
+    setReuseTitle(undefined);
     setChatSeed(text.trim());
     setChatKey((k) => k + 1);
     setDraft("");
@@ -161,6 +163,7 @@ export default function JuridicaApp({
   // el usuario describe su caso y el agente parte del docx-js validado (solo cambia los datos).
   function reusePatron(it: LibraryItem) {
     setReusePatronId(it.patronId);
+    setReuseTitle(it.title);
     setChatSeed(undefined);
     setMode("Documento");
     setChatKey((k) => k + 1);
@@ -172,6 +175,7 @@ export default function JuridicaApp({
     setDraft("");
     setChatSeed(undefined);
     setReusePatronId(undefined);
+    setReuseTitle(undefined);
     setRoute("home");
   }
 
@@ -220,6 +224,7 @@ export default function JuridicaApp({
         accessToken={accessToken}
         initialMessage={chatSeed}
         reusePatronId={reusePatronId}
+        reuseTitle={reuseTitle}
         narrow={narrow}
         pushToast={pushToast}
       />
