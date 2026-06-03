@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Chat from "@/components/Chat";
+import JuridicaApp from "@/components/juridica/App";
 
 export default async function ChatPage() {
   const supabase = await createClient();
@@ -10,7 +10,7 @@ export default async function ChatPage() {
   if (!session) redirect("/login");
 
   return (
-    <Chat
+    <JuridicaApp
       backendUrl={process.env.NEXT_PUBLIC_BACKEND_URL ?? ""}
       accessToken={session.access_token}
       email={session.user.email ?? null}

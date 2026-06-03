@@ -1,0 +1,419 @@
+"use client";
+
+import { useState, type ReactNode } from "react";
+import { Icon } from "./icons";
+import { Tooltip } from "./atoms";
+import { Composer } from "./shell";
+import { SUGGESTIONS, LIBRARY, TEMPLATES, type LibraryItem } from "./data";
+
+/* ============================ HOME ============================ */
+function QuickCard({ icon, title, desc, onClick }: { icon: string; title: string; desc: string; onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="card"
+      style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", textAlign: "left", cursor: "pointer", transition: "border-color .15s, box-shadow .15s, transform .15s", background: "var(--bg-surface)" }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--primary)";
+        e.currentTarget.style.boxShadow = "var(--sh-2)";
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--border)";
+        e.currentTarget.style.boxShadow = "var(--sh-1)";
+        e.currentTarget.style.transform = "none";
+      }}
+    >
+      <div style={{ width: 42, height: 42, borderRadius: 11, background: "var(--primary-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+        <Icon name={icon} size={20} style={{ color: "var(--primary)" }} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--text)" }}>{title}</div>
+        <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 1 }}>{desc}</div>
+      </div>
+      <Icon name="arrowRight" size={18} style={{ color: "var(--text-muted)" }} />
+    </button>
+  );
+}
+
+export function Home({
+  composerStyle = "elevated",
+  onSubmit,
+  onNavigate,
+  draft,
+  setDraft,
+  mode,
+  setMode,
+  jurisdiction,
+  setJurisdiction,
+}: {
+  composerStyle?: "elevated" | "bordered" | "pill";
+  onSubmit: (text: string) => void;
+  onNavigate: (r: string) => void;
+  draft: string;
+  setDraft: (v: string) => void;
+  mode: string;
+  setMode: (m: string) => void;
+  jurisdiction: string;
+  setJurisdiction: (j: string) => void;
+}) {
+  return (
+    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 28px", minHeight: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ padding: "60px 0 40px" }}>
+          {/* Greeting */}
+          <div style={{ marginBottom: 30 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 12px 5px 8px", borderRadius: "var(--r-pill)", background: "var(--grad-aurora-soft)", border: "1px solid var(--border)", marginBottom: 20 }}>
+              <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--aurora)", display: "grid", placeItems: "center" }}>
+                <Icon name="sparkles" size={12} style={{ color: "#fff" }} />
+              </span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)" }}>Verificado contra fuentes oficiales</span>
+            </div>
+            <h1 style={{ fontSize: 38, lineHeight: 1.12, fontWeight: 650, letterSpacing: "-0.025em", margin: 0 }}>
+              ¿Qué documento o consulta
+              <br />
+              legal trabajamos <span className="gradient-text">hoy</span>?
+            </h1>
+            <p style={{ fontSize: 16, color: "var(--text-secondary)", margin: "12px 0 0" }}>Redacta, verifica normas y jurisprudencia, y reutiliza tus documentos.</p>
+          </div>
+
+          {/* Composer */}
+          <Composer
+            value={draft}
+            onChange={setDraft}
+            onSend={() => onSubmit(draft)}
+            mode={mode}
+            onMode={setMode}
+            jurisdiction={jurisdiction}
+            onJurisdiction={setJurisdiction}
+            style={composerStyle}
+            autoFocus
+            placeholder="Ej. Redacta una demanda ejecutiva por un pagaré de $50.000.000…"
+          />
+
+          {/* Suggestions */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 18 }}>
+            {SUGGESTIONS.map((s, i) => (
+              <button
+                key={i}
+                className="chip"
+                onClick={() => {
+                  setMode(s.mode);
+                  onSubmit(s.label);
+                }}
+              >
+                <Icon name={s.icon} size={15} style={{ color: "var(--primary)" }} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Quick access */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 34 }}>
+            <QuickCard icon="book" title="Reusar de mi biblioteca" desc="Parte de un documento existente" onClick={() => onNavigate("library")} />
+            <QuickCard icon="template" title="Plantillas de la firma" desc="Patrones compartidos y verificados" onClick={() => onNavigate("templates")} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ LIBRARY ============================ */
+function DocThumb({ accent, type }: { accent: string; type: string }) {
+  return (
+    <div style={{ height: 138, background: "var(--bg-elevated-2)", borderBottom: "1px solid var(--border)", position: "relative", overflow: "hidden", display: "grid", placeItems: "center" }}>
+      <div style={{ width: 108, background: "#fff", borderRadius: 4, boxShadow: "var(--sh-2)", padding: "12px 11px 0", transform: "translateY(8px)", border: "1px solid var(--border)" }}>
+        <div style={{ height: 5, width: "70%", margin: "0 auto 9px", borderRadius: 2, background: accent, opacity: 0.85 }} />
+        {[100, 92, 96, 70, 88, 94, 60].map((w, i) => (
+          <div key={i} style={{ height: 3, width: w + "%", margin: "0 0 5px", borderRadius: 2, background: "var(--border-strong)" }} />
+        ))}
+      </div>
+      <span style={{ position: "absolute", top: 10, left: 10, fontSize: 10.5, fontWeight: 700, color: accent, background: "var(--bg-surface)", border: "1px solid var(--border)", padding: "3px 8px", borderRadius: 999 }}>{type}</span>
+    </div>
+  );
+}
+
+function DocCard({ it, onReuse }: { it: LibraryItem; onReuse: () => void }) {
+  return (
+    <div
+      className="card"
+      style={{ overflow: "hidden", display: "flex", flexDirection: "column", transition: "box-shadow .15s, transform .15s", cursor: "default" }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = "var(--sh-2)";
+        e.currentTarget.style.transform = "translateY(-3px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = "var(--sh-1)";
+        e.currentTarget.style.transform = "none";
+      }}
+    >
+      <DocThumb accent={it.accent} type={it.type} />
+      <div style={{ padding: "13px 15px 15px", display: "flex", flexDirection: "column", flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <span style={{ fontWeight: 600, fontSize: 14.5, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.title}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: 6, padding: "1px 6px" }}>v{it.version}</span>
+          {it.verified && (
+            <Tooltip content="Contiene citas verificadas contra fuentes oficiales" width={230}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--grad-gold)", boxShadow: "0 0 0 3px var(--gold-soft)" }} />
+            </Tooltip>
+          )}
+        </div>
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2 }}>{it.subtitle}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 11.5, color: "var(--text-muted)" }}>
+          <Icon name="refresh" size={13} /> Usado {it.used} veces
+          {it.shared && (
+            <>
+              <span>·</span>
+              <Icon name="building" size={13} /> Firma
+            </>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 13 }}>
+          <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={onReuse}>
+            <Icon name="arrowRight" size={15} />
+            Reusar
+          </button>
+          <button className="btn btn-secondary btn-sm btn-icon">
+            <Icon name="eye" size={16} />
+          </button>
+          <button className="btn btn-secondary btn-sm btn-icon">
+            <Icon name="more" size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Library({ initialTab, onReuse }: { initialTab: string; onReuse: (it: LibraryItem) => void }) {
+  const [tab, setTab] = useState(initialTab === "templates" ? "Plantillas" : "Mis documentos");
+  const [q, setQ] = useState("");
+
+  const tabs = ["Mis documentos", "Plantillas", "Compartidos"];
+  const items = tab === "Plantillas" ? TEMPLATES : LIBRARY;
+  const filtered = items.filter((it) => (it.title + it.subtitle).toLowerCase().includes(q.toLowerCase()));
+
+  return (
+    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 36px 60px" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 22 }}>
+          <div>
+            <h1 className="t-h1" style={{ margin: 0 }}>Biblioteca</h1>
+            <p style={{ color: "var(--text-secondary)", margin: "6px 0 0", fontSize: 14.5 }}>Reutiliza documentos y plantillas verificadas de la firma.</p>
+          </div>
+          <button className="btn btn-primary">
+            <Icon name="plus" size={17} stroke={2.2} />
+            Nuevo documento
+          </button>
+        </div>
+
+        {/* Tabs + search */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 22, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 4, background: "var(--bg-elevated-2)", padding: 4, borderRadius: "var(--r-pill)" }}>
+            {tabs.map((t) => (
+              <button key={t} onClick={() => setTab(t)} style={{ border: "none", height: 34, padding: "0 16px", borderRadius: "var(--r-pill)", fontSize: 13.5, fontWeight: 600, background: tab === t ? "var(--bg-surface)" : "transparent", color: tab === t ? "var(--primary)" : "var(--text-secondary)", boxShadow: tab === t ? "var(--sh-1)" : "none" }}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <span style={{ flex: 1 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, height: 38, padding: "0 14px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-surface)", minWidth: 220 }}>
+            <Icon name="search" size={16} style={{ color: "var(--text-muted)" }} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar documentos…" style={{ border: "none", outline: "none", background: "transparent", fontSize: 13.5, flex: 1, color: "var(--text)" }} />
+          </div>
+          <button className="btn btn-secondary btn-sm" style={{ height: 38 }}>
+            <Icon name="filter" size={15} />
+            Tipo
+          </button>
+        </div>
+
+        {/* Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))", gap: 18 }}>
+          {filtered.map((it) => (
+            <DocCard key={it.id} it={it} onReuse={() => onReuse(it)} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================ SETTINGS ============================ */
+function Section({ title, icon, children }: { title: string; icon: string; children: ReactNode }) {
+  return (
+    <div className="card" style={{ padding: 22, marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 18 }}>
+        <Icon name={icon} size={18} style={{ color: "var(--primary)" }} />
+        <h2 style={{ fontSize: 16, fontWeight: 650, margin: 0 }}>{title}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: hint ? 2 : 8 }}>{label}</div>
+      {hint && <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 9 }}>{hint}</div>}
+      {children}
+    </div>
+  );
+}
+function Segmented({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <div style={{ display: "inline-flex", gap: 4, background: "var(--bg-elevated-2)", padding: 4, borderRadius: "var(--r-md)", flexWrap: "wrap" }}>
+      {options.map((o) => (
+        <button key={o} onClick={() => onChange(o)} style={{ border: "none", height: 34, padding: "0 16px", borderRadius: "var(--r-sm)", fontSize: 13, fontWeight: 600, background: value === o ? "var(--bg-surface)" : "transparent", color: value === o ? "var(--primary)" : "var(--text-secondary)", boxShadow: value === o ? "var(--sh-1)" : "none" }}>
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+function SelectBox({ value, options }: { value: string; options: string[] }) {
+  const [v, setV] = useState(value);
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: "relative", maxWidth: 360 }}>
+      <button onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", height: 42, padding: "0 14px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--bg-base)", fontSize: 14, color: "var(--text)", textAlign: "left" }}>
+        <Icon name="globe" size={16} style={{ color: "var(--text-muted)" }} />
+        <span style={{ flex: 1 }}>{v}</span>
+        <Icon name="chevronDown" size={16} style={{ color: "var(--text-muted)" }} />
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+          <div className="fade-up" style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", boxShadow: "var(--sh-pop)", padding: 6, zIndex: 50 }}>
+            {options.map((o) => (
+              <button
+                key={o}
+                onClick={() => {
+                  setV(o);
+                  setOpen(false);
+                }}
+                style={{ display: "block", width: "100%", padding: "9px 10px", border: "none", borderRadius: 8, background: o === v ? "var(--primary-soft)" : "transparent", color: o === v ? "var(--primary)" : "var(--text)", fontSize: 13.5, textAlign: "left", fontWeight: o === v ? 600 : 450 }}
+              >
+                {o}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function Settings({ pushToast, onLogout }: { pushToast?: (t: string, k?: string) => void; onLogout?: () => void }) {
+  const [tone, setTone] = useState("Formal jurídico");
+  const [theme, setTheme] = useState("Claro");
+  const [lang, setLang] = useState("Español");
+
+  return (
+    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+      <div style={{ maxWidth: 820, margin: "0 auto", padding: "32px 36px 60px" }}>
+        <h1 className="t-h1" style={{ margin: "0 0 4px" }}>Perfil de la firma</h1>
+        <p style={{ color: "var(--text-secondary)", margin: "0 0 28px", fontSize: 14.5 }}>Configura el contexto que Juridica usa al redactar y verificar.</p>
+
+        {/* Firm header card */}
+        <div className="card" style={{ padding: 22, display: "flex", alignItems: "center", gap: 18, marginBottom: 22 }}>
+          <div style={{ width: 60, height: 60, borderRadius: 16, background: "var(--aurora)", display: "grid", placeItems: "center", flexShrink: 0, boxShadow: "0 6px 18px -6px rgba(91,77,227,0.5)" }}>
+            <Icon name="building" size={28} style={{ color: "#fff" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 18, fontWeight: 650 }}>Restrepo &amp; Asociados</div>
+            <div style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>Bogotá D.C. · 8 miembros · Plan Firma</div>
+          </div>
+          <button className="btn btn-secondary">
+            <Icon name="pencil" size={15} />
+            Editar
+          </button>
+        </div>
+
+        <Section title="Jurisdicción y redacción" icon="scale">
+          <Field label="Jurisdicción principal" hint="Define las fuentes oficiales que se consultan por defecto.">
+            <SelectBox value="Colombia · Bogotá D.C." options={["Colombia · Bogotá D.C.", "Colombia · Nacional", "Antioquia", "Valle del Cauca"]} />
+          </Field>
+          <Field label="Tono de los documentos" hint="Estilo de redacción aplicado a los borradores.">
+            <Segmented value={tone} onChange={setTone} options={["Formal jurídico", "Claro y directo", "Conciliador"]} />
+          </Field>
+          <Field label="Membrete / plantilla base" hint="Documento de referencia (.docx) con el estilo del bufete.">
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px dashed var(--border-strong)", borderRadius: "var(--r-md)", background: "var(--bg-base)" }}>
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--primary-soft)", display: "grid", placeItems: "center" }}>
+                <Icon name="fileText" size={17} style={{ color: "var(--primary)" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>membrete-restrepo-2026.docx</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Subido el 12 may 2026 · 84 KB</div>
+              </div>
+              <button className="btn btn-secondary btn-sm">
+                <Icon name="upload" size={15} />
+                Reemplazar
+              </button>
+            </div>
+          </Field>
+        </Section>
+
+        <Section title="Equipo" icon="user">
+          {(
+            [
+              ["Andrés Restrepo", "Administrador", "AR", "linear-gradient(135deg,#566076,#0D1320)"],
+              ["María Fernanda Lozano", "Abogada litigante", "ML", "linear-gradient(135deg,#7B6CF6,#4F7BFF)"],
+              ["Carlos Mejía", "Abogado de cobranza", "CM", "linear-gradient(135deg,#21C7D8,#2563EB)"],
+            ] as [string, string, string, string][]
+          ).map(([n, r, ini, bg], i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: i < 2 ? "1px solid var(--border)" : "none" }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: bg, color: "#fff", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 600 }}>{ini}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{n}</div>
+                <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{r}</div>
+              </div>
+              {i === 0 && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", background: "var(--primary-soft)", padding: "3px 9px", borderRadius: 999 }}>TÚ</span>}
+            </div>
+          ))}
+          <button className="btn btn-secondary btn-sm" style={{ marginTop: 14 }}>
+            <Icon name="plus" size={15} />
+            Invitar miembro
+          </button>
+        </Section>
+
+        <Section title="Apariencia e idioma" icon="settings">
+          <Field label="Tema" hint="El modo claro premium es el predeterminado.">
+            <Segmented value={theme} onChange={setTheme} options={["Claro", "Oscuro", "Sistema"]} />
+          </Field>
+          <Field label="Idioma">
+            <Segmented value={lang} onChange={setLang} options={["Español", "English"]} />
+          </Field>
+        </Section>
+
+        <Section title="Uso del mes" icon="layers">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+            {(
+              [
+                ["Documentos generados", "47", "de 200"],
+                ["Verificaciones", "183", "de 800"],
+                ["Créditos restantes", "612", "renueva 1 jul"],
+              ] as [string, string, string][]
+            ).map(([l, v, s], i) => (
+              <div key={i} style={{ padding: "16px 16px", border: "1px solid var(--border)", borderRadius: "var(--r-md)", background: "var(--bg-base)" }}>
+                <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{l}</div>
+                <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", margin: "4px 0 2px" }}>{v}</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{s}</div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 26 }}>
+          <button className="btn btn-primary" onClick={() => pushToast && pushToast("Cambios guardados", "success")}>
+            Guardar cambios
+          </button>
+          <button className="btn btn-ghost" onClick={onLogout}>
+            <Icon name="logout" size={16} />
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
