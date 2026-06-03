@@ -10,6 +10,36 @@ import { Canvas } from "./Canvas";
 import type { LibraryItem } from "./data";
 import { createClient } from "@/lib/supabase/client";
 
+// F4 · mapeo de datos reales del backend → LibraryItem (modelo del diseño).
+const ACCENTS = ["#5B4DE3", "#21A8C7", "#C98A14", "#16A34A", "#DC2626", "#2563EB"];
+const KIND_LABEL: Record<string, string> = { document: "Documento", memo: "Memo", letter: "Carta", table: "Tabla" };
+function artifactToItem(a: any, i: number): LibraryItem {
+  return {
+    id: a.id,
+    title: a.title || "Documento",
+    subtitle: KIND_LABEL[a.kind] || "Documento",
+    type: KIND_LABEL[a.kind] || "Documento",
+    version: a.version || 1,
+    used: 0,
+    verified: true,
+    accent: ACCENTS[i % ACCENTS.length],
+  };
+}
+function patronToItem(p: any, i: number): LibraryItem {
+  return {
+    id: p.id,
+    title: p.title || "Plantilla",
+    subtitle: "Plantilla de la firma",
+    type: KIND_LABEL[p.kind] || "Documento",
+    version: 1,
+    used: p.used_count || 0,
+    verified: true,
+    accent: ACCENTS[i % ACCENTS.length],
+    shared: true,
+    patronId: p.id,
+  };
+}
+
 function useWidth() {
   const [w, setW] = useState(1200);
   useEffect(() => {
@@ -40,6 +70,9 @@ export default function JuridicaApp({
   const [chatSeed, setChatSeed] = useState<string | undefined>(undefined);
   const [chatKey, setChatKey] = useState(0);
   const [recents, setRecents] = useState<{ id: string; title: string }[]>([]);
+  const [libDocs, setLibDocs] = useState<LibraryItem[]>([]);
+  const [libTemplates, setLibTemplates] = useState<LibraryItem[]>([]);
+  const [reusePatronId, setReusePatronId] = useState<string | undefined>(undefined);
   const toastId = useRef(0);
 
   // F1.3 — recientes reales desde el backend (/api/sessions). Aditivo; si falla, el sidebar usa el mock.
@@ -51,6 +84,29 @@ export default function JuridicaApp({
       .then((rows) => {
         if (cancel || !Array.isArray(rows)) return;
         setRecents(rows.map((s: any) => ({ id: s.id, title: s.title || "Conversación" })));
+      })
+      .catch(() => {});
+    return () => {
+      cancel = true;
+    };
+  }, [backendUrl, accessToken, chatKey]);
+
+  // F4 — Biblioteca real: documentos del org (/api/artifacts) + patrones (/api/patrones).
+  // Aditivo; si falla o está vacío, Library cae al mock del diseño.
+  useEffect(() => {
+    if (!backendUrl || !accessToken) return;
+    let cancel = false;
+    const auth = { Authorization: `Bearer ${accessToken}` };
+    fetch(`${backendUrl}/api/artifacts?limit=60`, { headers: auth })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => {
+        if (!cancel && Array.isArray(rows)) setLibDocs(rows.map(artifactToItem));
+      })
+      .catch(() => {});
+    fetch(`${backendUrl}/api/patrones?limit=60`, { headers: auth })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => {
+        if (!cancel && Array.isArray(rows)) setLibTemplates(rows.map(patronToItem));
       })
       .catch(() => {});
     return () => {
@@ -92,16 +148,30 @@ export default function JuridicaApp({
     if (!text || !text.trim()) return;
     const effectiveMode = modeOverride ?? mode;
     if (modeOverride) setMode(modeOverride);
+    setReusePatronId(undefined);
     setChatSeed(text.trim());
     setChatKey((k) => k + 1);
     setDraft("");
-    // Modo "Documento" → Canvas split-pane. Modo "Pregunta" → ChatView.
+    // Modo "Documento" → Canvas (se vuelve split solo si se genera un documento).
+    // Modo "Pregunta" → ChatView.
     setRoute(effectiveMode === "Documento" ? "canvas" : "chat");
+  }
+
+  // F4 — Reusar un patrón de la biblioteca: arma reuse_patron_id y abre el Canvas SIN ejecutar;
+  // el usuario describe su caso y el agente parte del docx-js validado (solo cambia los datos).
+  function reusePatron(it: LibraryItem) {
+    setReusePatronId(it.patronId);
+    setChatSeed(undefined);
+    setMode("Documento");
+    setChatKey((k) => k + 1);
+    setRoute("canvas");
+    pushToast(`Plantilla «${it.title}» cargada · describe tu caso`, "primary");
   }
 
   function newDoc() {
     setDraft("");
     setChatSeed(undefined);
+    setReusePatronId(undefined);
     setRoute("home");
   }
 
@@ -149,6 +219,7 @@ export default function JuridicaApp({
         backendUrl={backendUrl}
         accessToken={accessToken}
         initialMessage={chatSeed}
+        reusePatronId={reusePatronId}
         narrow={narrow}
         pushToast={pushToast}
       />
@@ -157,9 +228,12 @@ export default function JuridicaApp({
     main = (
       <Library
         initialTab="library"
+        docs={libDocs}
+        templates={libTemplates}
         onReuse={(it: LibraryItem) => {
-          submitToChat("Reusar plantilla: " + it.title + " — completa con los datos del nuevo caso.");
-          pushToast("Abriendo «" + it.title + "»", "primary");
+          // Patrón real → reuse_patron_id (flywheel). Documento sin patrón → prompt normal.
+          if (it.patronId) reusePatron(it);
+          else submitToChat("Genera un nuevo documento partiendo de «" + it.title + "» con los datos de mi caso.");
         }}
       />
     );
@@ -167,9 +241,11 @@ export default function JuridicaApp({
     main = (
       <Library
         initialTab="templates"
+        docs={libDocs}
+        templates={libTemplates}
         onReuse={(it: LibraryItem) => {
-          submitToChat("Reusar plantilla de la firma: " + it.title);
-          pushToast("Abriendo «" + it.title + "»", "primary");
+          if (it.patronId) reusePatron(it);
+          else submitToChat("Reusar plantilla de la firma: " + it.title);
         }}
       />
     );
@@ -183,7 +259,7 @@ export default function JuridicaApp({
         onCta={() => pushToast("Función de Casos próximamente", "info")}
       />
     );
-  else if (route === "settings") main = <Settings pushToast={pushToast} onLogout={logout} />;
+  else if (route === "settings") main = <Settings pushToast={pushToast} onLogout={logout} backendUrl={backendUrl} accessToken={accessToken} />;
 
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden" }}>

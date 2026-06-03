@@ -96,6 +96,7 @@ export type LibraryItem = {
   verified: boolean;
   accent: string;
   shared?: boolean;
+  patronId?: string;   // F4: si viene de la biblioteca de patrones, habilita reuse real (reuse_patron_id)
 };
 
 /* Library documents */

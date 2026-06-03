@@ -58,6 +58,9 @@ const LABELS: Record<string, string> = {
 };
 const labelFor = (n: string) => LABELS[n] ?? n;
 
+// Tools que producen un documento entregable → disparan el panel de documento (split-pane).
+const DOC_TOOLS = new Set(["render_document_code", "render_letter", "render_memo", "build_table_doc"]);
+
 const ICON_FOR: Record<string, string> = {
   verificar_fuente: "shieldCheck",
   web_search: "search",
@@ -397,12 +400,14 @@ export function Canvas({
   backendUrl,
   accessToken,
   initialMessage,
+  reusePatronId,
   narrow = false,
   pushToast,
 }: {
   backendUrl: string;
   accessToken: string;
   initialMessage?: string;
+  reusePatronId?: string;   // F4: parte de un patrón validado de la biblioteca (reuse_patron_id)
   narrow?: boolean;
   pushToast?: (text: string, kind?: string) => void;
 }) {
@@ -418,6 +423,9 @@ export function Canvas({
 
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [tab, setTab] = useState<"chat" | "doc">("doc");
+  // Canvas adaptativo: el split-pane (panel de documento) SOLO aparece cuando el agente
+  // realmente está generando un documento. Una pregunta casual no abre el panel.
+  const [docMode, setDocMode] = useState(false);
 
   const [followup, setFollowup] = useState("");
   const [selContext, setSelContext] = useState<string | null>(null);
@@ -428,11 +436,17 @@ export function Canvas({
   const revealTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const started = useRef(false);
   const editArtifactId = useRef<string | null>(null);
+  const reuseConsumed = useRef(false);   // F4: reuse_patron_id se aplica solo en el primer mensaje
+  const [pdfBusy, setPdfBusy] = useState(false);   // F5: export PDF on-demand
 
   const versions = Object.keys(versionStore)
     .map(Number)
     .sort((a, b) => a - b);
   const activeArtifact = currentVersion ? versionStore[currentVersion]?.artifact : undefined;
+  const hasDoc = !!activeArtifact;
+  // El split-pane aparece solo cuando hay un documento en juego (el agente lo está
+  // redactando o ya llegó). Para preguntas/charla casual, el Canvas es un chat normal.
+  const showSplit = docMode || hasDoc;
 
   useEffect(() => () => revealTimers.current.forEach(clearTimeout), []);
 
@@ -490,6 +504,11 @@ export function Canvas({
       if (kind === "edit" && editArtifactId.current) {
         body.edit_artifact_id = editArtifactId.current;
         if (sel) body.selection = sel;
+      } else if (reusePatronId && !reuseConsumed.current && !editArtifactId.current) {
+        // F4: el primer mensaje tras "Reusar plantilla" parte del docx-js validado del patrón
+        // (aún no hay artifact que editar). Se aplica una sola vez.
+        body.reuse_patron_id = reusePatronId;
+        reuseConsumed.current = true;
       }
 
       const res = await fetch(`${backendUrl}/api/chat/${sessionId.current}`, {
@@ -502,7 +521,11 @@ export function Canvas({
       for await (const { event, data } of parseSSE(res)) {
         if (event === "text_delta") patchTurn((t) => (t.text += data.text));
         else if (event === "thinking") patchTurn((t) => (t.thinking += data.text));
-        else if (event === "tool_call") patchTurn((t) => t.steps.push({ name: data.name, label: labelFor(data.name), icon: iconFor(data.name), status: "running" }));
+        else if (event === "tool_call") {
+          // Apenas el agente decide redactar un documento, abrimos el panel (split).
+          if (DOC_TOOLS.has(data.name)) setDocMode(true);
+          patchTurn((t) => t.steps.push({ name: data.name, label: labelFor(data.name), icon: iconFor(data.name), status: "running" }));
+        }
         else if (event === "tool_result")
           patchTurn((t) => {
             const s = [...t.steps].reverse().find((x) => x.name === data.name && x.status === "running");
@@ -528,6 +551,7 @@ export function Canvas({
             citations: data.citations || {},
           };
           editArtifactId.current = art.id;
+          setDocMode(true);
           patchTurn((t) => (t.artifact = art));
           setVersionStore((vs) => ({ ...vs, [art.version]: { artifact: art } }));
           setCurrentVersion(art.version);
@@ -569,6 +593,26 @@ export function Canvas({
     setSelContext(text);
     setTab("chat");
     setTimeout(() => followRef.current && followRef.current.focus(), 60);
+  }
+
+  // F5 — Export PDF on-demand: el backend convierte el DOCX guardado a PDF (E2B aislado).
+  async function downloadPdf() {
+    if (!activeArtifact || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const res = await fetch(`${backendUrl}/api/artifacts/${activeArtifact.id}/pdf?version=${activeArtifact.version}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error(`pdf ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch {
+      if (pushToast) pushToast("PDF no disponible · descarga el DOCX", "info");
+    } finally {
+      setPdfBusy(false);
+    }
   }
 
   function runEdit() {
@@ -689,7 +733,7 @@ export function Canvas({
                 runEdit();
               }
             }}
-            placeholder={selContext ? "Describe el cambio para la selección…" : "Pide un cambio o una nueva sección…"}
+            placeholder={selContext ? "Describe el cambio para la selección…" : hasDoc ? "Pide un cambio o una nueva sección…" : "Escribe tu mensaje…"}
             style={{ flex: 1, resize: "none", border: "none", outline: "none", background: "transparent", fontSize: 14, lineHeight: 1.5, color: "var(--text)", fontFamily: "var(--font-ui)", padding: "8px 0", maxHeight: 120 }}
           />
           <button
@@ -713,8 +757,6 @@ export function Canvas({
       </div>
     </div>
   );
-
-  const hasDoc = !!activeArtifact;
 
   // ===== document pane =====
   const docPane = (
@@ -740,9 +782,9 @@ export function Canvas({
             DOCX
           </button>
         )}
-        <button className="btn btn-ghost btn-sm" style={{ display: narrow ? "none" : undefined }}>
-          <Icon name="download" size={15} />
-          PDF
+        <button className="btn btn-ghost btn-sm" onClick={downloadPdf} disabled={!hasDoc || pdfBusy} style={{ display: narrow ? "none" : undefined }}>
+          <Icon name={pdfBusy ? "sparkles" : "download"} size={15} style={pdfBusy ? { animation: "spin 2s linear infinite" } : undefined} />
+          {pdfBusy ? "Generando…" : "PDF"}
         </button>
         <button
           onClick={() => setSourcesOpen(!sourcesOpen)}
@@ -788,6 +830,16 @@ export function Canvas({
       )}
     </div>
   );
+
+  // Sin documento en juego → chat de una sola columna (pregunta/charla casual).
+  // No se abre ningún panel ni se muestra "Redactando documento…".
+  if (!showSplit) {
+    return (
+      <div style={{ height: "100%", display: "flex", justifyContent: "center", background: "var(--bg-surface)" }}>
+        <div style={{ width: "100%", maxWidth: 860, minWidth: 0 }}>{chatPane}</div>
+      </div>
+    );
+  }
 
   if (narrow) {
     return (

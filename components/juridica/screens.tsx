@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Icon } from "./icons";
 import { Tooltip } from "./atoms";
 import { Composer } from "./shell";
@@ -186,12 +186,26 @@ function DocCard({ it, onReuse }: { it: LibraryItem; onReuse: () => void }) {
   );
 }
 
-export function Library({ initialTab, onReuse }: { initialTab: string; onReuse: (it: LibraryItem) => void }) {
+export function Library({
+  initialTab,
+  onReuse,
+  docs,
+  templates,
+}: {
+  initialTab: string;
+  onReuse: (it: LibraryItem) => void;
+  docs?: LibraryItem[];        // F4: documentos reales del org (/api/artifacts); si vacío, usa mock
+  templates?: LibraryItem[];   // F4: patrones reales (/api/patrones); si vacío, usa mock
+}) {
   const [tab, setTab] = useState(initialTab === "templates" ? "Plantillas" : "Mis documentos");
   const [q, setQ] = useState("");
 
   const tabs = ["Mis documentos", "Plantillas", "Compartidos"];
-  const items = tab === "Plantillas" ? TEMPLATES : LIBRARY;
+  // Datos reales si llegaron; si no, el mock del diseño (degradación elegante).
+  const realDocs = docs && docs.length ? docs : LIBRARY;
+  const realTemplates = templates && templates.length ? templates : TEMPLATES;
+  const items =
+    tab === "Plantillas" ? realTemplates : tab === "Compartidos" ? realTemplates.filter((t) => t.shared) : realDocs;
   const filtered = items.filter((it) => (it.title + it.subtitle).toLowerCase().includes(q.toLowerCase()));
 
   return (
@@ -304,10 +318,76 @@ function SelectBox({ value, options }: { value: string; options: string[] }) {
   );
 }
 
-export function Settings({ pushToast, onLogout }: { pushToast?: (t: string, k?: string) => void; onLogout?: () => void }) {
+type ProfileData = {
+  firm?: { name?: string; plan?: string; members?: number };
+  profile?: { entity_name?: string; primary_jurisdiction?: string };
+  ui?: { theme?: string; tone?: string; lang?: string };
+  usage?: { documentos?: number; verificaciones?: number; input_tokens?: number; output_tokens?: number; estimated_cost_usd?: number };
+};
+type VerifRow = { id: string; consulta?: string; tipo_fuente?: string; estado?: string; tier?: number; confianza?: number; created_at?: string };
+
+export function Settings({
+  pushToast,
+  onLogout,
+  backendUrl,
+  accessToken,
+}: {
+  pushToast?: (t: string, k?: string) => void;
+  onLogout?: () => void;
+  backendUrl?: string;
+  accessToken?: string;
+}) {
   const [tone, setTone] = useState("Formal jurídico");
   const [theme, setTheme] = useState("Claro");
   const [lang, setLang] = useState("Español");
+  const [data, setData] = useState<ProfileData | null>(null);
+  const [verifs, setVerifs] = useState<VerifRow[]>([]);
+
+  // F5 — perfil + uso reales (/api/profile) y auditoría (/api/verificaciones). Aditivo; si falla, usa defaults.
+  useEffect(() => {
+    if (!backendUrl || !accessToken) return;
+    let cancel = false;
+    const auth = { Authorization: `Bearer ${accessToken}` };
+    fetch(`${backendUrl}/api/profile`, { headers: auth })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancel || !d) return;
+        setData(d);
+        if (d.ui?.theme) setTheme(d.ui.theme);
+        if (d.ui?.tone) setTone(d.ui.tone);
+        if (d.ui?.lang) setLang(d.ui.lang);
+      })
+      .catch(() => {});
+    fetch(`${backendUrl}/api/verificaciones?limit=40`, { headers: auth })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => {
+        if (!cancel && Array.isArray(rows)) setVerifs(rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancel = true;
+    };
+  }, [backendUrl, accessToken]);
+
+  async function save() {
+    if (backendUrl && accessToken) {
+      try {
+        await fetch(`${backendUrl}/api/profile`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ theme, tone, lang }),
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+    pushToast && pushToast("Cambios guardados", "success");
+  }
+
+  const firmName = data?.firm?.name || "Mi firma";
+  const planLabel = data?.firm?.plan ? `Plan ${data.firm.plan}` : "Plan Firma";
+  const members = data?.firm?.members ?? 1;
+  const u = data?.usage;
 
   return (
     <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
@@ -321,8 +401,10 @@ export function Settings({ pushToast, onLogout }: { pushToast?: (t: string, k?: 
             <Icon name="building" size={28} style={{ color: "#fff" }} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 18, fontWeight: 650 }}>Restrepo &amp; Asociados</div>
-            <div style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>Bogotá D.C. · 8 miembros · Plan Firma</div>
+            <div style={{ fontSize: 18, fontWeight: 650 }}>{firmName}</div>
+            <div style={{ fontSize: 13.5, color: "var(--text-secondary)" }}>
+              {(data?.profile?.primary_jurisdiction || "Colombia")} · {members} {members === 1 ? "miembro" : "miembros"} · {planLabel}
+            </div>
           </div>
           <button className="btn btn-secondary">
             <Icon name="pencil" size={15} />
@@ -386,13 +468,13 @@ export function Settings({ pushToast, onLogout }: { pushToast?: (t: string, k?: 
           </Field>
         </Section>
 
-        <Section title="Uso del mes" icon="layers">
+        <Section title="Uso" icon="layers">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
             {(
               [
-                ["Documentos generados", "47", "de 200"],
-                ["Verificaciones", "183", "de 800"],
-                ["Créditos restantes", "612", "renueva 1 jul"],
+                ["Documentos generados", String(u?.documentos ?? 0), "acumulado"],
+                ["Verificaciones", String(u?.verificaciones ?? 0), "contra fuentes oficiales"],
+                ["Costo estimado", u ? `$${(u.estimated_cost_usd ?? 0).toFixed(2)}` : "$0.00", "USD · tokens"],
               ] as [string, string, string][]
             ).map(([l, v, s], i) => (
               <div key={i} style={{ padding: "16px 16px", border: "1px solid var(--border)", borderRadius: "var(--r-md)", background: "var(--bg-base)" }}>
@@ -404,8 +486,39 @@ export function Settings({ pushToast, onLogout }: { pushToast?: (t: string, k?: 
           </div>
         </Section>
 
+        <Section title="Auditoría de fuentes" icon="shieldCheck">
+          {verifs.length === 0 ? (
+            <div style={{ padding: 18, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+              Aún no hay verificaciones registradas. Cada norma o jurisprudencia citada se verifica contra fuentes oficiales y queda aquí.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {verifs.map((v, i) => {
+                const est = (v.estado || "").toLowerCase();
+                const color = est.includes("vigente") || est.includes("exequible")
+                  ? "var(--success)"
+                  : est.includes("derog") || est.includes("inexequible")
+                  ? "var(--danger, #DC2626)"
+                  : "var(--gold, #C98A14)";
+                return (
+                  <div key={v.id || i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: i < verifs.length - 1 ? "1px solid var(--border)" : "none" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.consulta || "Consulta"}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        {(v.tipo_fuente || "fuente")} {v.tier != null ? `· tier ${v.tier}` : ""} {v.created_at ? `· ${new Date(v.created_at).toLocaleDateString("es-CO")}` : ""}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.03em", flexShrink: 0 }}>{v.estado || "—"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Section>
+
         <div style={{ display: "flex", gap: 10, marginTop: 26 }}>
-          <button className="btn btn-primary" onClick={() => pushToast && pushToast("Cambios guardados", "success")}>
+          <button className="btn btn-primary" onClick={save}>
             Guardar cambios
           </button>
           <button className="btn btn-ghost" onClick={onLogout}>
