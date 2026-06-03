@@ -48,7 +48,7 @@ export function Home({
   setJurisdiction,
 }: {
   composerStyle?: "elevated" | "bordered" | "pill";
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, modeOverride?: string) => void;
   onNavigate: (r: string) => void;
   draft: string;
   setDraft: (v: string) => void;
@@ -99,7 +99,7 @@ export function Home({
                 className="chip"
                 onClick={() => {
                   setMode(s.mode);
-                  onSubmit(s.label);
+                  onSubmit(s.label, s.mode);
                 }}
               >
                 <Icon name={s.icon} size={15} style={{ color: "var(--primary)" }} />

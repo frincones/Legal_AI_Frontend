@@ -6,6 +6,7 @@ import { Toasts, CommandPalette, EmptyState, type Toast } from "./atoms";
 import { Sidebar } from "./shell";
 import { Home, Library, Settings } from "./screens";
 import { ChatView } from "./ChatView";
+import { Canvas } from "./Canvas";
 import type { LibraryItem } from "./data";
 import { createClient } from "@/lib/supabase/client";
 
@@ -87,12 +88,15 @@ export default function JuridicaApp({
     setRoute(r);
   }
 
-  function submitToChat(text: string) {
+  function submitToChat(text: string, modeOverride?: string) {
     if (!text || !text.trim()) return;
+    const effectiveMode = modeOverride ?? mode;
+    if (modeOverride) setMode(modeOverride);
     setChatSeed(text.trim());
     setChatKey((k) => k + 1);
     setDraft("");
-    setRoute("chat");
+    // Modo "Documento" → Canvas split-pane. Modo "Pregunta" → ChatView.
+    setRoute(effectiveMode === "Documento" ? "canvas" : "chat");
   }
 
   function newDoc() {
@@ -136,6 +140,17 @@ export default function JuridicaApp({
         setMode={setMode}
         jurisdiction={jurisdiction}
         setJurisdiction={setJurisdiction}
+      />
+    );
+  else if (route === "canvas")
+    main = (
+      <Canvas
+        key={chatKey}
+        backendUrl={backendUrl}
+        accessToken={accessToken}
+        initialMessage={chatSeed}
+        narrow={narrow}
+        pushToast={pushToast}
       />
     );
   else if (route === "library")

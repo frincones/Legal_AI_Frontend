@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Icon } from "./icons";
-import { CITATIONS } from "./data";
+import { CITATIONS, type Citation } from "./data";
 
 /* ---------- Tooltip (hover/focus, dark) ---------- */
 export function Tooltip({ content, children, width = 280 }: { content: ReactNode; children: ReactNode; width?: number }) {
@@ -66,8 +66,24 @@ export const STATUS_META: Record<string, { color: string; bg: string; text: stri
 };
 
 /* ---------- Verified citation chip — 3 visual treatments ---------- */
-export function VerifiedChip({ citeId, variant = "pill", pulse = false }: { citeId: string; variant?: "pill" | "badge" | "underline"; pulse?: boolean }) {
-  const c = CITATIONS[citeId];
+/* Resolution order for the citation data:
+   1. explicit `citation` object (real data from the backend artifact)
+   2. lookup `citeId` in the `citations` registry passed by context (real data)
+   3. fallback to the mock CITATIONS registry (legacy / prototype usages) */
+export function VerifiedChip({
+  citeId,
+  citation,
+  citations,
+  variant = "pill",
+  pulse = false,
+}: {
+  citeId?: string;
+  citation?: Citation;
+  citations?: Record<string, Citation>;
+  variant?: "pill" | "badge" | "underline";
+  pulse?: boolean;
+}) {
+  const c = citation ?? (citeId ? (citations?.[citeId] ?? CITATIONS[citeId]) : undefined);
   if (!c) return null;
   const m = STATUS_META[c.status] || STATUS_META.vigente;
   const tip = (
