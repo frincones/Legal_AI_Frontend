@@ -7,6 +7,7 @@ import { Sidebar } from "./shell";
 import { Home, Library, Settings } from "./screens";
 import { ChatView } from "./ChatView";
 import { Canvas } from "./Canvas";
+import { Wizard } from "./Wizard";
 import type { LibraryItem } from "./data";
 import { createClient } from "@/lib/supabase/client";
 
@@ -74,7 +75,26 @@ export default function JuridicaApp({
   const [libTemplates, setLibTemplates] = useState<LibraryItem[]>([]);
   const [reusePatronId, setReusePatronId] = useState<string | undefined>(undefined);
   const [reuseTitle, setReuseTitle] = useState<string | undefined>(undefined);
+  const [showWizard, setShowWizard] = useState(false);
   const toastId = useRef(0);
+
+  // F6.3 — Wizard de onboarding: solo la primera vez (flag en localStorage) y nunca en el popup OAuth.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isPopup = !!window.opener && !!new URLSearchParams(window.location.search).get("connected");
+    if (!isPopup && backendUrl && accessToken && !localStorage.getItem("juridica_onboarded")) {
+      setShowWizard(true);
+    }
+  }, [backendUrl, accessToken]);
+
+  function closeWizard() {
+    try {
+      localStorage.setItem("juridica_onboarded", "1");
+    } catch {
+      /* ignore */
+    }
+    setShowWizard(false);
+  }
 
   // F1.3 — recientes reales desde el backend (/api/sessions). Aditivo; si falla, el sidebar usa el mock.
   useEffect(() => {
@@ -313,6 +333,7 @@ export default function JuridicaApp({
       </main>
 
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} onNavigate={go} onNew={newDoc} />
+      {showWizard && <Wizard backendUrl={backendUrl} accessToken={accessToken} onClose={closeWizard} />}
       <Toasts items={toasts} />
     </div>
   );
