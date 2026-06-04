@@ -4,7 +4,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import { Icon } from "./icons";
 import { Tooltip } from "./atoms";
 import { Composer } from "./shell";
-import { SUGGESTIONS, LIBRARY, TEMPLATES, type LibraryItem } from "./data";
+import { SUGGESTIONS, type LibraryItem } from "./data";
 import { ToolLogo } from "./Wizard";
 
 /* ============================ HOME ============================ */
@@ -202,9 +202,9 @@ export function Library({
   const [q, setQ] = useState("");
 
   const tabs = ["Mis documentos", "Plantillas", "Compartidos"];
-  // Datos reales si llegaron; si no, el mock del diseño (degradación elegante).
-  const realDocs = docs && docs.length ? docs : LIBRARY;
-  const realTemplates = templates && templates.length ? templates : TEMPLATES;
+  // Solo datos reales del usuario/org (sin mock).
+  const realDocs = docs || [];
+  const realTemplates = templates || [];
   const items =
     tab === "Plantillas" ? realTemplates : tab === "Compartidos" ? realTemplates.filter((t) => t.shared) : realDocs;
   const filtered = items.filter((it) => (it.title + it.subtitle).toLowerCase().includes(q.toLowerCase()));
@@ -244,11 +244,25 @@ export function Library({
         </div>
 
         {/* Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))", gap: 18 }}>
-          {filtered.map((it) => (
-            <DocCard key={it.id} it={it} onReuse={() => onReuse(it)} />
-          ))}
-        </div>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text-muted)" }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--bg-elevated-2)", display: "grid", placeItems: "center", margin: "0 auto 14px" }}>
+              <Icon name={tab === "Plantillas" ? "template" : "book"} size={24} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>
+              {tab === "Plantillas" ? "Aún no tienes plantillas" : "Aún no tienes documentos"}
+            </div>
+            <div style={{ fontSize: 13.5 }}>
+              {tab === "Plantillas" ? "Cada documento que generes se guarda como plantilla reutilizable." : "Genera tu primer documento desde el inicio y aparecerá aquí."}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))", gap: 18 }}>
+            {filtered.map((it) => (
+              <DocCard key={it.id} it={it} onReuse={() => onReuse(it)} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -333,11 +347,13 @@ export function Settings({
   onLogout,
   backendUrl,
   accessToken,
+  email,
 }: {
   pushToast?: (t: string, k?: string) => void;
   onLogout?: () => void;
   backendUrl?: string;
   accessToken?: string;
+  email?: string | null;
 }) {
   const [tone, setTone] = useState("Formal jurídico");
   const [theme, setTheme] = useState("Claro");
@@ -503,23 +519,23 @@ export function Settings({
         </Section>
 
         <Section title="Equipo" icon="user">
-          {(
-            [
-              ["Andrés Restrepo", "Administrador", "AR", "linear-gradient(135deg,#566076,#0D1320)"],
-              ["María Fernanda Lozano", "Abogada litigante", "ML", "linear-gradient(135deg,#7B6CF6,#4F7BFF)"],
-              ["Carlos Mejía", "Abogado de cobranza", "CM", "linear-gradient(135deg,#21C7D8,#2563EB)"],
-            ] as [string, string, string, string][]
-          ).map(([n, r, ini, bg], i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: i < 2 ? "1px solid var(--border)" : "none" }}>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: bg, color: "#fff", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 600 }}>{ini}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{n}</div>
-                <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{r}</div>
-              </div>
-              {i === 0 && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", background: "var(--primary-soft)", padding: "3px 9px", borderRadius: 999 }}>TÚ</span>}
+          {/* Datos reales: el usuario actual (admin). Sin nombres mock. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: members > 1 ? "1px solid var(--border)" : "none" }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--aurora)", color: "#fff", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 600 }}>
+              {(email || "T").slice(0, 2).toUpperCase()}
             </div>
-          ))}
-          <button className="btn btn-secondary btn-sm" style={{ marginTop: 14 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email || "Tu cuenta"}</div>
+              <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Administrador</div>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", background: "var(--primary-soft)", padding: "3px 9px", borderRadius: 999 }}>TÚ</span>
+          </div>
+          {members > 1 && (
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)", padding: "10px 0 0" }}>
+              y {members - 1} {members - 1 === 1 ? "miembro más" : "miembros más"} en tu organización.
+            </div>
+          )}
+          <button className="btn btn-secondary btn-sm" style={{ marginTop: 14 }} onClick={() => pushToast && pushToast("Invitaciones próximamente", "info")}>
             <Icon name="plus" size={15} />
             Invitar miembro
           </button>

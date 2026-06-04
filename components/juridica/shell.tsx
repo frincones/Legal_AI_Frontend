@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, type ReactNode, type CSSProperties } from "react";
 import { Icon, Logo } from "./icons";
 import { AgentAvatar } from "./atoms";
-import { RECENTS } from "./data";
 
 /* ---------------- Sidebar ---------------- */
 export function Sidebar({
@@ -23,7 +22,7 @@ export function Sidebar({
   email?: string | null;
   recents?: { id: string; title: string }[];
 }) {
-  const recentList = recents && recents.length ? recents : RECENTS;
+  const recentList = recents || [];   // solo conversaciones reales del usuario (sin mock)
   const navItems = [
     { id: "library", icon: "book", label: "Biblioteca" },
     { id: "templates", icon: "template", label: "Plantillas" },
@@ -150,6 +149,11 @@ export function Sidebar({
               {!collapsed && <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.title}</span>}
             </button>
           ))}
+          {!collapsed && recentList.length === 0 && (
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)", padding: "4px 10px", lineHeight: 1.5 }}>
+              Tus conversaciones aparecerán aquí.
+            </div>
+          )}
         </div>
       </div>
 

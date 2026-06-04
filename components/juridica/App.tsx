@@ -292,7 +292,7 @@ export default function JuridicaApp({
         onCta={() => pushToast("Función de Casos próximamente", "info")}
       />
     );
-  else if (route === "settings") main = <Settings pushToast={pushToast} onLogout={logout} backendUrl={backendUrl} accessToken={accessToken} />;
+  else if (route === "settings") main = <Settings pushToast={pushToast} onLogout={logout} backendUrl={backendUrl} accessToken={accessToken} email={email} />;
 
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden" }}>
