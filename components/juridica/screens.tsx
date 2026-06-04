@@ -5,6 +5,7 @@ import { Icon } from "./icons";
 import { Tooltip } from "./atoms";
 import { Composer } from "./shell";
 import { SUGGESTIONS, LIBRARY, TEMPLATES, type LibraryItem } from "./data";
+import { ToolLogo } from "./Wizard";
 
 /* ============================ HOME ============================ */
 function QuickCard({ icon, title, desc, onClick }: { icon: string; title: string; desc: string; onClick?: () => void }) {
@@ -327,12 +328,6 @@ type ProfileData = {
 type VerifRow = { id: string; consulta?: string; tipo_fuente?: string; estado?: string; tier?: number; confianza?: number; created_at?: string };
 type IntegrationRow = { toolkit: string; label: string; icon: string; provider: string; connected: boolean; enabled: boolean; account_label?: string | null };
 
-// Iconos disponibles mapeados por toolkit (el set de icons.tsx no tiene mail/calendar).
-const INT_ICON: Record<string, string> = {
-  gmail: "send", outlook: "send", googlecalendar: "clock", googledrive: "folder",
-  googledocs: "fileText", googlesheets: "copy", microsoft_teams: "message",
-};
-
 export function Settings({
   pushToast,
   onLogout,
@@ -549,9 +544,7 @@ export function Settings({
               return (
                 <div key={it.toolkit} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "13px 14px", background: "var(--bg-base)", display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--primary-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                      <Icon name={INT_ICON[it.toolkit] || "command"} size={17} style={{ color: "var(--primary)" }} />
-                    </div>
+                    <ToolLogo slug={it.toolkit} size={34} />
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}</div>
                       <div style={{ fontSize: 11.5, color: it.connected ? "var(--success)" : "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>

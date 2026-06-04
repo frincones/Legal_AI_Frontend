@@ -10,8 +10,30 @@ const INT_ICON: Record<string, string> = {
   googledocs: "fileText", googlesheets: "copy", microsoft_teams: "message",
 };
 
-/* F6.3 — Wizard de onboarding: tras el primer login, ofrece conectar herramientas para que el
-   asistente las use (calendario, email, drive…). Es opcional; también se hace desde Ajustes. */
+/* Logo oficial de la herramienta (Composio los expone en logos.composio.dev). Con fallback a icono. */
+export function ToolLogo({ slug, size = 26 }: { slug: string; size?: number }) {
+  const [err, setErr] = useState(false);
+  if (err) {
+    return (
+      <div style={{ width: size, height: size, borderRadius: 7, background: "var(--primary-soft)", display: "grid", placeItems: "center" }}>
+        <Icon name={INT_ICON[slug] || "command"} size={Math.round(size * 0.58)} style={{ color: "var(--primary)" }} />
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://logos.composio.dev/api/${slug}`}
+      width={size}
+      height={size}
+      alt=""
+      onError={() => setErr(true)}
+      style={{ width: size, height: size, borderRadius: 7, display: "block", objectFit: "contain", background: "#fff", border: "1px solid var(--border)", padding: 3 }}
+    />
+  );
+}
+
+/* F6.3 — Wizard de onboarding: tras el primer login, ofrece conectar herramientas. Opcional. */
 export function Wizard({ backendUrl, accessToken, onClose }: { backendUrl: string; accessToken: string; onClose: () => void }) {
   const [rows, setRows] = useState<IntegrationRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -63,11 +85,11 @@ export function Wizard({ backendUrl, accessToken, onClose }: { backendUrl: strin
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(10,12,20,0.55)", backdropFilter: "blur(6px)", display: "grid", placeItems: "center", padding: 20 }}>
-      <div className="fade-up" style={{ width: "100%", maxWidth: 560, background: "var(--bg-surface)", borderRadius: "var(--r-lg)", border: "1px solid var(--border)", boxShadow: "var(--sh-pop)", overflow: "hidden" }}>
-        <div style={{ padding: "26px 28px 18px", background: "var(--grad-aurora-soft)", borderBottom: "1px solid var(--border)" }}>
+      <div className="fade-up" style={{ width: "100%", maxWidth: 580, background: "var(--bg-surface)", borderRadius: "var(--r-xl)", border: "1px solid var(--border)", boxShadow: "var(--sh-pop)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90vh" }}>
+        <div style={{ padding: "26px 28px 18px", background: "var(--grad-aurora-soft)", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <Logo size={30} />
-            <span style={{ fontWeight: 700, fontSize: 16 }}>Bienvenido a Juridica</span>
+            <Logo size={28} />
+            <span style={{ fontWeight: 700, fontSize: 15.5 }}>Bienvenido a Juridica</span>
           </div>
           <h2 style={{ fontSize: 20, fontWeight: 650, margin: "0 0 6px", letterSpacing: "-0.02em" }}>Conecta tus herramientas</h2>
           <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
@@ -75,37 +97,35 @@ export function Wizard({ backendUrl, accessToken, onClose }: { backendUrl: strin
           </p>
         </div>
 
-        <div className="no-scrollbar" style={{ padding: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, maxHeight: 320, overflow: "auto" }}>
+        <div className="no-scrollbar" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8, overflow: "auto" }}>
           {rows.map((it) => {
             const b = busy === it.toolkit;
             return (
-              <div key={it.toolkit} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "12px 13px", background: "var(--bg-base)", display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: "var(--primary-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                  <Icon name={INT_ICON[it.toolkit] || "command"} size={16} style={{ color: "var(--primary)" }} />
-                </div>
-                <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}</span>
+              <div key={it.toolkit} style={{ display: "flex", alignItems: "center", gap: 12, border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "11px 13px", background: "var(--bg-base)" }}>
+                <ToolLogo slug={it.toolkit} size={30} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}</span>
                 {it.connected ? (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--success)" }}>
-                    <Icon name="check" size={14} /> Listo
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, fontWeight: 600, color: "var(--success)", flexShrink: 0 }}>
+                    <Icon name="check" size={15} /> Conectado
                   </span>
                 ) : (
-                  <button className="btn btn-secondary btn-sm" disabled={b} onClick={() => connect(it.toolkit)}>
-                    <Icon name={b ? "sparkles" : "plus"} size={13} style={b ? { animation: "spin 2s linear infinite" } : undefined} />
-                    {b ? "…" : "Conectar"}
+                  <button className="btn btn-secondary btn-sm" disabled={b} onClick={() => connect(it.toolkit)} style={{ flexShrink: 0 }}>
+                    <Icon name={b ? "sparkles" : "plus"} size={14} style={b ? { animation: "spin 2s linear infinite" } : undefined} />
+                    {b ? "Conectando…" : "Conectar"}
                   </button>
                 )}
               </div>
             );
           })}
-          {rows.length === 0 && <div style={{ gridColumn: "1 / -1", textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: 18 }}>Cargando…</div>}
+          {rows.length === 0 && <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: 18 }}>Cargando…</div>}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 22px", borderTop: "1px solid var(--border)" }}>
-          <span style={{ fontSize: 12.5, color: "var(--text-muted)", flex: 1 }}>
-            {connectedCount > 0 ? `${connectedCount} conectada${connectedCount === 1 ? "" : "s"} · puedes gestionar el resto en Ajustes` : "Puedes hacerlo luego desde Ajustes → Integraciones"}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 22px", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
+          <span style={{ fontSize: 12.5, color: "var(--text-muted)", flex: 1, minWidth: 0 }}>
+            {connectedCount > 0 ? `${connectedCount} conectada${connectedCount === 1 ? "" : "s"} · gestiona el resto en Ajustes` : "También puedes hacerlo luego en Ajustes → Integraciones"}
           </span>
-          <button className="btn btn-ghost" onClick={onClose}>Omitir</button>
-          <button className="btn btn-primary" onClick={onClose}>
+          <button className="btn btn-ghost" onClick={onClose} style={{ flexShrink: 0 }}>Omitir</button>
+          <button className="btn btn-primary" onClick={onClose} style={{ flexShrink: 0 }}>
             {connectedCount > 0 ? "Empezar" : "Continuar"}
           </button>
         </div>
