@@ -135,6 +135,14 @@ export default function JuridicaApp({
     if (narrow) setCollapsed(true);
   }, [narrow]);
 
+  // F6.4 — Si esta ventana es el popup de OAuth de una integración (Composio redirige a
+  // /chat?connected=1), ciérrala: el Settings padre detecta el cierre y sincroniza.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.opener && new URLSearchParams(window.location.search).get("connected")) {
+      window.close();
+    }
+  }, []);
+
   function pushToast(text: string, kind = "info") {
     const id = ++toastId.current;
     setToasts((ts) => [...ts, { id, text, kind }]);

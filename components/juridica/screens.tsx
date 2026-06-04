@@ -325,6 +325,13 @@ type ProfileData = {
   usage?: { documentos?: number; verificaciones?: number; input_tokens?: number; output_tokens?: number; estimated_cost_usd?: number };
 };
 type VerifRow = { id: string; consulta?: string; tipo_fuente?: string; estado?: string; tier?: number; confianza?: number; created_at?: string };
+type IntegrationRow = { toolkit: string; label: string; icon: string; provider: string; connected: boolean; enabled: boolean; account_label?: string | null };
+
+// Iconos disponibles mapeados por toolkit (el set de icons.tsx no tiene mail/calendar).
+const INT_ICON: Record<string, string> = {
+  gmail: "send", outlook: "send", googlecalendar: "clock", googledrive: "folder",
+  googledocs: "fileText", googlesheets: "copy", microsoft_teams: "message",
+};
 
 export function Settings({
   pushToast,
@@ -342,6 +349,8 @@ export function Settings({
   const [lang, setLang] = useState("Español");
   const [data, setData] = useState<ProfileData | null>(null);
   const [verifs, setVerifs] = useState<VerifRow[]>([]);
+  const [integrations, setIntegrations] = useState<IntegrationRow[]>([]);
+  const [intBusy, setIntBusy] = useState<string | null>(null);
 
   // F5 — perfil + uso reales (/api/profile) y auditoría (/api/verificaciones). Aditivo; si falla, usa defaults.
   useEffect(() => {
@@ -364,10 +373,72 @@ export function Settings({
         if (!cancel && Array.isArray(rows)) setVerifs(rows);
       })
       .catch(() => {});
+    fetch(`${backendUrl}/api/integrations`, { headers: auth })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancel && d && Array.isArray(d.available)) setIntegrations(d.available);
+      })
+      .catch(() => {});
     return () => {
       cancel = true;
     };
   }, [backendUrl, accessToken]);
+
+  // F6.4 — Integraciones (Composio). connect abre el OAuth gestionado; al cerrar, sincroniza.
+  const intHeaders = { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` };
+  async function syncIntegrations() {
+    try {
+      const r = await fetch(`${backendUrl}/api/integrations/sync`, { method: "POST", headers: intHeaders });
+      const d = await r.json();
+      if (d && Array.isArray(d.available)) setIntegrations(d.available);
+    } catch {
+      /* ignore */
+    }
+  }
+  async function connectTool(toolkit: string) {
+    if (!backendUrl || !accessToken) return;
+    setIntBusy(toolkit);
+    try {
+      const r = await fetch(`${backendUrl}/api/integrations/connect`, {
+        method: "POST", headers: intHeaders,
+        body: JSON.stringify({ toolkit, callback_url: window.location.origin + "/chat?connected=1" }),
+      });
+      const d = await r.json();
+      if (d?.redirect_url) {
+        const popup = window.open(d.redirect_url, "_blank", "width=520,height=700");
+        const timer = setInterval(() => {
+          if (!popup || popup.closed) {
+            clearInterval(timer);
+            setIntBusy(null);
+            syncIntegrations();
+          }
+        }, 1000);
+      } else {
+        setIntBusy(null);
+        pushToast && pushToast(d?.error || "No se pudo iniciar la conexión", "info");
+      }
+    } catch {
+      setIntBusy(null);
+    }
+  }
+  async function toggleTool(toolkit: string, enabled: boolean) {
+    setIntegrations((xs) => xs.map((x) => (x.toolkit === toolkit ? { ...x, enabled } : x)));
+    try {
+      await fetch(`${backendUrl}/api/integrations/toggle`, { method: "POST", headers: intHeaders, body: JSON.stringify({ toolkit, enabled }) });
+    } catch {
+      /* ignore */
+    }
+  }
+  async function disconnectTool(toolkit: string) {
+    setIntBusy(toolkit);
+    try {
+      await fetch(`${backendUrl}/api/integrations/${toolkit}`, { method: "DELETE", headers: intHeaders });
+      await syncIntegrations();
+    } catch {
+      /* ignore */
+    }
+    setIntBusy(null);
+  }
 
   async function save() {
     if (backendUrl && accessToken) {
@@ -466,6 +537,52 @@ export function Settings({
           <Field label="Idioma">
             <Segmented value={lang} onChange={setLang} options={["Español", "English"]} />
           </Field>
+        </Section>
+
+        <Section title="Integraciones" icon="command">
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "-6px 0 16px" }}>
+            Conecta tus herramientas para que el asistente pueda usarlas (leer tu calendario, enviar correos, buscar en tu Drive…). Cada cuenta es privada de tu usuario.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+            {integrations.map((it) => {
+              const busy = intBusy === it.toolkit;
+              return (
+                <div key={it.toolkit} style={{ border: "1px solid var(--border)", borderRadius: "var(--r-md)", padding: "13px 14px", background: "var(--bg-base)", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--primary-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                      <Icon name={INT_ICON[it.toolkit] || "command"} size={17} style={{ color: "var(--primary)" }} />
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}</div>
+                      <div style={{ fontSize: 11.5, color: it.connected ? "var(--success)" : "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: it.connected ? "var(--success)" : "var(--border-strong)" }} />
+                        {it.connected ? (it.account_label || "Conectado") : "Sin conectar"}
+                      </div>
+                    </div>
+                  </div>
+                  {it.connected ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--text-secondary)", cursor: "pointer", flex: 1 }}>
+                        <input type="checkbox" checked={it.enabled} onChange={(e) => toggleTool(it.toolkit, e.target.checked)} />
+                        Habilitada para el agente
+                      </label>
+                      <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => disconnectTool(it.toolkit)} title="Desconectar">
+                        <Icon name="x" size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => connectTool(it.toolkit)} style={{ width: "100%" }}>
+                      <Icon name={busy ? "sparkles" : "plus"} size={14} style={busy ? { animation: "spin 2s linear infinite" } : undefined} />
+                      {busy ? "Conectando…" : "Conectar"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {integrations.length === 0 && (
+            <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>Cargando integraciones…</div>
+          )}
         </Section>
 
         <Section title="Uso" icon="layers">
