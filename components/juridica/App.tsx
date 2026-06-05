@@ -76,6 +76,7 @@ export default function JuridicaApp({
   const [reusePatronId, setReusePatronId] = useState<string | undefined>(undefined);
   const [reuseTitle, setReuseTitle] = useState<string | undefined>(undefined);
   const [showWizard, setShowWizard] = useState(false);
+  const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
   const toastId = useRef(0);
 
   // F6.3 — Wizard de onboarding: solo la primera vez (flag en localStorage) y nunca en el popup OAuth.
@@ -179,6 +180,7 @@ export default function JuridicaApp({
     if (modeOverride) setMode(modeOverride);
     setReusePatronId(undefined);
     setReuseTitle(undefined);
+    setOpenSessionId(undefined);
     setChatSeed(text.trim());
     setChatKey((k) => k + 1);
     setDraft("");
@@ -199,11 +201,22 @@ export default function JuridicaApp({
     pushToast(`Plantilla «${it.title}» cargada · describe tu caso`, "primary");
   }
 
+  // Abre una conversación existente desde 'Recientes' (carga su historial en ChatView).
+  function openConversation(id: string) {
+    setOpenSessionId(id);
+    setChatSeed(undefined);
+    setReusePatronId(undefined);
+    setReuseTitle(undefined);
+    setChatKey((k) => k + 1);
+    setRoute("chat");
+  }
+
   function newDoc() {
     setDraft("");
     setChatSeed(undefined);
     setReusePatronId(undefined);
     setReuseTitle(undefined);
+    setOpenSessionId(undefined);
     setRoute("home");
   }
 
@@ -238,6 +251,7 @@ export default function JuridicaApp({
         backendUrl={backendUrl}
         accessToken={accessToken}
         initialMessage={chatSeed}
+        loadSessionId={openSessionId}
         mode={mode}
         setMode={setMode}
         jurisdiction={jurisdiction}
@@ -296,7 +310,7 @@ export default function JuridicaApp({
 
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden" }}>
-      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={newDoc} email={email} recents={recents} />}
+      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={newDoc} email={email} recents={recents} onOpenRecent={openConversation} />}
       <main style={{ flex: 1, minWidth: 0, height: "100%", position: "relative", display: "flex", flexDirection: "column" }}>
         {mobile && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}>

@@ -13,6 +13,7 @@ export function Sidebar({
   onNew,
   email,
   recents,
+  onOpenRecent,
 }: {
   route: string;
   onNavigate: (r: string) => void;
@@ -21,8 +22,13 @@ export function Sidebar({
   onNew: () => void;
   email?: string | null;
   recents?: { id: string; title: string }[];
+  onOpenRecent?: (id: string) => void;
 }) {
   const recentList = recents || [];   // solo conversaciones reales del usuario (sin mock)
+  // Nombre/iniciales reales derivados del correo (sin datos mock).
+  const userLocal = (email || "").split("@")[0] || "Mi cuenta";
+  const userName = userLocal.charAt(0).toUpperCase() + userLocal.slice(1);
+  const userInitials = (email || "MC").replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "MC";
   const navItems = [
     { id: "library", icon: "book", label: "Biblioteca" },
     { id: "templates", icon: "template", label: "Plantillas" },
@@ -62,7 +68,7 @@ export function Sidebar({
     </button>
   );
 
-  const firmEmail = email || "andres@restrepolegal.co";
+  const firmEmail = email || "";
 
   return (
     <aside
@@ -120,7 +126,7 @@ export function Sidebar({
           {recentList.map((r) => (
             <button
               key={r.id}
-              onClick={() => onNavigate("home")}
+              onClick={() => (onOpenRecent ? onOpenRecent(r.id) : onNavigate("home"))}
               title={collapsed ? (r.title || "Conversación") : undefined}
               style={{
                 display: "flex",
@@ -177,10 +183,10 @@ export function Sidebar({
             e.currentTarget.style.background = "transparent";
           }}
         >
-          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#566076,#0D1320)", color: "#fff", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>AR</div>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--aurora)", color: "#fff", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{userInitials}</div>
           {!collapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Andrés Restrepo</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{userName}</div>
               <div style={{ fontSize: 11.5, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{firmEmail}</div>
             </div>
           )}

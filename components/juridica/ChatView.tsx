@@ -69,6 +69,7 @@ export function ChatView({
   backendUrl,
   accessToken,
   initialMessage,
+  loadSessionId,
   mode,
   setMode,
   jurisdiction,
@@ -77,6 +78,7 @@ export function ChatView({
   backendUrl: string;
   accessToken: string;
   initialMessage?: string;
+  loadSessionId?: string;   // abrir una conversación existente desde 'Recientes'
   mode: string;
   setMode: (m: string) => void;
   jurisdiction: string;
@@ -85,7 +87,7 @@ export function ChatView({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const sessionId = useRef<string>(crypto.randomUUID());
+  const sessionId = useRef<string>(loadSessionId || crypto.randomUUID());
   const scrollRef = useRef<HTMLDivElement>(null);
   const started = useRef(false);
 
@@ -139,11 +141,28 @@ export function ChatView({
     }
   }
 
-  // Kick off the conversation with the message typed on Home
+  // Arranca: o carga una conversación existente (Recientes), o lanza el mensaje inicial (Home).
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    if (initialMessage && initialMessage.trim()) runMessage(initialMessage);
+    if (loadSessionId) {
+      fetch(`${backendUrl}/api/sessions/${loadSessionId}`, { headers: { Authorization: `Bearer ${accessToken}` } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d?.messages && Array.isArray(d.messages)) {
+            setMessages(
+              d.messages.map((m: { role: string; text: string }) =>
+                m.role === "user"
+                  ? { role: "user", text: m.text }
+                  : { role: "assistant", turn: { thinking: "", steps: [], text: m.text, artifacts: [] } },
+              ),
+            );
+          }
+        })
+        .catch(() => {});
+    } else if (initialMessage && initialMessage.trim()) {
+      runMessage(initialMessage);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
