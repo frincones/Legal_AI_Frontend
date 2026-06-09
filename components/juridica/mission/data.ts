@@ -112,4 +112,5 @@ export const api = {
   pauseAutopilot: (b: string, t: string) => jpost<{ paused?: boolean }>(b, t, "/api/autopilot/pause", {}, {}),
   approvals: (b: string, t: string) => jget<ApprovalItem[]>(b, t, "/api/approvals", []),
   decide: (b: string, t: string, id: string, decision: string, note?: string) => jpost(b, t, `/api/approvals/${id}/${decision}`, { note }, {}),
+  credits: (b: string, t: string) => jget<{ balance: number | null; cap: number | null; ledger: unknown[] }>(b, t, "/api/credits", { balance: null, cap: null, ledger: [] }),
 };

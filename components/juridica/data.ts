@@ -1,4 +1,5 @@
-/* Mock data for the Juridica UI (Fase 0/1). */
+/* Tipos compartidos + registro de citas de referencia + sugerencias de UI.
+   La data de negocio (documentos, recientes, misiones, términos…) viene SOLO del backend (real). */
 
 export type Citation = {
   label: string;
@@ -75,17 +76,6 @@ export const SUGGESTIONS: Suggestion[] = [
   { icon: "scale", label: "Poder general para actuaciones judiciales", mode: "Documento" },
 ];
 
-export type Recent = { id: string; title: string; when: string; active?: boolean };
-
-/* Recent conversations (sidebar) */
-export const RECENTS: Recent[] = [
-  { id: "r1", title: "Demanda ejecutiva — Pagaré $50M", when: "Hace 5 min", active: true },
-  { id: "r2", title: "Tutela por derecho de petición", when: "Hoy" },
-  { id: "r3", title: "Concepto: prescripción cambiaria", when: "Ayer" },
-  { id: "r4", title: "Contrato de arrendamiento — local 304", when: "2 jun" },
-  { id: "r5", title: "¿Vigencia Decreto 1074 de 2015?", when: "31 may" },
-];
-
 export type LibraryItem = {
   id: string;
   title: string;
@@ -98,19 +88,5 @@ export type LibraryItem = {
   shared?: boolean;
   patronId?: string;   // F4: si viene de la biblioteca de patrones, habilita reuse real (reuse_patron_id)
 };
-
-/* Library documents */
-export const LIBRARY: LibraryItem[] = [
-  { id: "l1", title: "Demanda Ejecutiva", subtitle: "Pagaré / título valor", type: "Demanda", version: 3, used: 14, verified: true, accent: "#5B4DE3" },
-  { id: "l2", title: "Poder General", subtitle: "Actuaciones judiciales", type: "Poder", version: 1, used: 9, verified: true, accent: "#21A8C7" },
-  { id: "l3", title: "Contrato de Arrendamiento", subtitle: "Local comercial", type: "Contrato", version: 2, used: 21, verified: true, accent: "#C98A14" },
-  { id: "l4", title: "Acción de Tutela", subtitle: "Derecho de petición", type: "Tutela", version: 1, used: 6, verified: false, accent: "#16A34A" },
-  { id: "l5", title: "Concepto Jurídico", subtitle: "Prescripción cambiaria", type: "Concepto", version: 2, used: 4, verified: true, accent: "#DC2626" },
-  { id: "l6", title: "Derecho de Petición", subtitle: "Entidad pública", type: "Petición", version: 1, used: 11, verified: true, accent: "#2563EB" },
-];
-
-export const TEMPLATES: LibraryItem[] = [
-  { id: "t1", title: "Demanda Ejecutiva Singular", subtitle: "Plantilla de la firma", type: "Demanda", version: 4, used: 38, verified: true, accent: "#5B4DE3", shared: true },
-  { id: "t2", title: "Contrato de Prestación de Servicios", subtitle: "Plantilla de la firma", type: "Contrato", version: 2, used: 27, verified: true, accent: "#C98A14", shared: true },
-  { id: "t3", title: "Pagaré con Carta de Instrucciones", subtitle: "Plantilla de la firma", type: "Título valor", version: 1, used: 16, verified: true, accent: "#21A8C7", shared: true },
-];
+// Nota: la Biblioteca y los Recientes usan SOLO data real del backend (/api/artifacts, /api/patrones,
+// /api/sessions). No hay arreglos mock; si no hay datos, la UI muestra su estado vacío.

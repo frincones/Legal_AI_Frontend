@@ -116,7 +116,7 @@ export default function JuridicaApp({
     setShowWizard(false);
   }
 
-  // F1.3 — recientes reales desde el backend (/api/sessions). Aditivo; si falla, el sidebar usa el mock.
+  // F1.3 — recientes reales desde el backend (/api/sessions). Si no hay, el sidebar muestra estado vacío (sin mock).
   useEffect(() => {
     if (!backendUrl || !accessToken) return;
     let cancel = false;
@@ -133,7 +133,7 @@ export default function JuridicaApp({
   }, [backendUrl, accessToken, chatKey]);
 
   // F4 — Biblioteca real: documentos del org (/api/artifacts) + patrones (/api/patrones).
-  // Aditivo; si falla o está vacío, Library cae al mock del diseño.
+  // Solo data real; si está vacío, Library muestra su estado vacío (sin mock).
   useEffect(() => {
     if (!backendUrl || !accessToken) return;
     let cancel = false;

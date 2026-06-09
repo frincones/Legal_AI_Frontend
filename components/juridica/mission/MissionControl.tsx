@@ -14,12 +14,14 @@ export function MissionControl({
   const [missions, setMissions] = useState<Mission[]>([]);
   const [att, setAtt] = useState<AttentionData>({ criticos: 0, terminos: 0, actuaciones: 0, items: [] });
   const [ap, setAp] = useState<AutopilotSummary | null>(null);
+  const [credits, setCredits] = useState<{ balance: number | null; cap: number | null }>({ balance: null, cap: null });
 
   useEffect(() => {
     if (!backendUrl || !accessToken) return;
     api.missions(backendUrl, accessToken).then(setMissions);
     api.attention(backendUrl, accessToken).then(setAtt);
     api.autopilot(backendUrl, accessToken).then(setAp);
+    api.credits(backendUrl, accessToken).then((c) => setCredits({ balance: c.balance, cap: c.cap }));
   }, [backendUrl, accessToken]);
 
   const name = (email || "").split("@")[0] || "abogado";
@@ -29,7 +31,8 @@ export function MissionControl({
     <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "34px 36px 56px" }}>
         {/* Saludo operativo */}
-        <div style={{ marginBottom: 26 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 26 }}>
+          <div>
           <h1 style={{ fontSize: 30, fontWeight: 650, letterSpacing: "-0.025em", margin: 0, textTransform: "capitalize" }}>Hola, {name}.</h1>
           <p style={{ fontSize: 15.5, color: "var(--text-secondary)", margin: "8px 0 0" }}>
             {allClear ? (
@@ -38,6 +41,14 @@ export function MissionControl({
               <>Tu oficina tiene <strong style={{ color: "var(--danger)" }}>{att.criticos} críticos</strong> · <strong style={{ color: "var(--gold-text)" }}>{att.terminos} términos</strong> · <strong>{att.actuaciones} por aprobar</strong>.</>
             )}
           </p>
+          </div>
+          {credits.balance != null && (
+            <div title="Créditos disponibles" style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 14px", borderRadius: "var(--r-pill)", background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "var(--sh-1)" }}>
+              <Icon name="sparkles" size={15} style={{ color: "var(--gold)" }} />
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>{credits.balance}{credits.cap ? ` / ${credits.cap}` : ""}</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>créditos</span>
+            </div>
+          )}
         </div>
 
         {/* Atención */}
