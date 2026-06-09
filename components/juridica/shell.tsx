@@ -14,6 +14,7 @@ export function Sidebar({
   email,
   recents,
   onOpenRecent,
+  missionMode = false,
 }: {
   route: string;
   onNavigate: (r: string) => void;
@@ -23,17 +24,27 @@ export function Sidebar({
   email?: string | null;
   recents?: { id: string; title: string }[];
   onOpenRecent?: (id: string) => void;
+  missionMode?: boolean;
 }) {
   const recentList = recents || [];   // solo conversaciones reales del usuario (sin mock)
   // Nombre/iniciales reales derivados del correo (sin datos mock).
   const userLocal = (email || "").split("@")[0] || "Mi cuenta";
   const userName = userLocal.charAt(0).toUpperCase() + userLocal.slice(1);
   const userInitials = (email || "MC").replace(/[^a-zA-Z]/g, "").slice(0, 2).toUpperCase() || "MC";
-  const navItems = [
-    { id: "library", icon: "book", label: "Biblioteca" },
-    { id: "templates", icon: "template", label: "Plantillas" },
-    { id: "cases", icon: "folder", label: "Casos" },
+  // Mission Control (F2): navegación operativa. Sin el flag, la navegación clásica intacta.
+  const missionNav = [
+    { id: "home", icon: "target", label: "Inicio" },
+    { id: "expedientes", icon: "folder", label: "Misiones" },
+    { id: "terminos", icon: "calendarClock", label: "Términos" },
+    { id: "autopilot", icon: "radar", label: "Autopilot" },
   ];
+  const navItems = missionMode
+    ? [{ id: "library", icon: "book", label: "Biblioteca" }]
+    : [
+        { id: "library", icon: "book", label: "Biblioteca" },
+        { id: "templates", icon: "template", label: "Plantillas" },
+        { id: "cases", icon: "folder", label: "Casos" },
+      ];
 
   const Item = ({ id, icon, label, active, onClick }: { id?: string; icon: string; label: string; active?: boolean; onClick?: () => void }) => (
     <button
@@ -104,9 +115,9 @@ export function Sidebar({
       </div>
 
       <div style={{ padding: "0 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <button className="btn btn-primary" onClick={onNew} style={{ width: "100%", justifyContent: collapsed ? "center" : "flex-start", padding: collapsed ? 0 : "0 14px", height: 42 }} title="Nuevo">
+        <button className="btn btn-primary" onClick={onNew} style={{ width: "100%", justifyContent: collapsed ? "center" : "flex-start", padding: collapsed ? 0 : "0 14px", height: 42 }} title={missionMode ? "Nueva misión" : "Nuevo"}>
           <Icon name="plus" size={18} stroke={2.2} />
-          {!collapsed && <span>Nuevo documento</span>}
+          {!collapsed && <span>{missionMode ? "Nueva misión" : "Nuevo documento"}</span>}
         </button>
         {!collapsed ? (
           <button onClick={() => onNavigate("home")} style={{ display: "flex", alignItems: "center", gap: 9, height: 38, padding: "0 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-muted)", fontSize: 13.5, textAlign: "left" }}>
@@ -118,6 +129,15 @@ export function Sidebar({
           <Item icon="search" label="Buscar" onClick={() => {}} />
         )}
       </div>
+
+      {/* Mission Control — navegación operativa (solo con el flag) */}
+      {missionMode && (
+        <div style={{ padding: "14px 12px 4px", display: "flex", flexDirection: "column", gap: 2 }}>
+          {missionNav.map((n) => (
+            <Item key={n.id} {...n} active={n.id === "expedientes" ? route === "expedientes" || route === "expediente" : route === n.id} onClick={() => onNavigate(n.id)} />
+          ))}
+        </div>
+      )}
 
       {/* Recents */}
       <div className="no-scrollbar" style={{ flex: 1, overflow: "auto", padding: collapsed ? "14px 12px" : "16px 12px 8px" }}>

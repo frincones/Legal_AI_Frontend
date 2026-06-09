@@ -10,6 +10,15 @@ import { Canvas } from "./Canvas";
 import { Wizard } from "./Wizard";
 import type { LibraryItem } from "./data";
 import { createClient } from "@/lib/supabase/client";
+// Mission Control (F2) — pantallas nuevas; se activan SOLO con el flag por org.
+import { MissionControl } from "./mission/MissionControl";
+import { Misiones } from "./mission/Misiones";
+import { MissionDetail } from "./mission/MissionDetail";
+import { NuevaMision } from "./mission/NuevaMision";
+import { Terminos } from "./mission/Terminos";
+import { Autopilot } from "./mission/Autopilot";
+import { ApprovalModal } from "./mission/ApprovalModal";
+import { api as missionApi } from "./mission/data";
 
 // F4 · mapeo de datos reales del backend → LibraryItem (modelo del diseño).
 const ACCENTS = ["#5B4DE3", "#21A8C7", "#C98A14", "#16A34A", "#DC2626", "#2563EB"];
@@ -77,7 +86,17 @@ export default function JuridicaApp({
   const [reuseTitle, setReuseTitle] = useState<string | undefined>(undefined);
   const [showWizard, setShowWizard] = useState(false);
   const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
+  // Mission Control (F2): flag por org + estado de misión/aprobación.
+  const [missionMode, setMissionMode] = useState(false);
+  const [currentMissionId, setCurrentMissionId] = useState<string | undefined>(undefined);
+  const [approvalOpen, setApprovalOpen] = useState(false);
   const toastId = useRef(0);
+
+  // Lee el flag mission_control de la org (aditivo). Si está off, el UI clásico queda idéntico.
+  useEffect(() => {
+    if (!backendUrl || !accessToken) return;
+    missionApi.me(backendUrl, accessToken).then((m) => setMissionMode(!!m?.features?.mission_control)).catch(() => {});
+  }, [backendUrl, accessToken]);
 
   // F6.3 — Wizard de onboarding: solo la primera vez (flag en localStorage) y nunca en el popup OAuth.
   useEffect(() => {
@@ -220,6 +239,24 @@ export default function JuridicaApp({
     setRoute("home");
   }
 
+  // Mission Control (F2)
+  function openMission(id: string) {
+    setCurrentMissionId(id);
+    setRoute("expediente");
+  }
+  function newMission() {
+    if (missionMode) setRoute("mission");
+    else newDoc();
+  }
+  function openMissionChat(id: string) {
+    setCurrentMissionId(id);
+    setChatSeed(undefined);
+    setOpenSessionId(undefined);
+    setReusePatronId(undefined);
+    setChatKey((k) => k + 1);
+    setRoute("chat");
+  }
+
   async function logout() {
     try {
       const supabase = createClient();
@@ -231,7 +268,19 @@ export default function JuridicaApp({
   }
 
   let main: React.ReactNode = null;
-  if (route === "home")
+  if (missionMode && route === "home")
+    main = <MissionControl backendUrl={backendUrl} accessToken={accessToken} email={email} onOpenMission={openMission} onNavigate={go} onNewMission={newMission} />;
+  else if (missionMode && route === "expedientes")
+    main = <Misiones backendUrl={backendUrl} accessToken={accessToken} onOpen={openMission} onNavigate={go} onNewMission={newMission} />;
+  else if (missionMode && route === "expediente" && currentMissionId)
+    main = <MissionDetail backendUrl={backendUrl} accessToken={accessToken} missionId={currentMissionId} onBack={() => go("expedientes")} onOpenChat={openMissionChat} onApprove={() => setApprovalOpen(true)} pushToast={pushToast} />;
+  else if (missionMode && route === "mission")
+    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id) => { openMission(id); }} pushToast={pushToast} />;
+  else if (missionMode && route === "terminos")
+    main = <Terminos backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} />;
+  else if (missionMode && route === "autopilot")
+    main = <Autopilot backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} onNavigate={go} pushToast={pushToast} />;
+  else if (route === "home")
     main = (
       <Home
         onSubmit={submitToChat}
@@ -310,7 +359,7 @@ export default function JuridicaApp({
 
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden" }}>
-      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={newDoc} email={email} recents={recents} onOpenRecent={openConversation} />}
+      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={missionMode ? newMission : newDoc} email={email} recents={recents} onOpenRecent={openConversation} missionMode={missionMode} />}
       <main style={{ flex: 1, minWidth: 0, height: "100%", position: "relative", display: "flex", flexDirection: "column" }}>
         {mobile && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}>
@@ -348,6 +397,7 @@ export default function JuridicaApp({
 
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} onNavigate={go} onNew={newDoc} />
       {showWizard && <Wizard backendUrl={backendUrl} accessToken={accessToken} onClose={closeWizard} />}
+      {approvalOpen && <ApprovalModal backendUrl={backendUrl} accessToken={accessToken} onClose={() => setApprovalOpen(false)} pushToast={pushToast} />}
       <Toasts items={toasts} />
     </div>
   );
