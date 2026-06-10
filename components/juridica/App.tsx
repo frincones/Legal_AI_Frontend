@@ -89,6 +89,7 @@ export default function JuridicaApp({
   // Mission Control (F2): flag por org + estado de misión/aprobación.
   const [missionMode, setMissionMode] = useState(false);
   const [currentMissionId, setCurrentMissionId] = useState<string | undefined>(undefined);
+  const [chatMatterId, setChatMatterId] = useState<string | undefined>(undefined);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const toastId = useRef(0);
 
@@ -200,6 +201,7 @@ export default function JuridicaApp({
     setReusePatronId(undefined);
     setReuseTitle(undefined);
     setOpenSessionId(undefined);
+    setChatMatterId(undefined);
     setChatSeed(text.trim());
     setChatKey((k) => k + 1);
     setDraft("");
@@ -226,6 +228,7 @@ export default function JuridicaApp({
     setChatSeed(undefined);
     setReusePatronId(undefined);
     setReuseTitle(undefined);
+    setChatMatterId(undefined);
     setChatKey((k) => k + 1);
     setRoute("chat");
   }
@@ -248,11 +251,13 @@ export default function JuridicaApp({
     if (missionMode) setRoute("mission");
     else newDoc();
   }
-  function openMissionChat(id: string) {
+  function openMissionChat(id: string, seed?: string) {
     setCurrentMissionId(id);
-    setChatSeed(undefined);
+    setChatMatterId(id);
+    setChatSeed(seed);
     setOpenSessionId(undefined);
     setReusePatronId(undefined);
+    setMode("Documento");
     setChatKey((k) => k + 1);
     setRoute("chat");
   }
@@ -275,7 +280,7 @@ export default function JuridicaApp({
   else if (missionMode && route === "expediente" && currentMissionId)
     main = <MissionDetail backendUrl={backendUrl} accessToken={accessToken} missionId={currentMissionId} onBack={() => go("expedientes")} onOpenChat={openMissionChat} onApprove={() => setApprovalOpen(true)} pushToast={pushToast} />;
   else if (missionMode && route === "mission")
-    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id) => { openMission(id); }} pushToast={pushToast} />;
+    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt) => { openMissionChat(id, prompt); }} pushToast={pushToast} />;
   else if (missionMode && route === "terminos")
     main = <Terminos backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} />;
   else if (missionMode && route === "autopilot")
@@ -305,6 +310,7 @@ export default function JuridicaApp({
         setMode={setMode}
         jurisdiction={jurisdiction}
         setJurisdiction={setJurisdiction}
+        matterId={chatMatterId}
       />
     );
   else if (route === "canvas")

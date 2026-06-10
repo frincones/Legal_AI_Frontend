@@ -15,7 +15,7 @@ export function MissionDetail({
   backendUrl, accessToken, missionId, onBack, onOpenChat, onApprove, pushToast,
 }: {
   backendUrl: string; accessToken: string; missionId: string;
-  onBack: () => void; onOpenChat: (id: string) => void; onApprove: () => void; pushToast: (t: string, k?: string) => void;
+  onBack: () => void; onOpenChat: (id: string, seed?: string) => void; onApprove: () => void; pushToast: (t: string, k?: string) => void;
 }) {
   const [m, setM] = useState<Mission | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
@@ -159,15 +159,16 @@ export function MissionDetail({
           <ConfirmNote icon="shieldCheck">Los borradores quedan pendientes hasta tu aprobación.</ConfirmNote>
         </div>
         </div>
-        <MissionChatPanel title={m.title} onOpenChat={() => onOpenChat(m.id)} />
+        <MissionChatPanel title={m.title} onAsk={(seed) => onOpenChat(m.id, seed)} />
       </div>
     </div>
   );
 }
 
-/* Panel lateral "Asistente de la misión" — abre el chat de la misión. */
-function MissionChatPanel({ title, onOpenChat }: { title: string; onOpenChat: () => void }) {
-  const sugs = ["¿Qué falta en este caso?", "Redacta el siguiente escrito", "Resume el último auto"];
+/* Panel lateral "Asistente de la misión" — manda al agente real (chat de la misión). */
+function MissionChatPanel({ title, onAsk }: { title: string; onAsk: (seed?: string) => void }) {
+  const [q, setQ] = useState("");
+  const sugs = ["¿Qué falta en este caso?", "Redacta el siguiente escrito", "Resume el expediente"];
   return (
     <div className="mission-chat-panel" style={{ width: 360, flexShrink: 0, borderLeft: "1px solid var(--border)", background: "var(--bg-surface)", display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ padding: "13px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
@@ -182,7 +183,7 @@ function MissionChatPanel({ title, onOpenChat }: { title: string; onOpenChat: ()
         <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 9 }}>Sugerencias</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {sugs.map((s) => (
-            <button key={s} onClick={onOpenChat} style={{ textAlign: "left", border: "1px solid var(--border)", background: "var(--bg-base)", borderRadius: "var(--r-md)", padding: "10px 12px", fontSize: 13, color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 9 }}
+            <button key={s} onClick={() => onAsk(s)} style={{ textAlign: "left", border: "1px solid var(--border)", background: "var(--bg-base)", borderRadius: "var(--r-md)", padding: "10px 12px", fontSize: 13, color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 9 }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.background = "var(--primary-soft-2)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-base)"; }}>
               <Icon name="sparkles" size={14} style={{ color: "var(--primary)" }} />{s}
@@ -191,11 +192,13 @@ function MissionChatPanel({ title, onOpenChat }: { title: string; onOpenChat: ()
         </div>
       </div>
       <div style={{ padding: "12px 16px 16px", borderTop: "1px solid var(--border)" }}>
-        <button onClick={onOpenChat} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "11px 14px", background: "var(--bg-base)", color: "var(--text-muted)", fontSize: 14, cursor: "pointer" }}>
-          <Icon name="message" size={16} style={{ color: "var(--primary)" }} />
-          <span style={{ flex: 1, textAlign: "left" }}>Pregúntale a esta misión…</span>
-          <Icon name="arrowUp" size={16} stroke={2.4} />
-        </button>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "6px 6px 6px 14px", background: "var(--bg-base)" }}>
+          <textarea value={q} onChange={(e) => setQ(e.target.value)} rows={1}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (q.trim()) { onAsk(q.trim()); setQ(""); } } }}
+            placeholder="Pregúntale a esta misión…"
+            style={{ flex: 1, resize: "none", border: "none", outline: "none", background: "transparent", fontSize: 14, lineHeight: 1.5, color: "var(--text)", fontFamily: "var(--font-ui)", padding: "6px 0", maxHeight: 90 }} />
+          <button onClick={() => { if (q.trim()) { onAsk(q.trim()); setQ(""); } }} disabled={!q.trim()} style={{ width: 34, height: 34, borderRadius: 9, border: "none", background: q.trim() ? "var(--aurora)" : "var(--bg-elevated-2)", color: q.trim() ? "#fff" : "var(--text-muted)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="arrowUp" size={17} stroke={2.4} /></button>
+        </div>
       </div>
     </div>
   );

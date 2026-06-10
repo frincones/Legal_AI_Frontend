@@ -74,6 +74,7 @@ export function ChatView({
   setMode,
   jurisdiction,
   setJurisdiction,
+  matterId,
 }: {
   backendUrl: string;
   accessToken: string;
@@ -83,6 +84,7 @@ export function ChatView({
   setMode: (m: string) => void;
   jurisdiction: string;
   setJurisdiction: (j: string) => void;
+  matterId?: string;        // Mission Control: liga el chat a una misión (expediente)
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -117,7 +119,7 @@ export function ChatView({
       const res = await fetch(`${backendUrl}/api/chat/${sessionId.current}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ message: sendText }),
+        body: JSON.stringify({ message: sendText, matter_id: matterId }),
       });
       if (!res.ok || !res.body) throw new Error(`backend ${res.status}`);
 
