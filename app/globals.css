@@ -80,6 +80,9 @@
 
 * { box-sizing: border-box; }
 
+/* Mission Control: oculta el panel lateral de la misión en pantallas angostas (aditivo). */
+@media (max-width: 1000px) { .mission-chat-panel { display: none !important; } }
+
 html, body {
   margin: 0;
   padding: 0;

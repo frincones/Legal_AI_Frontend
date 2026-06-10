@@ -1,9 +1,49 @@
-/* Inicio operativo (Mission Control). Reúne misiones + atención + Autopilot. */
+/* Inicio operativo (Mission Control) — fidelidad TemplateV2 con data real. */
 "use client";
 import { useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { api, type AttentionData, type AutopilotSummary, type Mission } from "./data";
-import { DeadlineChip, ProgressBar, SectionLabel } from "./atoms";
+import { ProgressBar, SectionLabel, SEVERITY } from "./atoms";
+
+type Card = { severity: "critico" | "pronto" | "ok"; gold?: boolean; icon: string; eyebrow: string; title: string; sub: string; suggestion: string; action: string; onAction: () => void };
+
+function HomeCard({ card }: { card: Card }) {
+  const m = SEVERITY[card.severity] || SEVERITY.ok;
+  const accent = card.gold ? "var(--gold)" : m.color;
+  const accentBg = card.gold ? "var(--gold-soft)" : m.bg;
+  return (
+    <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden", minHeight: 168 }}>
+      <span style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: card.gold ? "var(--grad-gold)" : m.dot }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <span style={{ width: 30, height: 30, borderRadius: 9, background: accentBg, display: "grid", placeItems: "center" }}><Icon name={card.icon} size={16} style={{ color: accent }} /></span>
+        <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: accent }}>{card.eyebrow}</span>
+      </div>
+      <div style={{ fontWeight: 650, fontSize: 15.5, lineHeight: 1.3, marginBottom: 4 }}>{card.title}</div>
+      <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.45, marginBottom: 12 }}>{card.sub}</div>
+      <div style={{ fontSize: 12, color: "var(--text-secondary)", fontStyle: "italic", marginBottom: 14, marginTop: "auto" }}>{card.suggestion}</div>
+      <button className={`btn btn-sm ${card.severity === "critico" ? "btn-primary" : "btn-secondary"}`} onClick={card.onAction} style={{ alignSelf: "flex-start" }}>
+        {card.action}<Icon name="arrowRight" size={15} />
+      </button>
+    </div>
+  );
+}
+
+function MissionRow({ exp, onClick }: { exp: Mission; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "10px", border: "none", borderRadius: "var(--r-md)", background: "transparent", textAlign: "left", cursor: "pointer" }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-base)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>{exp.title}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)" }}>{exp.progress}%</span>
+        </div>
+        <ProgressBar value={exp.progress} accent={exp.accent} height={5} />
+        {exp.nextBestAction?.label && <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 5 }}><Icon name="arrowRight" size={12} style={{ color: "var(--primary)" }} />{exp.nextBestAction.label}</div>}
+      </div>
+      <Icon name="chevronRight" size={16} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+    </button>
+  );
+}
 
 export function MissionControl({
   backendUrl, accessToken, email, onOpenMission, onNavigate, onNewMission,
@@ -15,6 +55,7 @@ export function MissionControl({
   const [att, setAtt] = useState<AttentionData>({ criticos: 0, terminos: 0, actuaciones: 0, items: [] });
   const [ap, setAp] = useState<AutopilotSummary | null>(null);
   const [credits, setCredits] = useState<{ balance: number | null; cap: number | null }>({ balance: null, cap: null });
+  const [dateStr, setDateStr] = useState("");
 
   useEffect(() => {
     if (!backendUrl || !accessToken) return;
@@ -22,51 +63,62 @@ export function MissionControl({
     api.attention(backendUrl, accessToken).then(setAtt);
     api.autopilot(backendUrl, accessToken).then(setAp);
     api.credits(backendUrl, accessToken).then((c) => setCredits({ balance: c.balance, cap: c.cap }));
+    try {
+      setDateStr(new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "short" }));
+    } catch { /* ignore */ }
   }, [backendUrl, accessToken]);
 
   const name = (email || "").split("@")[0] || "abogado";
   const allClear = att.criticos === 0 && att.terminos === 0 && att.actuaciones === 0;
 
+  // Deriva las 3 tarjetas (Urgente / Preparado / Faltante) de la data real.
+  const urg = att.items.find((i) => i.severity === "critico") || att.items.find((i) => i.kind === "deadline");
+  const prep = att.actuaciones;
+  const faltantes = missions.filter((m) => (m.requirementsMap?.falta?.length || 0) > 0);
+  const cards: Card[] = [];
+  if (urg) cards.push({ severity: "critico", icon: "alert", eyebrow: "Lo urgente", title: urg.title, sub: urg.sub, suggestion: "Acción sugerida: revisar el borrador", action: "Revisar", onAction: () => (urg.expId ? onOpenMission(urg.expId) : onNavigate("terminos")) });
+  if (prep > 0) cards.push({ severity: "ok", gold: true, icon: "sparkles", eyebrow: "Lo preparado", title: `Juridica preparó ${prep} documento${prep > 1 ? "s" : ""}`, sub: "Verificados · listos para tu revisión", suggestion: "Listos para aprobar", action: "Ver", onAction: () => onNavigate("autopilot") });
+  if (faltantes.length > 0) {
+    const f0 = faltantes[0].requirementsMap?.falta?.[0]?.label || "documentos del cliente";
+    cards.push({ severity: "pronto", icon: "paperclip", eyebrow: "Lo faltante", title: `Faltan datos en ${faltantes.length} caso${faltantes.length > 1 ? "s" : ""}`, sub: f0, suggestion: "Puedes solicitarlos en un toque", action: "Solicitar", onAction: () => onOpenMission(faltantes[0].id) });
+  }
+
   return (
     <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "34px 36px 56px" }}>
-        {/* Saludo operativo */}
+        {/* Saludo operativo + fecha */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 26 }}>
           <div>
-          <h1 style={{ fontSize: 30, fontWeight: 650, letterSpacing: "-0.025em", margin: 0, textTransform: "capitalize" }}>Hola, {name}.</h1>
-          <p style={{ fontSize: 15.5, color: "var(--text-secondary)", margin: "8px 0 0" }}>
-            {allClear ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="circleCheck" size={17} style={{ color: "var(--success)" }} />Nada urgente hoy. Tu oficina está al día.</span>
-            ) : (
-              <>Tu oficina tiene <strong style={{ color: "var(--danger)" }}>{att.criticos} críticos</strong> · <strong style={{ color: "var(--gold-text)" }}>{att.terminos} términos</strong> · <strong>{att.actuaciones} por aprobar</strong>.</>
-            )}
-          </p>
+            <h1 style={{ fontSize: 30, fontWeight: 650, letterSpacing: "-0.025em", margin: 0, textTransform: "capitalize" }}>Hola, {name}.</h1>
+            <p style={{ fontSize: 15.5, color: "var(--text-secondary)", margin: "8px 0 0" }}>
+              {allClear ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="circleCheck" size={17} style={{ color: "var(--success)" }} />Nada urgente hoy. Tu oficina está al día.</span>
+              ) : (
+                <>Tu oficina tiene <strong style={{ color: "var(--danger)" }}>{att.criticos} críticos</strong> · <strong style={{ color: "var(--gold-text)" }}>{att.terminos} términos</strong> · <strong>{att.actuaciones} por aprobar</strong>.</>
+              )}
+            </p>
           </div>
-          {credits.balance != null && (
-            <div title="Créditos disponibles" style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 14px", borderRadius: "var(--r-pill)", background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "var(--sh-1)" }}>
-              <Icon name="sparkles" size={15} style={{ color: "var(--gold)" }} />
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)" }}>{credits.balance}{credits.cap ? ` / ${credits.cap}` : ""}</span>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>créditos</span>
-            </div>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {credits.balance != null && (
+              <div title="Créditos disponibles" style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 14px", borderRadius: "var(--r-pill)", background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "var(--sh-1)" }}>
+                <Icon name="sparkles" size={15} style={{ color: "var(--gold)" }} />
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{credits.balance}{credits.cap ? ` / ${credits.cap}` : ""}</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>créditos</span>
+              </div>
+            )}
+            {dateStr && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 14px", borderRadius: "var(--r-pill)", background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-secondary)", fontSize: 13.5, fontWeight: 500, textTransform: "capitalize", boxShadow: "var(--sh-1)" }}>
+                <Icon name="sun" size={16} style={{ color: "var(--gold)" }} />{dateStr}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Atención */}
+        {/* Esto es lo importante — 3 tarjetas */}
         <SectionLabel icon="alert" tone="danger">Esto es lo importante</SectionLabel>
-        {att.items.length > 0 ? (
-          <div className="card" style={{ overflow: "hidden", marginBottom: 30 }}>
-            {att.items.slice(0, 6).map((it, i) => (
-              <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "15px 18px", borderBottom: i === Math.min(att.items.length, 6) - 1 ? "none" : "1px solid var(--border)" }}>
-                <span style={{ width: 4, alignSelf: "stretch", borderRadius: 4, background: it.severity === "critico" ? "#DC2626" : it.severity === "pronto" ? "#C98A14" : "#16A34A", flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14.5 }}>{it.title}</div>
-                  <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{it.sub}</div>
-                </div>
-                <button className={`btn btn-sm ${it.severity === "critico" ? "btn-primary" : "btn-secondary"}`} onClick={() => (it.expId ? onOpenMission(it.expId) : onNavigate("terminos"))}>
-                  {it.action}<Icon name="arrowRight" size={15} />
-                </button>
-              </div>
-            ))}
+        {cards.length > 0 ? (
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(cards.length, 3)}, 1fr)`, gap: 16, marginBottom: 30 }}>
+            {cards.map((c, i) => <HomeCard key={i} card={c} />)}
           </div>
         ) : (
           <div className="card" style={{ padding: "26px 24px", marginBottom: 30, display: "flex", alignItems: "center", gap: 16 }}>
@@ -82,7 +134,7 @@ export function MissionControl({
               <span style={{ width: 30, height: 30, borderRadius: 9, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center" }}><Icon name="radar" size={17} style={{ color: "var(--primary)" }} /></span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 650, fontSize: 14.5 }}>Mientras no estabas</div>
-                <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Autopilot · {ap?.status || "Activo"}</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)" }} />Autopilot · {ap?.status || "Activo"}</div>
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 9, margin: "14px 0 4px" }}>
@@ -103,15 +155,7 @@ export function MissionControl({
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-elevated-2)", borderRadius: 999, padding: "2px 9px" }}>{missions.length}</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {missions.slice(0, 4).map((e) => (
-                <button key={e.id} onClick={() => onOpenMission(e.id)} style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%", padding: "10px", border: "none", borderRadius: "var(--r-md)", background: "transparent", textAlign: "left", cursor: "pointer" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)" }}>{e.progress}%</span>
-                  </div>
-                  <ProgressBar value={e.progress} accent={e.accent} height={5} />
-                </button>
-              ))}
+              {missions.slice(0, 4).map((e) => <MissionRow key={e.id} exp={e} onClick={() => onOpenMission(e.id)} />)}
               {missions.length === 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "6px 10px" }}>Aún no tienes misiones. Crea la primera.</div>}
             </div>
             <button className="btn btn-ghost btn-sm" style={{ marginTop: 10, alignSelf: "flex-start", color: "var(--primary)" }} onClick={() => onNavigate("expedientes")}>Ver todas<Icon name="arrowRight" size={15} /></button>

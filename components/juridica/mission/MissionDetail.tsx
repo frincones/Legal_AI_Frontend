@@ -65,7 +65,8 @@ export function MissionDetail({
         ))}
       </div>
 
-      <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflow: "auto", background: "var(--bg-base)", padding: "22px 24px" }}>
+      <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+        <div className="no-scrollbar" style={{ flex: 1, minWidth: 0, overflow: "auto", background: "var(--bg-base)", padding: "22px 24px" }}>
         <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
           {tab === "resumen" && <>
             {m.nextBestAction?.label && (
@@ -86,6 +87,22 @@ export function MissionDetail({
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 7 }}><span style={{ color: "var(--text-muted)" }}>Progreso</span><strong>{m.progress}%</strong></div>
               <ProgressBar value={m.progress} accent={m.accent} height={7} />
+            </div>
+            <div style={{ borderRadius: "var(--r-lg)", padding: 1.5, background: "var(--grad-aurora-soft)" }}>
+              <div style={{ borderRadius: "calc(var(--r-lg) - 1.5px)", background: "var(--bg-surface)", padding: 18, display: "flex", gap: 13 }}>
+                <span style={{ width: 32, height: 32, borderRadius: 9, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="sparkles" size={17} style={{ color: "var(--primary)" }} /></span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", marginBottom: 4 }}>Recomendación de Juridica</div>
+                  <div style={{ fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.55 }}>
+                    {m.keyFacts || `El caso avanza (${m.progress}%). ${m.nextBestAction?.label ? `La siguiente acción es: ${m.nextBestAction.label.toLowerCase()}.` : "Revisa los datos faltantes para poder avanzar."} ${falta.length > 0 ? "Solicita lo que falta al cliente para evitar demoras." : "Las normas están verificadas."}`}
+                  </div>
+                  {m.nextBestAction?.label && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button className="btn btn-sm btn-primary" onClick={onApprove}><Icon name="check" size={14} />{m.nextBestAction.kind === "approval" ? "Revisar borrador" : "Continuar"}</button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             {falta.length > 0 && (
               <div className="card" style={{ padding: 18 }}>
@@ -141,6 +158,44 @@ export function MissionDetail({
 
           <ConfirmNote icon="shieldCheck">Los borradores quedan pendientes hasta tu aprobación.</ConfirmNote>
         </div>
+        </div>
+        <MissionChatPanel title={m.title} onOpenChat={() => onOpenChat(m.id)} />
+      </div>
+    </div>
+  );
+}
+
+/* Panel lateral "Asistente de la misión" — abre el chat de la misión. */
+function MissionChatPanel({ title, onOpenChat }: { title: string; onOpenChat: () => void }) {
+  const sugs = ["¿Qué falta en este caso?", "Redacta el siguiente escrito", "Resume el último auto"];
+  return (
+    <div className="mission-chat-panel" style={{ width: 360, flexShrink: 0, borderLeft: "1px solid var(--border)", background: "var(--bg-surface)", display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ padding: "13px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center" }}><Icon name="sparkles" size={15} style={{ color: "var(--primary)" }} /></span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 650, fontSize: 14 }}>Asistente de la misión</div>
+          <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Pregunta sobre este expediente</div>
+        </div>
+      </div>
+      <div className="no-scrollbar" style={{ flex: 1, overflow: "auto", padding: "18px 18px 8px" }}>
+        <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 14 }}>Pregúntame lo que necesites sobre <strong>{title}</strong> — su estado, qué falta, o pídeme que redacte algo.</div>
+        <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 9 }}>Sugerencias</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sugs.map((s) => (
+            <button key={s} onClick={onOpenChat} style={{ textAlign: "left", border: "1px solid var(--border)", background: "var(--bg-base)", borderRadius: "var(--r-md)", padding: "10px 12px", fontSize: 13, color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 9 }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.background = "var(--primary-soft-2)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-base)"; }}>
+              <Icon name="sparkles" size={14} style={{ color: "var(--primary)" }} />{s}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: "12px 16px 16px", borderTop: "1px solid var(--border)" }}>
+        <button onClick={onOpenChat} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "11px 14px", background: "var(--bg-base)", color: "var(--text-muted)", fontSize: 14, cursor: "pointer" }}>
+          <Icon name="message" size={16} style={{ color: "var(--primary)" }} />
+          <span style={{ flex: 1, textAlign: "left" }}>Pregúntale a esta misión…</span>
+          <Icon name="arrowUp" size={16} stroke={2.4} />
+        </button>
       </div>
     </div>
   );
