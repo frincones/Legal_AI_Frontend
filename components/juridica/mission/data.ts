@@ -113,4 +113,8 @@ export const api = {
   approvals: (b: string, t: string) => jget<ApprovalItem[]>(b, t, "/api/approvals", []),
   decide: (b: string, t: string, id: string, decision: string, note?: string) => jpost(b, t, `/api/approvals/${id}/${decision}`, { note }, {}),
   credits: (b: string, t: string) => jget<{ balance: number | null; cap: number | null; ledger: unknown[] }>(b, t, "/api/credits", { balance: null, cap: null, ledger: [] }),
+  notifications: (b: string, t: string) => jget<{ id: string; title: string; body: string; campaign_type: string; related_matter_id: string | null; read_at: string | null; created_at: string }[]>(b, t, "/api/notifications", []),
+  unreadCount: (b: string, t: string) => jget<{ count: number }>(b, t, "/api/notifications/unread-count", { count: 0 }),
+  markAllRead: (b: string, t: string) => jpost(b, t, "/api/notifications/read-all", {}, {}),
+  requestClient: (b: string, t: string, matterId: string, item: string) => jpost<{ ok?: boolean }>(b, t, "/api/missions/request-client", { matter_id: matterId, item }, {}),
 };

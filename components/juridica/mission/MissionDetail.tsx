@@ -112,7 +112,7 @@ export function MissionDetail({
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 11 }}>
                       <span style={{ width: 17, height: 17, borderRadius: 5, border: "2px solid var(--gold)", flexShrink: 0 }} />
                       <span style={{ flex: 1, fontSize: 13.5 }}>{mm.label}</span>
-                      <button className="btn btn-sm btn-secondary" onClick={() => pushToast("Solicitud enviada al cliente", "success")}><Icon name="message" size={14} />Solicitar</button>
+                      <button className="btn btn-sm btn-secondary" onClick={async () => { await api.requestClient(backendUrl, accessToken, m.id, mm.label); pushToast("Solicitud registrada: tarea + recordatorio creados", "success"); api.timeline(backendUrl, accessToken, m.id).then(setTimeline); }}><Icon name="message" size={14} />Solicitar</button>
                     </div>
                   ))}
                 </div>
