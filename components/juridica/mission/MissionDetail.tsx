@@ -1,6 +1,6 @@
 /* Detalle de la misión: header + tabs (Resumen / Actividad / Documentos) + acceso al chat. */
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { api, type Mission, type TimelineEvent } from "./data";
 import { ConfirmNote, ProgressBar, SectionLabel, SEVERITY } from "./atoms";
@@ -9,7 +9,10 @@ const TABS: [string, string, string][] = [
   ["resumen", "Resumen", "target"],
   ["actividad", "Actividad", "history"],
   ["documentos", "Documentos", "fileText"],
+  ["config", "Configuración", "settings"],
 ];
+
+type DocItem = { id: string; title: string; mime_type: string; ingest_status: string; created_at: string };
 
 export function MissionDetail({
   backendUrl, accessToken, missionId, onBack, onOpenChat, onApprove, pushToast,
@@ -20,12 +23,41 @@ export function MissionDetail({
   const [m, setM] = useState<Mission | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [tab, setTab] = useState("resumen");
+  const [docs, setDocs] = useState<DocItem[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [radicado, setRadicadoInput] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!backendUrl || !accessToken || !missionId) return;
-    api.mission(backendUrl, accessToken, missionId).then(setM);
+    api.mission(backendUrl, accessToken, missionId).then((mm) => { setM(mm); setRadicadoInput(mm?.radicado && mm.radicado !== "—" ? mm.radicado : ""); });
     api.timeline(backendUrl, accessToken, missionId).then(setTimeline);
+    api.missionDocuments(backendUrl, accessToken, missionId).then(setDocs);
   }, [backendUrl, accessToken, missionId]);
+
+  async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    pushToast(`Subiendo «${file.name}» e indexándolo…`, "primary");
+    const r = await api.uploadDocument(backendUrl, accessToken, missionId, file);
+    setUploading(false);
+    if (e.target) e.target.value = "";
+    if (r.document_id) {
+      pushToast(`«${file.name}» indexado (${r.chunks || 0} fragmentos) · ya puedes preguntarle a tu caso`, "success");
+      api.missionDocuments(backendUrl, accessToken, missionId).then(setDocs);
+    } else {
+      pushToast("No se pudo subir el documento", "info");
+    }
+  }
+
+  async function saveRadicado() {
+    const v = radicado.trim().replace(/\D/g, "");
+    if (!v) return;
+    await api.updateMission(backendUrl, accessToken, missionId, { radicado: v, autopilot_on: true });
+    pushToast("Radicado guardado · Autopilot vigilará este proceso", "success");
+    api.mission(backendUrl, accessToken, missionId).then(setM);
+  }
 
   if (!m || !m.id) return <div style={{ height: "100%", display: "grid", placeItems: "center", color: "var(--text-muted)" }}>Cargando misión…</div>;
   const nt = m.nextTerm;
@@ -147,16 +179,52 @@ export function MissionDetail({
             ))}
           </>}
 
-          {tab === "documentos" && (
-            <div className="card" style={{ padding: "30px 22px", textAlign: "center" }}>
-              <Icon name="fileText" size={28} style={{ color: "var(--text-muted)" }} />
-              <div style={{ fontWeight: 600, fontSize: 15, marginTop: 10 }}>Documentos de la misión</div>
-              <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, marginBottom: 14 }}>Genera y revisa documentos del caso desde el chat.</div>
-              <button className="btn btn-primary btn-sm" onClick={() => onOpenChat(m.id)}><Icon name="message" size={14} />Abrir el chat de la misión</button>
+          {tab === "documentos" && <>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <SectionLabel icon="fileText">Documentos del expediente</SectionLabel>
+              <span style={{ flex: 1 }} />
+              <input ref={fileRef} type="file" style={{ display: "none" }} onChange={onUpload} />
+              <button className="btn btn-primary btn-sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                <Icon name={uploading ? "refresh" : "upload"} size={14} style={uploading ? { animation: "spin 1s linear infinite" } : {}} />{uploading ? "Subiendo…" : "Subir documento"}
+              </button>
             </div>
-          )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {docs.map((d) => (
+                <div key={d.id} className="card" style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 15px" }}>
+                  <span style={{ width: 38, height: 38, borderRadius: 10, background: "var(--primary-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="fileText" size={18} style={{ color: "var(--primary)" }} /></span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.title}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{(d.created_at || "").slice(0, 10)} · indexado</div>
+                  </div>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "var(--success)", background: "var(--success-soft)", borderRadius: 999, padding: "3px 9px" }}><Icon name="check" size={12} stroke={2.4} />En memoria</span>
+                </div>
+              ))}
+              {docs.length === 0 && (
+                <div className="card" style={{ padding: "26px 22px", textAlign: "center" }}>
+                  <Icon name="upload" size={26} style={{ color: "var(--text-muted)" }} />
+                  <div style={{ fontWeight: 600, fontSize: 14.5, marginTop: 10 }}>Sube los documentos del caso</div>
+                  <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>Se indexan en la memoria del expediente; luego puedes <strong>preguntarle a tu caso</strong> en el chat.</div>
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: 4 }}><button className="btn btn-secondary btn-sm" onClick={() => onOpenChat(m.id, "¿Qué dicen los documentos de este caso?")}><Icon name="message" size={14} />Preguntarle al expediente</button></div>
+          </>}
 
-          <ConfirmNote icon="shieldCheck">Los borradores quedan pendientes hasta tu aprobación.</ConfirmNote>
+          {tab === "config" && <>
+            <div className="card" style={{ padding: 18 }}>
+              <div style={{ fontWeight: 650, fontSize: 14.5, marginBottom: 4 }}>Vigilancia judicial</div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Ingresa el número de radicación (23 dígitos) y Autopilot revisará las actuaciones del proceso en la Rama Judicial.</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={radicado} onChange={(e) => setRadicadoInput(e.target.value)} placeholder="11001310300120200012300"
+                  style={{ flex: 1, height: 40, padding: "0 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--bg-base)", fontFamily: "var(--font-mono)", fontSize: 13.5, color: "var(--text)", outline: "none" }} />
+                <button className="btn btn-primary btn-sm" disabled={radicado.replace(/\D/g, "").length !== 23} onClick={saveRadicado}><Icon name="radar" size={14} />Activar vigilancia</button>
+              </div>
+              {m.radicado && m.radicado !== "—" && <div style={{ fontSize: 12, color: "var(--success)", marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}><Icon name="circleCheck" size={13} />Vigilancia activa para {m.radicado}</div>}
+            </div>
+            <ConfirmNote icon="shieldCheck">Autopilot detecta y prepara. Nunca radica ni envía sin tu aprobación.</ConfirmNote>
+          </>}
+
+          {tab !== "config" && <ConfirmNote icon="shieldCheck">Los borradores quedan pendientes hasta tu aprobación.</ConfirmNote>}
         </div>
         </div>
         <MissionChatPanel title={m.title} onAsk={(seed) => onOpenChat(m.id, seed)} />

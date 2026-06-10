@@ -37,6 +37,7 @@ export function Sidebar({
     { id: "expedientes", icon: "folder", label: "Misiones" },
     { id: "terminos", icon: "calendarClock", label: "Términos" },
     { id: "autopilot", icon: "radar", label: "Autopilot" },
+    { id: "inbox", icon: "bell", label: "Bandeja" },
   ];
   const navItems = missionMode
     ? [{ id: "library", icon: "book", label: "Biblioteca" }]

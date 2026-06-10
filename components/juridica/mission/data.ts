@@ -117,4 +117,24 @@ export const api = {
   unreadCount: (b: string, t: string) => jget<{ count: number }>(b, t, "/api/notifications/unread-count", { count: 0 }),
   markAllRead: (b: string, t: string) => jpost(b, t, "/api/notifications/read-all", {}, {}),
   requestClient: (b: string, t: string, matterId: string, item: string) => jpost<{ ok?: boolean }>(b, t, "/api/missions/request-client", { matter_id: matterId, item }, {}),
+  missionDocuments: (b: string, t: string, id: string) => jget<{ id: string; title: string; mime_type: string; ingest_status: string; created_at: string }[]>(b, t, `/api/missions/${id}/documents`, []),
+  async uploadDocument(b: string, t: string, matterId: string, file: File): Promise<{ document_id?: string; chunks?: number; error?: string }> {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("matter_id", matterId);
+    try {
+      const r = await fetch(`${b}/api/documents`, { method: "POST", headers: { Authorization: `Bearer ${t}` }, body: fd });
+      return r.ok ? await r.json() : { error: `upload ${r.status}` };
+    } catch {
+      return { error: "upload failed" };
+    }
+  },
+  async updateMission(b: string, t: string, id: string, body: Record<string, unknown>): Promise<{ ok?: boolean }> {
+    try {
+      const r = await fetch(`${b}/api/missions/${id}`, { method: "PATCH", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      return r.ok ? await r.json() : { ok: false };
+    } catch {
+      return { ok: false };
+    }
+  },
 };

@@ -17,6 +17,7 @@ import { MissionDetail } from "./mission/MissionDetail";
 import { NuevaMision } from "./mission/NuevaMision";
 import { Terminos } from "./mission/Terminos";
 import { Autopilot } from "./mission/Autopilot";
+import { Inbox } from "./mission/Inbox";
 import { ApprovalModal } from "./mission/ApprovalModal";
 import { api as missionApi } from "./mission/data";
 
@@ -285,6 +286,8 @@ export default function JuridicaApp({
     main = <Terminos backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} />;
   else if (missionMode && route === "autopilot")
     main = <Autopilot backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} onNavigate={go} pushToast={pushToast} />;
+  else if (missionMode && route === "inbox")
+    main = <Inbox backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} pushToast={pushToast} />;
   else if (route === "home")
     main = (
       <Home
