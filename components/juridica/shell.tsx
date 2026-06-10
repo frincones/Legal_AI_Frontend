@@ -236,6 +236,7 @@ export function Composer({
   placeholder,
   autoFocus,
   disabled,
+  compact,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -248,6 +249,7 @@ export function Composer({
   placeholder?: string;
   autoFocus?: boolean;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -300,7 +302,7 @@ export function Composer({
         placeholder={placeholder || "Describe el documento o la consulta legal…"}
         style={{ width: "100%", resize: "none", border: "none", outline: "none", background: "transparent", padding: "20px 22px 6px", fontSize: 16, lineHeight: 1.55, color: "var(--text)", fontFamily: "var(--font-ui)", display: "block", maxHeight: 200 }}
       />
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px 12px 14px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, padding: compact ? "6px 8px 10px 10px" : "8px 12px 12px 14px", flexWrap: compact ? "wrap" : "nowrap", rowGap: 6 }}>
         <button className="btn-ghost focus-ring" title="Adjuntar" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
           <Icon name="paperclip" size={19} />
         </button>
@@ -323,7 +325,7 @@ export function Composer({
         <div style={{ position: "relative" }}>
           <button onClick={() => setJOpen(!jOpen)} className="focus-ring" style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 12px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500 }}>
             <Icon name="scale" size={15} style={{ color: "var(--primary)" }} />
-            <span style={{ maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{jurisdiction}</span>
+            {!compact && <span style={{ maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{jurisdiction}</span>}
             <Icon name="chevronDown" size={14} style={{ color: "var(--text-muted)" }} />
           </button>
           {jOpen && (

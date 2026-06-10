@@ -75,6 +75,7 @@ export function ChatView({
   jurisdiction,
   setJurisdiction,
   matterId,
+  compact,
 }: {
   backendUrl: string;
   accessToken: string;
@@ -85,6 +86,7 @@ export function ChatView({
   jurisdiction: string;
   setJurisdiction: (j: string) => void;
   matterId?: string;        // Mission Control: liga el chat a una misión (expediente)
+  compact?: boolean;        // embebido en el panel de la misión: padding reducido
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -182,7 +184,7 @@ export function ChatView({
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <div ref={scrollRef} className="no-scrollbar" style={{ flex: 1, overflow: "auto" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "32px 28px 24px" }}>
+        <div style={{ maxWidth: compact ? "100%" : 800, margin: "0 auto", padding: compact ? "18px 16px 12px" : "32px 28px 24px" }}>
           {messages.map((m, i) =>
             m.role === "user" ? (
               <ChatMessage key={i} role="user">
@@ -220,7 +222,7 @@ export function ChatView({
       </div>
 
       <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-base)" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "14px 28px 20px" }}>
+        <div style={{ maxWidth: compact ? "100%" : 800, margin: "0 auto", padding: compact ? "12px 14px 14px" : "14px 28px 20px" }}>
           <Composer
             value={input}
             onChange={setInput}
@@ -231,7 +233,8 @@ export function ChatView({
             onJurisdiction={setJurisdiction}
             style="elevated"
             disabled={busy}
-            placeholder="Escribe un mensaje de seguimiento…"
+            compact={compact}
+            placeholder={compact ? "Pregúntale a esta misión…" : "Escribe un mensaje de seguimiento…"}
           />
         </div>
       </div>

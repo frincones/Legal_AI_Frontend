@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../icons";
+import { ChatView } from "../ChatView";
 import { api, type Mission, type TimelineEvent } from "./data";
 import { ConfirmNote, ProgressBar, SectionLabel, SEVERITY } from "./atoms";
 
@@ -227,46 +228,29 @@ export function MissionDetail({
           {tab !== "config" && <ConfirmNote icon="shieldCheck">Los borradores quedan pendientes hasta tu aprobación.</ConfirmNote>}
         </div>
         </div>
-        <MissionChatPanel title={m.title} onAsk={(seed) => onOpenChat(m.id, seed)} />
+        <MissionChatPanel backendUrl={backendUrl} accessToken={accessToken} matterId={m.id} title={m.title} />
       </div>
     </div>
   );
 }
 
-/* Panel lateral "Asistente de la misión" — manda al agente real (chat de la misión). */
-function MissionChatPanel({ title, onAsk }: { title: string; onAsk: (seed?: string) => void }) {
-  const [q, setQ] = useState("");
-  const sugs = ["¿Qué falta en este caso?", "Redacta el siguiente escrito", "Resume el expediente"];
+/* Panel lateral "Asistente de la misión" — CHAT REAL embebido (mismo agente, ligado al matter).
+   Se queda DENTRO de la misión: los documentos/verificaciones se adjuntan al expediente. */
+function MissionChatPanel({ backendUrl, accessToken, matterId, title }: { backendUrl: string; accessToken: string; matterId: string; title: string }) {
+  const [mode, setMode] = useState("Documento");
+  const [jurisdiction, setJurisdiction] = useState("Colombia · Nacional");
   return (
-    <div className="mission-chat-panel" style={{ width: 360, flexShrink: 0, borderLeft: "1px solid var(--border)", background: "var(--bg-surface)", display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ padding: "13px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ width: 28, height: 28, borderRadius: 8, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center" }}><Icon name="sparkles" size={15} style={{ color: "var(--primary)" }} /></span>
+    <div className="mission-chat-panel" style={{ width: 400, flexShrink: 0, borderLeft: "1px solid var(--border)", background: "var(--bg-surface)", display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ padding: "13px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="sparkles" size={15} style={{ color: "var(--primary)" }} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 650, fontSize: 14 }}>Asistente de la misión</div>
-          <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Pregunta sobre este expediente</div>
+          <div style={{ fontSize: 11.5, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Sobre: {title}</div>
         </div>
       </div>
-      <div className="no-scrollbar" style={{ flex: 1, overflow: "auto", padding: "18px 18px 8px" }}>
-        <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 14 }}>Pregúntame lo que necesites sobre <strong>{title}</strong> — su estado, qué falta, o pídeme que redacte algo.</div>
-        <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 9 }}>Sugerencias</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {sugs.map((s) => (
-            <button key={s} onClick={() => onAsk(s)} style={{ textAlign: "left", border: "1px solid var(--border)", background: "var(--bg-base)", borderRadius: "var(--r-md)", padding: "10px 12px", fontSize: 13, color: "var(--text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", gap: 9 }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.background = "var(--primary-soft-2)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--bg-base)"; }}>
-              <Icon name="sparkles" size={14} style={{ color: "var(--primary)" }} />{s}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div style={{ padding: "12px 16px 16px", borderTop: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "6px 6px 6px 14px", background: "var(--bg-base)" }}>
-          <textarea value={q} onChange={(e) => setQ(e.target.value)} rows={1}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (q.trim()) { onAsk(q.trim()); setQ(""); } } }}
-            placeholder="Pregúntale a esta misión…"
-            style={{ flex: 1, resize: "none", border: "none", outline: "none", background: "transparent", fontSize: 14, lineHeight: 1.5, color: "var(--text)", fontFamily: "var(--font-ui)", padding: "6px 0", maxHeight: 90 }} />
-          <button onClick={() => { if (q.trim()) { onAsk(q.trim()); setQ(""); } }} disabled={!q.trim()} style={{ width: 34, height: 34, borderRadius: 9, border: "none", background: q.trim() ? "var(--aurora)" : "var(--bg-elevated-2)", color: q.trim() ? "#fff" : "var(--text-muted)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="arrowUp" size={17} stroke={2.4} /></button>
-        </div>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <ChatView key={matterId} backendUrl={backendUrl} accessToken={accessToken} matterId={matterId}
+          mode={mode} setMode={setMode} jurisdiction={jurisdiction} setJurisdiction={setJurisdiction} compact />
       </div>
     </div>
   );
