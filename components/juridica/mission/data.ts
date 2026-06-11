@@ -60,6 +60,8 @@ export interface AttentionData {
 export interface AutopilotSummary {
   status: string;
   lastRun: string | null;
+  watching?: number;
+  hint?: string;
   reviewed: { icon: string; label: string; n: number }[];
   found: { id: string; icon: string; severity: Severity; label: string; detail: string; action: string; to: string | null }[];
 }

@@ -5,6 +5,19 @@ import { Icon } from "../icons";
 import { api, type AutopilotSummary } from "./data";
 import { ConfirmNote, SEVERITY } from "./atoms";
 
+function fmtWhen(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const mins = Math.round((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return "hace un momento";
+    if (mins < 60) return `hace ${mins} min`;
+    if (mins < 1440) return `hace ${Math.round(mins / 60)} h`;
+    return d.toLocaleDateString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso.slice(0, 16);
+  }
+}
+
 export function Autopilot({
   backendUrl, accessToken, onOpenMission, onNavigate, pushToast,
 }: {
@@ -23,10 +36,11 @@ export function Autopilot({
           <span style={{ width: 52, height: 52, borderRadius: 15, background: "var(--aurora)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="radar" size={26} style={{ color: "#fff" }} /></span>
           <div style={{ flex: 1, minWidth: 200 }}>
             <h1 style={{ fontSize: 26, fontWeight: 650, margin: 0 }}>Autopilot</h1>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 13.5, color: "var(--text-secondary)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 13.5, color: "var(--text-secondary)", flexWrap: "wrap" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: paused ? "var(--text-muted)" : "var(--success)" }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: paused ? "var(--text-muted)" : "var(--success)" }} />{ap?.status || "Activo"}
               </span>
+              {ap?.lastRun && <span>· última revisión {fmtWhen(ap.lastRun)}</span>}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -35,9 +49,16 @@ export function Autopilot({
           </div>
         </div>
 
+        {ap?.hint && (
+          <div className="card" style={{ padding: "14px 18px", marginBottom: 18, display: "flex", alignItems: "flex-start", gap: 11, background: "var(--primary-soft-2)", borderColor: "var(--primary)" }}>
+            <Icon name="info" size={18} style={{ color: "var(--primary)", marginTop: 1, flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{ap.hint}</span>
+          </div>
+        )}
+
         <div className="card" style={{ padding: 20, marginBottom: 18 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 14 }}>Revisé</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
             {(ap?.reviewed || []).map((r, i) => (
               <div key={i} style={{ padding: "14px 16px", borderRadius: "var(--r-md)", background: "var(--bg-base)", border: "1px solid var(--border)" }}>
                 <Icon name={r.icon} size={17} style={{ color: "var(--primary)" }} />
