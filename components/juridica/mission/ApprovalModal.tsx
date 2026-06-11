@@ -21,8 +21,14 @@ export function ApprovalModal({
 
   async function decide(decision: string, label: string, kind = "info") {
     if (!cur) return;
-    await api.decide(backendUrl, accessToken, cur.id, decision);
-    pushToast(label, kind);
+    const res = await api.decide(backendUrl, accessToken, cur.id, decision);
+    const warnings = res?.source_warnings || [];
+    if (decision === "approve" && warnings.length > 0) {
+      const w = warnings[0];
+      pushToast(`⚠️ Aprobado, pero ${w.consulta} cambió a "${w.nuevo}". Revísala antes de radicar.`, "warning");
+    } else {
+      pushToast(label, kind);
+    }
     const rest = items.filter((_, i) => i !== idx);
     setItems(rest);
     setIdx(0);

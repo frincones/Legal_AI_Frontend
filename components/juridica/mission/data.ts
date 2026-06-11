@@ -66,6 +66,14 @@ export interface AutopilotSummary {
   found: { id: string; icon: string; severity: Severity; label: string; detail: string; action: string; to: string | null }[];
 }
 
+export interface SourceWarning {
+  consulta: string;
+  anterior: string | null;
+  nuevo: string;
+  fuente: string | null;
+  clase?: string | null;
+}
+
 export interface ApprovalItem {
   id: string;
   matter_id: string | null;
@@ -113,7 +121,8 @@ export const api = {
   runAutopilot: (b: string, t: string) => jpost(b, t, "/api/autopilot/run-now", {}, {}),
   pauseAutopilot: (b: string, t: string) => jpost<{ paused?: boolean }>(b, t, "/api/autopilot/pause", {}, {}),
   approvals: (b: string, t: string) => jget<ApprovalItem[]>(b, t, "/api/approvals", []),
-  decide: (b: string, t: string, id: string, decision: string, note?: string) => jpost(b, t, `/api/approvals/${id}/${decision}`, { note }, {}),
+  decide: (b: string, t: string, id: string, decision: string, note?: string) =>
+    jpost<{ ok?: boolean; status?: string; source_warnings?: SourceWarning[] }>(b, t, `/api/approvals/${id}/${decision}`, { note }, {}),
   credits: (b: string, t: string) => jget<{ balance: number | null; cap: number | null; ledger: unknown[] }>(b, t, "/api/credits", { balance: null, cap: null, ledger: [] }),
   notifications: (b: string, t: string) => jget<{ id: string; title: string; body: string; campaign_type: string; related_matter_id: string | null; read_at: string | null; created_at: string }[]>(b, t, "/api/notifications", []),
   unreadCount: (b: string, t: string) => jget<{ count: number }>(b, t, "/api/notifications/unread-count", { count: 0 }),
@@ -131,7 +140,7 @@ export const api = {
       return { error: "upload failed" };
     }
   },
-  async updateMission(b: string, t: string, id: string, body: Record<string, unknown>): Promise<{ ok?: boolean }> {
+  async updateMission(b: string, t: string, id: string, body: Record<string, unknown>): Promise<{ ok?: boolean; source_warnings?: SourceWarning[] }> {
     try {
       const r = await fetch(`${b}/api/missions/${id}`, { method: "PATCH", headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
       return r.ok ? await r.json() : { ok: false };

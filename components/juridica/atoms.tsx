@@ -313,7 +313,7 @@ export function Toasts({ items }: { items: Toast[] }) {
   return (
     <div style={{ position: "fixed", right: 22, bottom: 22, zIndex: 200, display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
       {items.map((t) => {
-        const meta = ({ gold: ["badgeCheck", "var(--gold)"], success: ["check", "var(--success)"], primary: ["sparkles", "var(--primary)"], info: ["info", "var(--info)"] } as Record<string, [string, string]>)[t.kind] || ["info", "var(--primary)"];
+        const meta = ({ gold: ["badgeCheck", "var(--gold)"], success: ["check", "var(--success)"], primary: ["sparkles", "var(--primary)"], warning: ["alert", "var(--warning)"], info: ["info", "var(--info)"] } as Record<string, [string, string]>)[t.kind] || ["info", "var(--primary)"];
         return (
           <div key={t.id} className="fade-up" style={{ display: "flex", alignItems: "center", gap: 11, background: "#11151F", color: "#F3F5FA", padding: "12px 16px", borderRadius: "var(--r-md)", boxShadow: "0 16px 40px -12px rgba(13,19,32,0.4)", fontSize: 13.5, fontWeight: 500, maxWidth: 340 }}>
             <span style={{ width: 24, height: 24, borderRadius: 7, display: "grid", placeItems: "center", background: "rgba(255,255,255,0.08)", color: meta[1], flexShrink: 0 }}>
