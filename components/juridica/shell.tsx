@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type ReactNode, type CSSProperties } from "react";
+import { useState, useRef, useEffect, type ReactNode, type CSSProperties, type ChangeEvent } from "react";
 import { Icon, Logo } from "./icons";
 import { AgentAvatar } from "./atoms";
 import { useDictation } from "./Dictation";
@@ -240,10 +240,11 @@ export function Composer({
   compact,
   backendUrl,
   accessToken,
+  matterId,
 }: {
   value: string;
   onChange: (v: string) => void;
-  onSend: () => void;
+  onSend: (documentIds?: string[]) => void;
   // mode/jurisdiction quedan opcionales por compatibilidad con los llamadores; ya no se renderizan.
   mode?: string;
   onMode?: (m: string) => void;
@@ -254,14 +255,48 @@ export function Composer({
   autoFocus?: boolean;
   disabled?: boolean;
   compact?: boolean;
-  backendUrl?: string;      // dictado por voz (Groq Whisper). Si falta, se oculta el micrófono.
+  backendUrl?: string;      // dictado por voz + adjuntar. Si faltan, se ocultan mic y clip.
   accessToken?: string;
+  matterId?: string;        // asocia el adjunto a la misión (opcional)
 }) {
   const dict = useDictation(backendUrl, accessToken);
   const micEnabled = !!(backendUrl && accessToken);
   async function confirmDictation() {
     const t = await dict.stop();
     if (t) onChange(value.trim() ? `${value.trim()} ${t}` : t);
+  }
+
+  // ── Adjuntar documentos (clip) ──
+  const fileRef = useRef<HTMLInputElement>(null);
+  const keyRef = useRef(0);
+  const [atts, setAtts] = useState<{ key: number; name: string; id?: string; loading: boolean; err?: boolean }[]>([]);
+  const attachEnabled = !!(backendUrl && accessToken);
+
+  async function handleFiles(e: ChangeEvent<HTMLInputElement>) {
+    const list = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!backendUrl || !accessToken) return;
+    for (const file of list) {
+      const k = ++keyRef.current;
+      setAtts((a) => [...a, { key: k, name: file.name, loading: true }]);
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        if (matterId) fd.append("matter_id", matterId);
+        const r = await fetch(`${backendUrl}/api/documents`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` }, body: fd });
+        const j = r.ok ? await r.json() : null;
+        setAtts((a) => a.map((x) => (x.key === k ? { ...x, loading: false, id: j?.document_id, err: !j?.document_id } : x)));
+      } catch {
+        setAtts((a) => a.map((x) => (x.key === k ? { ...x, loading: false, err: true } : x)));
+      }
+    }
+  }
+
+  function doSend() {
+    if (!canSend) return;
+    const ids = atts.filter((a) => a.id).map((a) => a.id as string);
+    onSend(ids.length ? ids : undefined);
+    setAtts([]);
   }
   const taRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -281,7 +316,8 @@ export function Composer({
       ? { background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "var(--sh-3)", borderRadius: 28 }
       : { background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "var(--sh-3)" };
 
-  const canSend = value.trim().length > 0 && !disabled;
+  const uploading = atts.some((a) => a.loading);
+  const canSend = (value.trim().length > 0 || atts.some((a) => a.id)) && !disabled && !uploading;
 
   return (
     <div className="composer-shell" style={{ borderRadius: style === "pill" ? 28 : "var(--r-xl)", overflow: "hidden", transition: "box-shadow .2s, border-color .2s", position: "relative", ...shellStyle }}>
@@ -330,16 +366,36 @@ export function Composer({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                if (canSend) onSend();
+                doSend();
               }
             }}
             placeholder={placeholder || "Describe el documento o la consulta legal…"}
             style={{ width: "100%", resize: "none", border: "none", outline: "none", background: "transparent", padding: "20px 22px 6px", fontSize: 16, lineHeight: 1.55, color: "var(--text)", fontFamily: "var(--font-ui)", display: "block", maxHeight: 200 }}
           />
+          {atts.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "2px 14px 0" }}>
+              {atts.map((a) => (
+                <span key={a.key} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 8px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-elevated-2)", fontSize: 12, color: "var(--text-secondary)", maxWidth: 220 }}>
+                  <Icon name="fileText" size={13} style={{ color: "var(--primary)", flexShrink: 0 }} />
+                  <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
+                  {a.loading ? <Icon name="refresh" size={12} style={{ animation: "spin 1s linear infinite" }} />
+                    : a.err ? <Icon name="alert" size={12} style={{ color: "var(--danger, #DC2626)" }} />
+                    : <Icon name="check" size={12} style={{ color: "var(--success)" }} />}
+                  <button onClick={() => setAtts((x) => x.filter((y) => y.key !== a.key))} title="Quitar" style={{ border: "none", background: "transparent", padding: 0, display: "grid", placeItems: "center", color: "var(--text-muted)", cursor: "pointer" }}>
+                    <Icon name="x" size={13} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input ref={fileRef} type="file" multiple onChange={handleFiles} style={{ display: "none" }}
+            accept=".pdf,.doc,.docx,.txt,.md,.rtf,.png,.jpg,.jpeg" />
           <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, padding: compact ? "6px 8px 10px 10px" : "8px 12px 12px 14px", flexWrap: compact ? "wrap" : "nowrap", rowGap: 6 }}>
-            <button className="btn-ghost focus-ring" title="Adjuntar" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
-              <Icon name="paperclip" size={19} />
-            </button>
+            {attachEnabled && (
+              <button onClick={() => fileRef.current?.click()} className="btn-ghost focus-ring" title="Adjuntar documento" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
+                <Icon name="paperclip" size={19} />
+              </button>
+            )}
             {micEnabled && (
               <button onClick={() => dict.start()} className="btn-ghost focus-ring" title="Dictar por voz" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
                 <Icon name="mic" size={19} />
@@ -348,7 +404,7 @@ export function Composer({
 
             <span style={{ flex: 1 }} />
             <button
-              onClick={() => canSend && onSend()}
+              onClick={doSend}
               disabled={!canSend}
               className="focus-ring"
               style={{ width: 42, height: 42, borderRadius: style === "pill" ? "50%" : "var(--r-md)", border: "none", background: canSend ? "var(--aurora)" : "var(--bg-elevated-2)", color: canSend ? "#fff" : "var(--text-muted)", display: "grid", placeItems: "center", boxShadow: canSend ? "var(--glow-primary)" : "none", transition: "all .15s", cursor: canSend ? "pointer" : "default" }}

@@ -48,7 +48,7 @@ export function Home({
   accessToken,
 }: {
   composerStyle?: "elevated" | "bordered" | "pill";
-  onSubmit: (text: string, modeOverride?: string) => void;
+  onSubmit: (text: string, modeOverride?: string, documentIds?: string[]) => void;
   onNavigate: (r: string) => void;
   draft: string;
   setDraft: (v: string) => void;
@@ -83,7 +83,7 @@ export function Home({
           <Composer
             value={draft}
             onChange={setDraft}
-            onSend={() => onSubmit(draft)}
+            onSend={(docIds) => onSubmit(draft, undefined, docIds)}
             style={composerStyle}
             autoFocus
             backendUrl={backendUrl}

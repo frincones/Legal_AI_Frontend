@@ -79,6 +79,7 @@ export default function JuridicaApp({
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [chatSeed, setChatSeed] = useState<string | undefined>(undefined);
+  const [chatSeedDocs, setChatSeedDocs] = useState<string[] | undefined>(undefined);  // adjuntos del primer mensaje
   const [chatKey, setChatKey] = useState(0);
   const [recents, setRecents] = useState<{ id: string; title: string }[]>([]);
   const [libDocs, setLibDocs] = useState<LibraryItem[]>([]);
@@ -195,8 +196,8 @@ export default function JuridicaApp({
     setRoute(r);
   }
 
-  function submitToChat(text: string, modeOverride?: string) {
-    if (!text || !text.trim()) return;
+  function submitToChat(text: string, modeOverride?: string, documentIds?: string[]) {
+    if ((!text || !text.trim()) && !(documentIds && documentIds.length)) return;
     const effectiveMode = modeOverride ?? mode;
     if (modeOverride) setMode(modeOverride);
     setReusePatronId(undefined);
@@ -204,6 +205,7 @@ export default function JuridicaApp({
     setOpenSessionId(undefined);
     setChatMatterId(undefined);
     setChatSeed(text.trim());
+    setChatSeedDocs(documentIds);
     setChatKey((k) => k + 1);
     setDraft("");
     // Modo "Documento" → Canvas (se vuelve split solo si se genera un documento).
@@ -227,6 +229,7 @@ export default function JuridicaApp({
   function openConversation(id: string) {
     setOpenSessionId(id);
     setChatSeed(undefined);
+    setChatSeedDocs(undefined);
     setReusePatronId(undefined);
     setReuseTitle(undefined);
     setChatMatterId(undefined);
@@ -252,10 +255,11 @@ export default function JuridicaApp({
     if (missionMode) setRoute("mission");
     else newDoc();
   }
-  function openMissionChat(id: string, seed?: string) {
+  function openMissionChat(id: string, seed?: string, documentIds?: string[]) {
     setCurrentMissionId(id);
     setChatMatterId(id);
     setChatSeed(seed);
+    setChatSeedDocs(documentIds);
     setOpenSessionId(undefined);
     setReusePatronId(undefined);
     setMode("Documento");
@@ -281,7 +285,7 @@ export default function JuridicaApp({
   else if (missionMode && route === "expediente" && currentMissionId)
     main = <MissionDetail backendUrl={backendUrl} accessToken={accessToken} missionId={currentMissionId} onBack={() => go("expedientes")} onOpenChat={openMissionChat} onApprove={() => setApprovalOpen(true)} pushToast={pushToast} />;
   else if (missionMode && route === "mission")
-    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt) => { openMissionChat(id, prompt); }} pushToast={pushToast} />;
+    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt, docs) => { openMissionChat(id, prompt, docs); }} pushToast={pushToast} />;
   else if (missionMode && route === "terminos")
     main = <Terminos backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} />;
   else if (missionMode && route === "autopilot")
@@ -310,6 +314,7 @@ export default function JuridicaApp({
         backendUrl={backendUrl}
         accessToken={accessToken}
         initialMessage={chatSeed}
+        initialDocumentIds={chatSeedDocs}
         loadSessionId={openSessionId}
         mode={mode}
         setMode={setMode}
@@ -325,6 +330,7 @@ export default function JuridicaApp({
         backendUrl={backendUrl}
         accessToken={accessToken}
         initialMessage={chatSeed}
+        initialDocumentIds={chatSeedDocs}
         reusePatronId={reusePatronId}
         reuseTitle={reuseTitle}
         narrow={narrow}

@@ -71,6 +71,7 @@ export function ChatView({
   backendUrl,
   accessToken,
   initialMessage,
+  initialDocumentIds,
   loadSessionId,
   mode,
   setMode,
@@ -82,6 +83,7 @@ export function ChatView({
   backendUrl: string;
   accessToken: string;
   initialMessage?: string;
+  initialDocumentIds?: string[];   // adjuntos que vienen del composer de Home/NuevaMisión
   loadSessionId?: string;   // abrir una conversación existente desde 'Recientes'
   mode: string;
   setMode: (m: string) => void;
@@ -111,20 +113,23 @@ export function ChatView({
     });
   }
 
-  async function runMessage(rawMsg: string) {
+  async function runMessage(rawMsg: string, documentIds?: string[]) {
     const userMsg = rawMsg.trim();
-    if (!userMsg) return;
+    const hasDocs = !!(documentIds && documentIds.length);
+    if (!userMsg && !hasDocs) return;
+    const baseMsg = userMsg || "Revisa el documento que adjunté y dime de qué se trata.";
     // Subtle prefix when asking a question (vs drafting a document)
-    const sendText = mode === "Pregunta" ? `Consulta legal: ${userMsg}` : userMsg;
+    const sendText = mode === "Pregunta" ? `Consulta legal: ${baseMsg}` : baseMsg;
+    const displayMsg = userMsg || "📎 Documento adjunto";
 
-    setMessages((m) => [...m, { role: "user", text: userMsg }, { role: "assistant", turn: { thinking: "", steps: [], text: "", artifacts: [], startedAt: Date.now() } }]);
+    setMessages((m) => [...m, { role: "user", text: displayMsg }, { role: "assistant", turn: { thinking: "", steps: [], text: "", artifacts: [], startedAt: Date.now() } }]);
     setBusy(true);
 
     try {
       const res = await fetch(`${backendUrl}/api/chat/${sessionId.current}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ message: sendText, matter_id: matterId }),
+        body: JSON.stringify({ message: sendText, matter_id: matterId, document_ids: documentIds }),
       });
       if (!res.ok || !res.body) throw new Error(`backend ${res.status}`);
 
@@ -190,8 +195,8 @@ export function ChatView({
           }
         })
         .catch(() => {});
-    } else if (initialMessage && initialMessage.trim()) {
-      runMessage(initialMessage);
+    } else if ((initialMessage && initialMessage.trim()) || (initialDocumentIds && initialDocumentIds.length)) {
+      runMessage(initialMessage || "", initialDocumentIds);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -200,11 +205,12 @@ export function ChatView({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  function send() {
-    if (!input.trim() || busy) return;
+  function send(documentIds?: string[]) {
+    if (busy) return;
     const msg = input.trim();
+    if (!msg && !(documentIds && documentIds.length)) return;
     setInput("");
-    runMessage(msg);
+    runMessage(msg, documentIds);
   }
 
   return (
@@ -255,6 +261,7 @@ export function ChatView({
             compact={compact}
             backendUrl={backendUrl}
             accessToken={accessToken}
+            matterId={matterId}
             placeholder={compact ? "Pregúntale a esta misión…" : "Escribe un mensaje de seguimiento…"}
           />
         </div>

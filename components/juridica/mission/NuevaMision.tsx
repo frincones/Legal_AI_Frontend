@@ -24,23 +24,24 @@ export function NuevaMision({
   backendUrl, accessToken, onCreated, pushToast,
 }: {
   backendUrl: string; accessToken: string;
-  onCreated: (missionId: string, prompt: string) => void; pushToast: (t: string, k?: string) => void;
+  onCreated: (missionId: string, prompt: string, documentIds?: string[]) => void; pushToast: (t: string, k?: string) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function submit(text?: string) {
+  async function submit(text?: string, documentIds?: string[]) {
     const v = (text ?? draft).trim();
-    if (!v || busy) return;
+    if ((!v && !(documentIds && documentIds.length)) || busy) return;
     setBusy(true);
     pushToast("Creando el expediente y poniendo a trabajar al agente…", "primary");
-    const { plugin, matter_type } = detectPlugin(v);
+    const goal = v || "Trabaja el documento que adjunté.";
+    const { plugin, matter_type } = detectPlugin(goal);
     // Crea la misión (expediente real). El agente la trabaja en el chat (no hay datos simulados).
-    const m = await api.createMission(backendUrl, accessToken, { name: v.slice(0, 80), plugin_key: plugin, matter_type, workflow_type: plugin });
+    const m = await api.createMission(backendUrl, accessToken, { name: goal.slice(0, 80), plugin_key: plugin, matter_type, workflow_type: plugin });
     setBusy(false);
     if (m && m.id) {
       // Abre el chat de la misión con el objetivo → el AGENTE REAL lo procesa (stream con sus tools).
-      onCreated(m.id, v);
+      onCreated(m.id, goal, documentIds);
     } else {
       pushToast("No se pudo crear la misión", "info");
     }
@@ -61,7 +62,7 @@ export function NuevaMision({
         <Composer
           value={draft}
           onChange={setDraft}
-          onSend={() => submit()}
+          onSend={(docIds) => submit(undefined, docIds)}
           disabled={busy}
           autoFocus
           backendUrl={backendUrl}

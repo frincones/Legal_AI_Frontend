@@ -404,6 +404,7 @@ export function Canvas({
   backendUrl,
   accessToken,
   initialMessage,
+  initialDocumentIds,
   reusePatronId,
   reuseTitle,
   narrow = false,
@@ -412,6 +413,7 @@ export function Canvas({
   backendUrl: string;
   accessToken: string;
   initialMessage?: string;
+  initialDocumentIds?: string[];   // adjuntos del composer de Home (primer mensaje)
   reusePatronId?: string;   // F4: parte de un patrón validado de la biblioteca (reuse_patron_id)
   reuseTitle?: string;      // F4: título de la plantilla reutilizada (para el banner)
   narrow?: boolean;
@@ -492,21 +494,24 @@ export function Canvas({
     });
   }
 
-  async function runMessage(rawMsg: string, opts?: { kind?: "gen" | "edit"; sel?: string }) {
+  async function runMessage(rawMsg: string, opts?: { kind?: "gen" | "edit"; sel?: string; documentIds?: string[] }) {
     const userMsg = rawMsg.trim();
-    if (!userMsg) return;
+    const docs = opts?.documentIds;
+    if (!userMsg && !(docs && docs.length)) return;
     const kind = opts?.kind ?? "gen";
     const sel = opts?.sel;
+    const baseMsg = userMsg || "Genera un documento a partir del archivo que adjunté.";
 
     setMessages((m) => [
       ...m,
-      { role: "user", text: userMsg, sel },
+      { role: "user", text: userMsg || "📎 Documento adjunto", sel },
       { role: "assistant", turn: { kind, thinking: "", steps: [], text: "", sel } },
     ]);
     setBusy(true);
 
     try {
-      const body: Record<string, any> = { message: userMsg };
+      const body: Record<string, any> = { message: baseMsg };
+      if (docs && docs.length) body.document_ids = docs;
       if (kind === "edit" && editArtifactId.current) {
         body.edit_artifact_id = editArtifactId.current;
         if (sel) body.selection = sel;
@@ -586,7 +591,8 @@ export function Canvas({
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    if (initialMessage && initialMessage.trim()) runMessage(initialMessage, { kind: "gen" });
+    if ((initialMessage && initialMessage.trim()) || (initialDocumentIds && initialDocumentIds.length))
+      runMessage(initialMessage || "", { kind: "gen", documentIds: initialDocumentIds });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
