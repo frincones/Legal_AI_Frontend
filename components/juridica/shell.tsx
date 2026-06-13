@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, type ReactNode, type CSSProperties } from "react";
 import { Icon, Logo } from "./icons";
 import { AgentAvatar } from "./atoms";
+import { useDictation } from "./Dictation";
 
 /* ---------------- Sidebar ---------------- */
 export function Sidebar({
@@ -224,6 +225,10 @@ export function Sidebar({
 }
 
 /* ---------------- Composer ---------------- */
+function fmtSec(s: number): string {
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 export function Composer({
   value,
   onChange,
@@ -233,6 +238,8 @@ export function Composer({
   autoFocus,
   disabled,
   compact,
+  backendUrl,
+  accessToken,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -247,7 +254,15 @@ export function Composer({
   autoFocus?: boolean;
   disabled?: boolean;
   compact?: boolean;
+  backendUrl?: string;      // dictado por voz (Groq Whisper). Si falta, se oculta el micrófono.
+  accessToken?: string;
 }) {
+  const dict = useDictation(backendUrl, accessToken);
+  const micEnabled = !!(backendUrl && accessToken);
+  async function confirmDictation() {
+    const t = await dict.stop();
+    if (t) onChange(value.trim() ? `${value.trim()} ${t}` : t);
+  }
   const taRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const el = taRef.current;
@@ -274,43 +289,75 @@ export function Composer({
         className="composer-accent"
         style={{ position: "absolute", inset: 0, borderRadius: "inherit", padding: 1.5, background: "var(--aurora)", WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)", WebkitMaskComposite: "xor", maskComposite: "exclude", opacity: 0, transition: "opacity .2s", pointerEvents: "none" }}
       />
-      <textarea
-        ref={taRef}
-        value={value}
-        rows={1}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={(e) => {
-          const a = e.currentTarget.parentElement?.querySelector(".composer-accent") as HTMLElement | null;
-          if (a) a.style.opacity = "1";
-        }}
-        onBlur={(e) => {
-          const a = e.currentTarget.parentElement?.querySelector(".composer-accent") as HTMLElement | null;
-          if (a) a.style.opacity = "0";
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            if (canSend) onSend();
-          }
-        }}
-        placeholder={placeholder || "Describe el documento o la consulta legal…"}
-        style={{ width: "100%", resize: "none", border: "none", outline: "none", background: "transparent", padding: "20px 22px 6px", fontSize: 16, lineHeight: 1.55, color: "var(--text)", fontFamily: "var(--font-ui)", display: "block", maxHeight: 200 }}
-      />
-      <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, padding: compact ? "6px 8px 10px 10px" : "8px 12px 12px 14px", flexWrap: compact ? "wrap" : "nowrap", rowGap: 6 }}>
-        <button className="btn-ghost focus-ring" title="Adjuntar" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
-          <Icon name="paperclip" size={19} />
-        </button>
 
-        <span style={{ flex: 1 }} />
-        <button
-          onClick={() => canSend && onSend()}
-          disabled={!canSend}
-          className="focus-ring"
-          style={{ width: 42, height: 42, borderRadius: style === "pill" ? "50%" : "var(--r-md)", border: "none", background: canSend ? "var(--aurora)" : "var(--bg-elevated-2)", color: canSend ? "#fff" : "var(--text-muted)", display: "grid", placeItems: "center", boxShadow: canSend ? "var(--glow-primary)" : "none", transition: "all .15s", cursor: canSend ? "pointer" : "default" }}
-        >
-          <Icon name="arrowUp" size={20} stroke={2.4} />
-        </button>
-      </div>
+      {dict.transcribing ? (
+        /* Transcribiendo el dictado (estilo ChatGPT "Cargando dictado") */
+        <div className="fade-in" style={{ display: "flex", alignItems: "center", gap: 11, padding: "22px 22px", minHeight: 70 }}>
+          <Icon name="sparkles" size={17} style={{ color: "var(--primary)", animation: "spin 2.4s linear infinite" }} />
+          <span className="shimmer-text" style={{ fontWeight: 550, fontSize: 15 }}>Cargando dictado · {fmtSec(dict.seconds)}</span>
+        </div>
+      ) : dict.recording ? (
+        /* Grabando: waveform reactivo + timer + cancelar (X) + listo (✓) */
+        <div className="fade-in" style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 16px", minHeight: 70 }}>
+          <button onClick={dict.cancel} title="Cancelar" className="focus-ring" style={{ width: 38, height: 38, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--bg-surface)", color: "var(--text-secondary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+            <Icon name="x" size={18} />
+          </button>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 3, height: 34, overflow: "hidden" }}>
+            {dict.levels.map((lv, i) => (
+              <span key={i} style={{ width: 3, borderRadius: 2, background: "var(--primary)", height: Math.max(3, 3 + lv * 26), opacity: 0.35 + lv * 0.65, transition: "height .09s ease, opacity .09s ease" }} />
+            ))}
+          </div>
+          <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 13.5, fontWeight: 600, color: "var(--text-secondary)", minWidth: 40, textAlign: "right", flexShrink: 0 }}>{fmtSec(dict.seconds)}</span>
+          <button onClick={confirmDictation} title="Listo" className="focus-ring" style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "var(--aurora)", color: "#fff", display: "grid", placeItems: "center", boxShadow: "var(--glow-primary)", flexShrink: 0 }}>
+            <Icon name="check" size={19} stroke={2.5} />
+          </button>
+        </div>
+      ) : (
+        <>
+          <textarea
+            ref={taRef}
+            value={value}
+            rows={1}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={(e) => {
+              const a = e.currentTarget.parentElement?.querySelector(".composer-accent") as HTMLElement | null;
+              if (a) a.style.opacity = "1";
+            }}
+            onBlur={(e) => {
+              const a = e.currentTarget.parentElement?.querySelector(".composer-accent") as HTMLElement | null;
+              if (a) a.style.opacity = "0";
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (canSend) onSend();
+              }
+            }}
+            placeholder={placeholder || "Describe el documento o la consulta legal…"}
+            style={{ width: "100%", resize: "none", border: "none", outline: "none", background: "transparent", padding: "20px 22px 6px", fontSize: 16, lineHeight: 1.55, color: "var(--text)", fontFamily: "var(--font-ui)", display: "block", maxHeight: 200 }}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, padding: compact ? "6px 8px 10px 10px" : "8px 12px 12px 14px", flexWrap: compact ? "wrap" : "nowrap", rowGap: 6 }}>
+            <button className="btn-ghost focus-ring" title="Adjuntar" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
+              <Icon name="paperclip" size={19} />
+            </button>
+            {micEnabled && (
+              <button onClick={() => dict.start()} className="btn-ghost focus-ring" title="Dictar por voz" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
+                <Icon name="mic" size={19} />
+              </button>
+            )}
+
+            <span style={{ flex: 1 }} />
+            <button
+              onClick={() => canSend && onSend()}
+              disabled={!canSend}
+              className="focus-ring"
+              style={{ width: 42, height: 42, borderRadius: style === "pill" ? "50%" : "var(--r-md)", border: "none", background: canSend ? "var(--aurora)" : "var(--bg-elevated-2)", color: canSend ? "#fff" : "var(--text-muted)", display: "grid", placeItems: "center", boxShadow: canSend ? "var(--glow-primary)" : "none", transition: "all .15s", cursor: canSend ? "pointer" : "default" }}
+            >
+              <Icon name="arrowUp" size={20} stroke={2.4} />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -250,13 +250,11 @@ export function ChatView({
             value={input}
             onChange={setInput}
             onSend={send}
-            mode={mode}
-            onMode={setMode}
-            jurisdiction={jurisdiction}
-            onJurisdiction={setJurisdiction}
             style="elevated"
             disabled={busy}
             compact={compact}
+            backendUrl={backendUrl}
+            accessToken={accessToken}
             placeholder={compact ? "Pregúntale a esta misión…" : "Escribe un mensaje de seguimiento…"}
           />
         </div>

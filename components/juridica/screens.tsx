@@ -43,20 +43,21 @@ export function Home({
   onNavigate,
   draft,
   setDraft,
-  mode,
   setMode,
-  jurisdiction,
-  setJurisdiction,
+  backendUrl,
+  accessToken,
 }: {
   composerStyle?: "elevated" | "bordered" | "pill";
   onSubmit: (text: string, modeOverride?: string) => void;
   onNavigate: (r: string) => void;
   draft: string;
   setDraft: (v: string) => void;
-  mode: string;
+  mode?: string;
   setMode: (m: string) => void;
-  jurisdiction: string;
-  setJurisdiction: (j: string) => void;
+  jurisdiction?: string;
+  setJurisdiction?: (j: string) => void;
+  backendUrl?: string;
+  accessToken?: string;
 }) {
   return (
     <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
@@ -83,12 +84,10 @@ export function Home({
             value={draft}
             onChange={setDraft}
             onSend={() => onSubmit(draft)}
-            mode={mode}
-            onMode={setMode}
-            jurisdiction={jurisdiction}
-            onJurisdiction={setJurisdiction}
             style={composerStyle}
             autoFocus
+            backendUrl={backendUrl}
+            accessToken={accessToken}
             placeholder="Ej. Redacta una demanda ejecutiva por un pagaré de $50.000.000…"
           />
 

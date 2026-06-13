@@ -299,6 +299,8 @@ export default function JuridicaApp({
         setMode={setMode}
         jurisdiction={jurisdiction}
         setJurisdiction={setJurisdiction}
+        backendUrl={backendUrl}
+        accessToken={accessToken}
       />
     );
   else if (route === "chat")
