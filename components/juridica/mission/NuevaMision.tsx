@@ -3,6 +3,7 @@
 "use client";
 import { useState } from "react";
 import { Icon } from "../icons";
+import { Composer } from "../shell";
 import { api } from "./data";
 import { ConfirmNote } from "./atoms";
 
@@ -57,18 +58,16 @@ export function NuevaMision({
           <p style={{ fontSize: 15.5, color: "var(--text-secondary)", margin: "10px 0 0" }}>Describe tu objetivo. Creo el expediente y el agente empieza a trabajarlo: verifica las normas, redacta y te dice qué falta.</p>
         </div>
 
-        <div className="composer-shell" style={{ borderRadius: "var(--r-xl)", overflow: "hidden", background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "var(--sh-3)" }}>
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} autoFocus disabled={busy}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-            placeholder="Ej. Quiero cobrar una deuda de $50M con un pagaré vencido contra Jorge Molina…"
-            style={{ width: "100%", resize: "none", border: "none", outline: "none", background: "transparent", padding: "20px 22px 6px", fontSize: 16, lineHeight: 1.55, color: "var(--text)", fontFamily: "var(--font-ui)" }} />
-          <div style={{ display: "flex", alignItems: "center", padding: "8px 12px 12px 14px" }}>
-            <span style={{ flex: 1 }} />
-            <button onClick={() => submit()} disabled={!draft.trim() || busy} style={{ width: 42, height: 42, borderRadius: "var(--r-md)", border: "none", background: draft.trim() && !busy ? "var(--aurora)" : "var(--bg-elevated-2)", color: draft.trim() && !busy ? "#fff" : "var(--text-muted)", display: "grid", placeItems: "center", boxShadow: draft.trim() && !busy ? "var(--glow-primary)" : "none" }}>
-              <Icon name={busy ? "refresh" : "arrowUp"} size={20} stroke={2.4} style={busy ? { animation: "spin 1s linear infinite" } : {}} />
-            </button>
-          </div>
-        </div>
+        <Composer
+          value={draft}
+          onChange={setDraft}
+          onSend={() => submit()}
+          disabled={busy}
+          autoFocus
+          backendUrl={backendUrl}
+          accessToken={accessToken}
+          placeholder="Ej. Quiero cobrar una deuda de $50M con un pagaré vencido contra Jorge Molina…"
+        />
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 16 }}>
           {SUGGESTIONS.map((s) => <button key={s} className="chip" disabled={busy} onClick={() => submit(s)}><Icon name="sparkles" size={14} style={{ color: "var(--primary)" }} />{s}</button>)}
