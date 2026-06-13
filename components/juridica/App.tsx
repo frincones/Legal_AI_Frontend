@@ -66,10 +66,12 @@ export default function JuridicaApp({
   backendUrl,
   accessToken,
   email,
+  initialMissionMode = false,
 }: {
   backendUrl: string;
   accessToken: string;
   email: string | null;
+  initialMissionMode?: boolean;   // resuelto en el server → sin flash al refrescar
 }) {
   const [route, setRoute] = useState<string>("home");
   const [collapsed, setCollapsed] = useState(false);
@@ -89,7 +91,8 @@ export default function JuridicaApp({
   const [showWizard, setShowWizard] = useState(false);
   const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
   // Mission Control (F2): flag por org + estado de misión/aprobación.
-  const [missionMode, setMissionMode] = useState(false);
+  // Arranca con el valor resuelto en el server (sin flash); el useEffect lo reconcilia.
+  const [missionMode, setMissionMode] = useState(initialMissionMode);
   const [currentMissionId, setCurrentMissionId] = useState<string | undefined>(undefined);
   const [chatMatterId, setChatMatterId] = useState<string | undefined>(undefined);
   const [approvalOpen, setApprovalOpen] = useState(false);
