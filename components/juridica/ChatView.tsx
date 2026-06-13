@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import { Composer, ChatMessage } from "./shell";
 import { ArtifactCard } from "./atoms";
 import { Markdown } from "./Markdown";
-import { ThoughtPill, ActivitySidebar, type ActStep } from "./Activity";
+import { ThoughtPill, ActivitySidebar, SourcesFooter, type ActStep } from "./Activity";
 
 type Step = ActStep;
 type Artifact = { title: string; uri: string; kind: string };
@@ -140,7 +140,7 @@ export function ChatView({
         else if (event === "tool_result")
           patchTurn((t) => {
             const s = [...t.steps].reverse().find((x) => x.name === data.name && x.status === "running");
-            if (s) { s.status = "done"; s.endedAt = Date.now(); s.output = data.output; }
+            if (s) { s.status = "done"; s.endedAt = Date.now(); s.output = data.output; if (data.sources?.length) s.sources = data.sources; }
           });
         else if (event === "artifact") patchTurn((t) => t.artifacts.push({ title: data.title, uri: data.uri, kind: data.kind }));
         else if (event === "error") patchTurn((t) => (t.text += `\n\n⚠️ ${data.message}`));
@@ -178,6 +178,7 @@ export function ChatView({
                         steps: (m.steps || []).map((s: any) => ({
                           name: s.name, label: labelFor(s.name), icon: iconFor(s.name), status: "done",
                           startedAt: 0, endedAt: s.durationMs ?? undefined, input: s.input, output: s.output,
+                          sources: s.sources || [],
                         })),
                         text: m.text || "",
                         artifacts: [],
@@ -232,6 +233,7 @@ export function ChatView({
                       <Markdown text={m.turn.text} />
                     </div>
                   )}
+                  {m.turn.text && <SourcesFooter steps={m.turn.steps} />}
                   {m.turn.artifacts.map((a, j) => (
                     <ArtifactCard key={j} doc={{ title: a.title, uri: a.uri }} />
                   ))}

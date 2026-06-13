@@ -6,10 +6,51 @@
 import { useState } from "react";
 import { Icon } from "./icons";
 
+export type SourceLink = { consulta?: string; entidad?: string; url: string; estado?: string; tier?: number };
+
 export type ActStep = {
   name: string; label: string; icon: string; status: "running" | "done";
-  startedAt?: number; endedAt?: number; input?: unknown; output?: string;
+  startedAt?: number; endedAt?: number; input?: unknown; output?: string; sources?: SourceLink[];
 };
+
+// Color del estado (vigente = ok, derogada/inexequible = alerta)
+function estadoColor(estado?: string): string {
+  const e = (estado || "").toLowerCase();
+  if (/deroga|inexequible|suspendida|no_encontrada/.test(e)) return "var(--danger, #DC2626)";
+  if (/modific|condicionad|parcial/.test(e)) return "var(--gold, #C98A14)";
+  return "var(--success)";
+}
+
+// Badge clicable a la página OFICIAL donde se verificó (el usuario valida por su cuenta).
+export function SourceBadge({ s }: { s: SourceLink }) {
+  return (
+    <a href={s.url} target="_blank" rel="noopener noreferrer" title={`${s.consulta || ""} — ${s.url}`}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 9px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 500, textDecoration: "none", maxWidth: "100%" }}>
+      <Icon name="shieldCheck" size={12} style={{ color: estadoColor(s.estado), flexShrink: 0 }} />
+      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }}>{s.entidad || s.consulta || "Fuente"}</span>
+      {s.estado && <span style={{ color: estadoColor(s.estado), fontWeight: 600 }}>· {s.estado}</span>}
+      <Icon name="link" size={11} style={{ color: "var(--primary)", flexShrink: 0 }} />
+    </a>
+  );
+}
+
+// Footer "Fuentes verificadas" bajo la respuesta — unión de las fuentes de todos los pasos.
+export function SourcesFooter({ steps }: { steps: ActStep[] }) {
+  const seen = new Set<string>();
+  const sources: SourceLink[] = [];
+  for (const st of steps) for (const s of st.sources || []) if (s.url && !seen.has(s.url)) { seen.add(s.url); sources.push(s); }
+  if (sources.length === 0) return null;
+  return (
+    <div style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>
+        <Icon name="shieldCheck" size={13} style={{ color: "var(--success)" }} /> Fuentes verificadas ({sources.length})
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {sources.map((s, i) => <SourceBadge key={i} s={s} />)}
+      </div>
+    </div>
+  );
+}
 
 function fmtDur(ms: number | null | undefined): string {
   if (ms == null) return "";
@@ -120,6 +161,11 @@ export function ActivitySidebar({
                     </div>
                     {detail && <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 2, wordBreak: "break-word" }}>{detail}</div>}
                     {s.output && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.5, maxHeight: 80, overflow: "hidden" }}>{s.output.slice(0, 220)}{s.output.length > 220 ? "…" : ""}</div>}
+                    {s.sources && s.sources.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 7 }}>
+                        {s.sources.map((src, k) => <SourceBadge key={k} s={src} />)}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
