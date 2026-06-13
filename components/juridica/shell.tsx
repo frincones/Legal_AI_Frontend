@@ -228,10 +228,6 @@ export function Composer({
   value,
   onChange,
   onSend,
-  mode,
-  onMode,
-  jurisdiction,
-  onJurisdiction,
   style = "elevated",
   placeholder,
   autoFocus,
@@ -241,10 +237,11 @@ export function Composer({
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
-  mode: string;
-  onMode: (m: string) => void;
-  jurisdiction: string;
-  onJurisdiction: (j: string) => void;
+  // mode/jurisdiction quedan opcionales por compatibilidad con los llamadores; ya no se renderizan.
+  mode?: string;
+  onMode?: (m: string) => void;
+  jurisdiction?: string;
+  onJurisdiction?: (j: string) => void;
   style?: "elevated" | "bordered" | "pill";
   placeholder?: string;
   autoFocus?: boolean;
@@ -261,9 +258,6 @@ export function Composer({
   useEffect(() => {
     if (autoFocus && taRef.current) taRef.current.focus();
   }, [autoFocus]);
-
-  const [jOpen, setJOpen] = useState(false);
-  const jurisdictions = ["Colombia · Nacional", "Bogotá D.C.", "Antioquia", "Valle del Cauca", "Atlántico"];
 
   const shellStyle: CSSProperties =
     style === "bordered"
@@ -306,54 +300,6 @@ export function Composer({
         <button className="btn-ghost focus-ring" title="Adjuntar" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
           <Icon name="paperclip" size={19} />
         </button>
-
-        {/* Mode toggle */}
-        <div style={{ display: "flex", background: "var(--bg-elevated-2)", borderRadius: "var(--r-pill)", padding: 3, gap: 2 }}>
-          {["Documento", "Pregunta"].map((m) => (
-            <button
-              key={m}
-              onClick={() => onMode(m)}
-              style={{ border: "none", height: 30, padding: "0 14px", borderRadius: "var(--r-pill)", fontSize: 13, fontWeight: 600, background: mode === m ? "var(--bg-surface)" : "transparent", color: mode === m ? "var(--primary)" : "var(--text-muted)", boxShadow: mode === m ? "var(--sh-1)" : "none", display: "inline-flex", alignItems: "center", gap: 6 }}
-            >
-              <Icon name={m === "Documento" ? "fileText" : "message"} size={15} />
-              {m}
-            </button>
-          ))}
-        </div>
-
-        {/* Jurisdiction */}
-        <div style={{ position: "relative" }}>
-          <button onClick={() => setJOpen(!jOpen)} className="focus-ring" style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 12px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: 13, fontWeight: 500 }}>
-            <Icon name="scale" size={15} style={{ color: "var(--primary)" }} />
-            {!compact && <span style={{ maxWidth: 130, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{jurisdiction}</span>}
-            <Icon name="chevronDown" size={14} style={{ color: "var(--text-muted)" }} />
-          </button>
-          {jOpen && (
-            <>
-              <div onClick={() => setJOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-              <div className="fade-up" style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 220, background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", boxShadow: "var(--sh-pop)", padding: 6, zIndex: 50 }}>
-                {jurisdictions.map((j) => (
-                  <button
-                    key={j}
-                    onClick={() => {
-                      onJurisdiction(j);
-                      setJOpen(false);
-                    }}
-                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", border: "none", borderRadius: 8, background: j === jurisdiction ? "var(--primary-soft)" : "transparent", color: j === jurisdiction ? "var(--primary)" : "var(--text)", fontSize: 13.5, fontWeight: j === jurisdiction ? 600 : 450, textAlign: "left" }}
-                  >
-                    <Icon name="globe" size={15} style={{ opacity: 0.7 }} />
-                    {j}
-                    {j === jurisdiction && (
-                      <span style={{ flex: 1, textAlign: "right" }}>
-                        <Icon name="check" size={15} />
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
 
         <span style={{ flex: 1 }} />
         <button
