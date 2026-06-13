@@ -1,0 +1,132 @@
+/* "Thought for Xs" + sidebar de Actividad (estilo ChatGPT).
+   - ThoughtPill: mientras piensa muestra shimmer "Pensando…"; al terminar, píldora "Pensó durante Xs"
+     (clic → abre el sidebar con la línea de tiempo de pasos).
+   - ActivitySidebar: drawer derecho con razonamiento + cada paso ejecutado (input/output/duración). */
+"use client";
+import { useState } from "react";
+import { Icon } from "./icons";
+
+export type ActStep = {
+  name: string; label: string; icon: string; status: "running" | "done";
+  startedAt?: number; endedAt?: number; input?: unknown; output?: string;
+};
+
+function fmtDur(ms: number | null | undefined): string {
+  if (ms == null) return "";
+  const s = ms / 1000;
+  if (s < 1) return "menos de 1s";
+  if (s < 60) return `${s < 10 ? s.toFixed(1) : Math.round(s)}s`;
+  const m = Math.floor(s / 60);
+  return `${m}m ${Math.round(s % 60)}s`;
+}
+
+function stepDetail(input: unknown): string | null {
+  if (!input || typeof input !== "object") return null;
+  const o = input as Record<string, unknown>;
+  if (Array.isArray(o.consultas)) return (o.consultas as string[]).join(" · ");
+  if (typeof o.query === "string") return o.query;
+  if (typeof o.url === "string") return o.url;
+  if (typeof o.title === "string") return o.title as string;
+  return null;
+}
+
+// ── Píldora "Pensando… / Pensó durante Xs" ──
+export function ThoughtPill({
+  busy, durationMs, hasActivity, currentLabel, onOpen,
+}: {
+  busy: boolean; durationMs: number | null; hasActivity: boolean;
+  currentLabel?: string | null; onOpen: () => void;
+}) {
+  if (busy) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5 }}>
+        <Icon name="sparkles" size={15} style={{ color: "var(--primary)", animation: "spin 2.4s linear infinite", flexShrink: 0 }} />
+        <span className="shimmer-text" style={{ fontWeight: 550 }}>{currentLabel || "Pensando…"}</span>
+        {hasActivity && (
+          <button onClick={onOpen} className="focus-ring" style={{ border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 12.5, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, padding: 0 }}>
+            ver actividad <Icon name="chevronRight" size={13} />
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (!hasActivity) return null;
+  return (
+    <button
+      onClick={onOpen}
+      className="fade-in focus-ring"
+      style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 11px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-elevated-2)", color: "var(--text-secondary)", fontSize: 12.5, fontWeight: 550, cursor: "pointer", alignSelf: "flex-start", transition: "background .15s" }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-elevated-2)")}
+    >
+      <Icon name="sparkles" size={13} style={{ color: "var(--primary)" }} />
+      {durationMs != null ? `Pensó durante ${fmtDur(durationMs)}` : "Ver razonamiento"}
+      <Icon name="chevronRight" size={13} style={{ color: "var(--text-muted)" }} />
+    </button>
+  );
+}
+
+// ── Sidebar derecho: línea de tiempo de la actividad ──
+export function ActivitySidebar({
+  open, onClose, thinking, steps, durationMs,
+}: {
+  open: boolean; onClose: () => void; thinking: string; steps: ActStep[]; durationMs: number | null;
+}) {
+  const [showReasoning, setShowReasoning] = useState(true);
+  if (!open) return null;
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 290, background: "rgba(10,13,20,0.35)", display: "flex", justifyContent: "flex-end" }}>
+      <div onClick={(e) => e.stopPropagation()} className="fade-in" style={{ width: 420, maxWidth: "92vw", height: "100%", background: "var(--bg-surface)", borderLeft: "1px solid var(--border)", boxShadow: "var(--sh-3)", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 18px", borderBottom: "1px solid var(--border)" }}>
+          <span style={{ width: 34, height: 34, borderRadius: 9, background: "var(--grad-aurora-soft, var(--primary-soft))", display: "grid", placeItems: "center" }}><Icon name="radar" size={17} style={{ color: "var(--primary)" }} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 650, fontSize: 14.5 }}>Actividad</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{steps.length} paso{steps.length === 1 ? "" : "s"}{durationMs != null ? ` · ${fmtDur(durationMs)}` : ""}</div>
+          </div>
+          <button onClick={onClose} className="btn-ghost focus-ring" style={{ border: "none", width: 30, height: 30, borderRadius: 8, display: "grid", placeItems: "center", color: "var(--text-muted)", background: "transparent" }}><Icon name="x" size={17} /></button>
+        </div>
+
+        <div className="no-scrollbar" style={{ flex: 1, overflow: "auto", padding: "16px 18px" }}>
+          {thinking && (
+            <div style={{ marginBottom: 16, border: "1px solid var(--border)", borderRadius: "var(--r-md)", overflow: "hidden", background: "var(--bg-elevated-2)" }}>
+              <button onClick={() => setShowReasoning((v) => !v)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "transparent", border: "none", color: "var(--text-secondary)", fontSize: 13, fontWeight: 600 }}>
+                <Icon name="sparkles" size={14} style={{ color: "var(--primary)" }} /> Razonamiento
+                <span style={{ flex: 1 }} />
+                <Icon name="chevronDown" size={15} style={{ transform: showReasoning ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+              </button>
+              {showReasoning && <div style={{ padding: "0 12px 12px 12px", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{thinking}</div>}
+            </div>
+          )}
+
+          {steps.length === 0 && !thinking && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin pasos registrados.</div>}
+
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {steps.map((s, i) => {
+              const detail = stepDetail(s.input);
+              const dur = s.startedAt && s.endedAt ? s.endedAt - s.startedAt : null;
+              const last = i === steps.length - 1;
+              return (
+                <div key={i} style={{ display: "flex", gap: 11 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <span style={{ width: 26, height: 26, borderRadius: 7, flexShrink: 0, display: "grid", placeItems: "center", background: s.status === "done" ? "var(--success-soft)" : "var(--primary-soft)", color: s.status === "done" ? "var(--success)" : "var(--primary)" }}>
+                      {s.status === "running" ? <Icon name="refresh" size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Icon name="check" size={13} stroke={2.3} />}
+                    </span>
+                    {!last && <span style={{ width: 2, flex: 1, background: "var(--border)", margin: "2px 0" }} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0, paddingBottom: last ? 0 : 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 550, color: "var(--text)" }}>{s.label}</span>
+                      {dur != null && <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{fmtDur(dur)}</span>}
+                    </div>
+                    {detail && <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 2, wordBreak: "break-word" }}>{detail}</div>}
+                    {s.output && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.5, maxHeight: 80, overflow: "hidden" }}>{s.output.slice(0, 220)}{s.output.length > 220 ? "…" : ""}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

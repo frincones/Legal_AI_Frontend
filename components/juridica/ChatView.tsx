@@ -1,13 +1,15 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Icon } from "./icons";
 import { Composer, ChatMessage } from "./shell";
-import { StepChip, Reasoning, ArtifactCard } from "./atoms";
+import { ArtifactCard } from "./atoms";
+import { Markdown } from "./Markdown";
+import { ThoughtPill, ActivitySidebar, type ActStep } from "./Activity";
 
-type Step = { name: string; label: string; icon: string; status: "running" | "done" };
+type Step = ActStep;
 type Artifact = { title: string; uri: string; kind: string };
-type Turn = { thinking: string; steps: Step[]; text: string; artifacts: Artifact[]; agent?: string };
+type Turn = { thinking: string; steps: Step[]; text: string; artifacts: Artifact[]; agent?: string;
+  startedAt?: number; firstTextAt?: number; durationMs?: number | null };
 type Msg = { role: "user"; text: string } | { role: "assistant"; turn: Turn };
 
 const LABELS: Record<string, string> = {
@@ -91,6 +93,7 @@ export function ChatView({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [activityIdx, setActivityIdx] = useState<number | null>(null);  // qué turno tiene el sidebar abierto
   const sessionId = useRef<string>(loadSessionId || crypto.randomUUID());
   const scrollRef = useRef<HTMLDivElement>(null);
   const started = useRef(false);
@@ -114,7 +117,7 @@ export function ChatView({
     // Subtle prefix when asking a question (vs drafting a document)
     const sendText = mode === "Pregunta" ? `Consulta legal: ${userMsg}` : userMsg;
 
-    setMessages((m) => [...m, { role: "user", text: userMsg }, { role: "assistant", turn: { thinking: "", steps: [], text: "", artifacts: [] } }]);
+    setMessages((m) => [...m, { role: "user", text: userMsg }, { role: "assistant", turn: { thinking: "", steps: [], text: "", artifacts: [], startedAt: Date.now() } }]);
     setBusy(true);
 
     try {
@@ -126,14 +129,18 @@ export function ChatView({
       if (!res.ok || !res.body) throw new Error(`backend ${res.status}`);
 
       for await (const { event, data } of parseSSE(res)) {
-        if (event === "text_delta") patchTurn((t) => (t.text += data.text));
+        if (event === "text_delta")
+          patchTurn((t) => {
+            if (!t.firstTextAt) { t.firstTextAt = Date.now(); t.durationMs = t.startedAt ? t.firstTextAt - t.startedAt : null; }
+            t.text += data.text;
+          });
         else if (event === "thinking") patchTurn((t) => (t.thinking += data.text));
         else if (event === "agent_step") patchTurn((t) => (t.agent = data.agent));
-        else if (event === "tool_call") patchTurn((t) => t.steps.push({ name: data.name, label: labelFor(data.name), icon: iconFor(data.name), status: "running" }));
+        else if (event === "tool_call") patchTurn((t) => t.steps.push({ name: data.name, label: labelFor(data.name), icon: iconFor(data.name), status: "running", startedAt: Date.now(), input: data.input }));
         else if (event === "tool_result")
           patchTurn((t) => {
             const s = [...t.steps].reverse().find((x) => x.name === data.name && x.status === "running");
-            if (s) s.status = "done";
+            if (s) { s.status = "done"; s.endedAt = Date.now(); s.output = data.output; }
           });
         else if (event === "artifact") patchTurn((t) => t.artifacts.push({ title: data.title, uri: data.uri, kind: data.kind }));
         else if (event === "error") patchTurn((t) => (t.text += `\n\n⚠️ ${data.message}`));
@@ -141,6 +148,11 @@ export function ChatView({
     } catch (err: any) {
       patchTurn((t) => (t.text += `\n\n⚠️ Error: ${err.message}`));
     } finally {
+      // Cierra cualquier paso que quedó "running" y fija la duración total si no hubo texto.
+      patchTurn((t) => {
+        t.steps.forEach((s) => { if (s.status === "running") { s.status = "done"; s.endedAt = s.endedAt || Date.now(); } });
+        if (t.durationMs == null && t.startedAt) t.durationMs = Date.now() - t.startedAt;
+      });
       setBusy(false);
     }
   }
@@ -155,10 +167,23 @@ export function ChatView({
         .then((d) => {
           if (d?.messages && Array.isArray(d.messages)) {
             setMessages(
-              d.messages.map((m: { role: string; text: string }) =>
+              d.messages.map((m: any) =>
                 m.role === "user"
                   ? { role: "user", text: m.text }
-                  : { role: "assistant", turn: { thinking: "", steps: [], text: m.text, artifacts: [] } },
+                  : {
+                      role: "assistant",
+                      turn: {
+                        thinking: m.thinking || "",
+                        // duración persistida → startedAt=0, endedAt=durationMs para que el sidebar la muestre
+                        steps: (m.steps || []).map((s: any) => ({
+                          name: s.name, label: labelFor(s.name), icon: iconFor(s.name), status: "done",
+                          startedAt: 0, endedAt: s.durationMs ?? undefined, input: s.input, output: s.output,
+                        })),
+                        text: m.text || "",
+                        artifacts: [],
+                        durationMs: m.durationMs ?? null,
+                      },
+                    },
               ),
             );
           }
@@ -193,27 +218,23 @@ export function ChatView({
             ) : (
               <ChatMessage key={i} role="assistant" generating={busy && i === messages.length - 1}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {m.turn.thinking && <Reasoning text={m.turn.thinking} />}
-                  {m.turn.steps.map((s, j) => (
-                    <StepChip key={j} icon={s.icon} label={s.label} state={s.status} />
-                  ))}
+                  {((busy && i === messages.length - 1) || m.turn.thinking || m.turn.steps.length > 0) && (
+                    <ThoughtPill
+                      busy={busy && i === messages.length - 1 && !m.turn.text}
+                      durationMs={m.turn.durationMs ?? null}
+                      hasActivity={!!m.turn.thinking || m.turn.steps.length > 0}
+                      currentLabel={m.turn.steps.find((s) => s.status === "running")?.label}
+                      onOpen={() => setActivityIdx(i)}
+                    />
+                  )}
                   {m.turn.text && (
-                    <div
-                      className={busy && i === messages.length - 1 ? "cursor-blink" : ""}
-                      style={{ whiteSpace: "pre-wrap", fontSize: 14.5, lineHeight: 1.6, color: "var(--text)" }}
-                    >
-                      {m.turn.text}
+                    <div className={busy && i === messages.length - 1 ? "cursor-blink" : ""} style={{ color: "var(--text)" }}>
+                      <Markdown text={m.turn.text} />
                     </div>
                   )}
                   {m.turn.artifacts.map((a, j) => (
                     <ArtifactCard key={j} doc={{ title: a.title, uri: a.uri }} />
                   ))}
-                  {!m.turn.text && !m.turn.steps.length && !m.turn.thinking && busy && i === messages.length - 1 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", fontSize: 13.5 }}>
-                      <Icon name="sparkles" size={15} style={{ color: "var(--primary)", animation: "spin 2s linear infinite" }} />
-                      Pensando…
-                    </div>
-                  )}
                 </div>
               </ChatMessage>
             ),
@@ -238,6 +259,16 @@ export function ChatView({
           />
         </div>
       </div>
+
+      {activityIdx != null && messages[activityIdx]?.role === "assistant" && (
+        <ActivitySidebar
+          open
+          onClose={() => setActivityIdx(null)}
+          thinking={(messages[activityIdx] as { turn: Turn }).turn.thinking}
+          steps={(messages[activityIdx] as { turn: Turn }).turn.steps}
+          durationMs={(messages[activityIdx] as { turn: Turn }).turn.durationMs ?? null}
+        />
+      )}
     </div>
   );
 }
