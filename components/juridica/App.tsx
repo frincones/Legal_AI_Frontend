@@ -437,7 +437,7 @@ export default function JuridicaApp({
             </button>
           </div>
         )}
-        <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, overflow: "auto" }}>{main}</div>
+        <div className="no-scrollbar" style={{ flex: 1, minHeight: 0, maxHeight: "100dvh", overflow: "auto" }}>{main}</div>
         {mobile && (
           <nav style={{ display: "flex", borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}>
             {(
