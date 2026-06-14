@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Logo, Icon } from "@/components/juridica/icons";
@@ -9,22 +9,51 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"magic" | "password">("magic");
 
+  // Si un enlace de email rebotó aquí (p.ej. token expirado/consumido por un escáner),
+  // muestra un mensaje claro en vez de dejar al usuario sin contexto.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const errCode = hash.get("error_code") || q.get("error");
+    if (errCode) {
+      setMsg(errCode.includes("otp_expired") || errCode === "auth"
+        ? "El enlace expiró o ya se usó. Pide un código nuevo e ingrésalo aquí."
+        : decodeURIComponent(errCode));
+    }
+  }, []);
+
+  // Paso 1: envía un CÓDIGO de 6 dígitos al correo (a prueba de escáneres de enlaces).
   async function sendMagicLink(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
     const { error } = await createClient().auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { shouldCreateUser: true },
     });
     setBusy(false);
     if (error) setMsg(error.message);
     else setSent(true);
+  }
+
+  // Paso 2: verifica el código y crea la sesión.
+  async function verifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    const { error } = await createClient().auth.verifyOtp({
+      email, token: code.trim(), type: "email",
+    });
+    setBusy(false);
+    if (error) setMsg(error.message);
+    else router.push("/chat");
   }
 
   async function signIn(e: React.FormEvent) {
@@ -62,18 +91,27 @@ export default function LoginPage() {
         {/* Card */}
         <div className="card" style={{ padding: 28, boxShadow: "var(--sh-3)", borderRadius: "var(--r-xl)" }}>
           {sent ? (
-            <div style={{ textAlign: "center", padding: "8px 0" }}>
+            <form onSubmit={verifyCode} style={{ textAlign: "center", padding: "8px 0" }}>
               <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--primary-soft)", display: "grid", placeItems: "center", margin: "0 auto 16px" }}>
                 <Icon name="send" size={24} style={{ color: "var(--primary)" }} />
               </div>
-              <h2 style={{ fontSize: 19, fontWeight: 600, margin: "0 0 6px" }}>Revisa tu correo</h2>
+              <h2 style={{ fontSize: 19, fontWeight: 600, margin: "0 0 6px" }}>Ingresa el código</h2>
               <p style={{ color: "var(--text-secondary)", fontSize: 14, margin: "0 0 18px", lineHeight: 1.55 }}>
-                Te enviamos un enlace mágico a <strong style={{ color: "var(--text)" }}>{email}</strong>. Ábrelo desde el mismo navegador para entrar.
+                Te enviamos un código de 6 dígitos a <strong style={{ color: "var(--text)" }}>{email}</strong>. Escríbelo aquí para entrar.
               </p>
-              <button className="btn btn-secondary" onClick={() => { setSent(false); setMsg(null); }} style={{ width: "100%" }}>
+              <input
+                inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} required placeholder="••••••"
+                className="focus-ring"
+                style={{ ...inp, textAlign: "center", fontSize: 26, letterSpacing: 10, fontWeight: 700, height: 56 }}
+              />
+              <button type="submit" className="btn btn-primary btn-lg" disabled={busy || code.length < 6} style={{ width: "100%", marginTop: 16 }}>
+                {busy ? "Verificando…" : <>Entrar <Icon name="arrowRight" size={17} stroke={2.2} /></>}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => { setSent(false); setCode(""); setMsg(null); }} style={{ width: "100%", marginTop: 10 }}>
                 Usar otro correo
               </button>
-            </div>
+            </form>
           ) : (
             <>
               <h2 style={{ fontSize: 19, fontWeight: 600, margin: "0 0 4px" }}>Inicia sesión</h2>
@@ -87,7 +125,7 @@ export default function LoginPage() {
                     {busy ? "Enviando…" : <>Enviarme el enlace <Icon name="arrowRight" size={17} stroke={2.2} /></>}
                   </button>
                   <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "14px 0 0", textAlign: "center", lineHeight: 1.5 }}>
-                    Sin contraseña: te llega un enlace y entras con un clic.
+                    Sin contraseña: te llega un código de 6 dígitos a tu correo.
                   </p>
                 </form>
               ) : (
@@ -112,7 +150,7 @@ export default function LoginPage() {
               </div>
               <button className="btn btn-secondary" onClick={() => { setMode(mode === "magic" ? "password" : "magic"); setMsg(null); }} style={{ width: "100%" }}>
                 <Icon name={mode === "magic" ? "command" : "send"} size={16} />
-                {mode === "magic" ? "Prefiero usar contraseña" : "Usar enlace mágico"}
+                {mode === "magic" ? "Prefiero usar contraseña" : "Usar código por correo"}
               </button>
             </>
           )}
