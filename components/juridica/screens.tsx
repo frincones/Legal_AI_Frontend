@@ -350,12 +350,16 @@ export function Settings({
   backendUrl,
   accessToken,
   email,
+  credits,
+  isAdmin = false,
 }: {
   pushToast?: (t: string, k?: string) => void;
   onLogout?: () => void;
   backendUrl?: string;
   accessToken?: string;
   email?: string | null;
+  credits?: { balance: number | null; cap: number | null };
+  isAdmin?: boolean;
 }) {
   const [tone, setTone] = useState("Formal jurídico");
   const [theme, setTheme] = useState("Claro");
@@ -596,22 +600,38 @@ export function Settings({
           )}
         </Section>
 
-        <Section title="Uso" icon="layers">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
-            {(
-              [
-                ["Documentos generados", String(u?.documentos ?? 0), "acumulado"],
-                ["Verificaciones", String(u?.verificaciones ?? 0), "contra fuentes oficiales"],
-                ["Costo estimado", u ? `$${(u.estimated_cost_usd ?? 0).toFixed(2)}` : "$0.00", "USD · tokens"],
-              ] as [string, string, string][]
-            ).map(([l, v, s], i) => (
-              <div key={i} style={{ padding: "16px 16px", border: "1px solid var(--border)", borderRadius: "var(--r-md)", background: "var(--bg-base)" }}>
-                <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{l}</div>
-                <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.02em", margin: "4px 0 2px" }}>{v}</div>
-                <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{s}</div>
-              </div>
-            ))}
-          </div>
+        <Section title="Créditos" icon="coins">
+          {isAdmin ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "var(--text)" }}>
+              <Icon name="shieldCheck" size={18} style={{ color: "var(--primary)" }} />
+              <span><strong>Créditos ilimitados</strong> · cuenta de administrador.</span>
+            </div>
+          ) : credits?.balance != null ? (
+            (() => {
+              const bal = credits.balance ?? 0;
+              const cap = credits.cap || 0;
+              const pct = cap > 0 ? Math.max(0, Math.min(100, Math.round((bal / cap) * 100))) : 0;
+              const low = cap > 0 && bal <= cap * 0.1;
+              const barColor = bal <= 0 ? "var(--danger, #DC2626)" : low ? "var(--warning)" : "var(--primary)";
+              return (
+                <div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em", color: barColor }}>{bal}</span>
+                    <span style={{ fontSize: 15, color: "var(--text-muted)" }}>de {cap} créditos disponibles</span>
+                  </div>
+                  <div style={{ height: 10, borderRadius: 999, background: "var(--bg-elevated-2)", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 999, transition: "width .3s" }} />
+                  </div>
+                  <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 10 }}>
+                    Cada consulta o documento del asistente consume créditos. Se renuevan automáticamente cada mes.
+                    {bal <= 0 && " Te quedaste sin créditos: el asistente está bloqueado hasta la renovación."}
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Cargando créditos…</div>
+          )}
         </Section>
 
         <Section title="Auditoría de fuentes" icon="shieldCheck">
