@@ -474,7 +474,7 @@ export function Settings({
   const u = data?.usage;
 
   return (
-    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+    <div className="no-scrollbar" style={{ height: "100%", maxHeight: "100dvh", overflow: "auto" }}>
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "32px 36px 60px" }}>
         <h1 className="t-h1" style={{ margin: "0 0 4px" }}>Perfil de la firma</h1>
         <p style={{ color: "var(--text-secondary)", margin: "0 0 28px", fontSize: 14.5 }}>Configura el contexto que Juridica usa al redactar y verificar.</p>

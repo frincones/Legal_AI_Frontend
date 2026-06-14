@@ -422,7 +422,7 @@ export default function JuridicaApp({
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden" }}>
       {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={missionMode ? newMission : newDoc} email={email} recents={recents} onOpenRecent={openConversation} missionMode={missionMode} credits={credits} creditsBlocked={creditsBlocked} isAdmin={isAdmin} />}
-      <main style={{ flex: 1, minWidth: 0, height: "100%", position: "relative", display: "flex", flexDirection: "column" }}>
+      <main style={{ flex: 1, minWidth: 0, height: "100dvh", position: "relative", display: "flex", flexDirection: "column" }}>
         {mobile && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}>
             <button onClick={() => go("home")} style={{ background: "none", border: "none", padding: 0 }}>
