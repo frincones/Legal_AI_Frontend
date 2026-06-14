@@ -30,7 +30,7 @@ export function Autopilot({
   const paused = ap?.status === "En pausa";
 
   return (
-    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+    <div style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "34px 36px 56px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 26, flexWrap: "wrap" }}>
           <span style={{ width: 52, height: 52, borderRadius: 15, background: "var(--aurora)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="radar" size={26} style={{ color: "#fff" }} /></span>

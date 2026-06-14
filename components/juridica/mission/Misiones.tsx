@@ -17,7 +17,7 @@ export function Misiones({
   }, [backendUrl, accessToken]);
 
   return (
-    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+    <div style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "34px 36px 56px" }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 20 }}>
           <div>

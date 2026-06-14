@@ -19,7 +19,7 @@ export function Terminos({
   const list = range === "7" ? deadlines.filter((d) => d.daysLeft !== null && d.daysLeft <= 7) : deadlines;
 
   return (
-    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+    <div style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 880, margin: "0 auto", padding: "34px 36px 56px" }}>
         <div style={{ marginBottom: 22 }}>
           <h1 style={{ fontSize: 26, fontWeight: 650, letterSpacing: "-0.02em", margin: 0 }}>Términos y vencimientos</h1>

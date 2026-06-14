@@ -84,7 +84,7 @@ export function MissionControl({
   }
 
   return (
-    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+    <div style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "34px 36px 56px" }}>
         {/* Saludo operativo + fecha */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 26 }}>

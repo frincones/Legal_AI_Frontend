@@ -62,7 +62,7 @@ export function Home({
   blocked?: boolean;
 }) {
   return (
-    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+    <div style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 28px", minHeight: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div style={{ padding: "60px 0 40px" }}>
           {/* Greeting */}
@@ -212,7 +212,7 @@ export function Library({
   const filtered = items.filter((it) => (it.title + it.subtitle).toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+    <div style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 36px 60px" }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 22 }}>
           <div>
@@ -474,7 +474,7 @@ export function Settings({
   const u = data?.usage;
 
   return (
-    <div className="no-scrollbar" style={{ height: "100%", maxHeight: "100dvh", overflow: "auto" }}>
+    <div style={{ height: "100%", maxHeight: "100dvh", overflow: "auto" }}>
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "32px 36px 60px" }}>
         <h1 className="t-h1" style={{ margin: "0 0 4px" }}>Perfil de la firma</h1>
         <p style={{ color: "var(--text-secondary)", margin: "0 0 28px", fontSize: 14.5 }}>Configura el contexto que Juridica usa al redactar y verificar.</p>

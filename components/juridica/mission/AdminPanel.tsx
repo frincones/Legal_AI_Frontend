@@ -36,7 +36,7 @@ export function AdminPanel({
   const fmtDate = (s: string | null) => { try { return s ? new Date(s).toLocaleDateString("es-CO", { day: "numeric", month: "short" }) : "—"; } catch { return "—"; } };
 
   return (
-    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+    <div style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 980, margin: "0 auto", padding: "34px 36px 56px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
           <span style={{ width: 48, height: 48, borderRadius: 14, background: "var(--aurora)", display: "grid", placeItems: "center" }}><Icon name="shieldCheck" size={24} style={{ color: "#fff" }} /></span>

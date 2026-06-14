@@ -24,7 +24,7 @@ export function Inbox({
   const unread = items.filter((i) => !i.read_at).length;
 
   return (
-    <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
+    <div style={{ height: "100%", overflow: "auto" }}>
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "34px 36px 56px" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
           <span style={{ width: 48, height: 48, borderRadius: 14, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="bell" size={24} style={{ color: "var(--primary)" }} /></span>
