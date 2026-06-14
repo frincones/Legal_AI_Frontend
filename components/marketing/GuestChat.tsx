@@ -6,6 +6,7 @@ import { Icon, Logo } from "../juridica/icons";
 import { AgentAvatar } from "../juridica/atoms";
 import { Markdown } from "../juridica/Markdown";
 import { ThoughtPill, SourcesFooter, type ActStep } from "../juridica/Activity";
+import { Sidebar } from "../juridica/shell";
 
 const LABELS: Record<string, string> = {
   verificar_fuente: "Verificando contra fuentes oficiales",
@@ -59,6 +60,7 @@ export function GuestChat({ seed, backendUrl, onBack, onRegister }: {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const started = useRef(false);
 
@@ -120,10 +122,27 @@ export function GuestChat({ seed, backendUrl, onBack, onRegister }: {
   function send() { const v = input.trim(); if (!v || busy) return; setInput(""); run(v); }
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "var(--bg-base)", display: "flex", flexDirection: "column" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "var(--bg-base)", display: "flex", flexDirection: "row" }}>
+      {/* Panel izquierdo (mismo Sidebar de la app, gateado a registro en modo invitado) */}
+      <div className="land-hide-mobile" style={{ flexShrink: 0 }}>
+        <Sidebar
+          route=""
+          onNavigate={() => onRegister()}
+          collapsed={collapsed}
+          onToggle={() => setCollapsed((c) => !c)}
+          onNew={() => onRegister()}
+          email="Invitado"
+          recents={[]}
+          missionMode
+          credits={undefined}
+          creditsBlocked={false}
+          isAdmin={false}
+        />
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 20px", borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}>
         <button onClick={onBack} className="btn btn-ghost btn-sm" style={{ paddingLeft: 8 }}><Icon name="arrowLeft" size={16} />Volver</button>
-        <Logo size={28} withText />
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-elevated-2)", borderRadius: 999, padding: "3px 10px" }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--gold)" }} />Modo invitado</span>
         <span style={{ flex: 1 }} />
         <button onClick={onRegister} className="btn btn-ghost btn-sm land-hide-mobile">Iniciar sesión</button>
@@ -177,6 +196,7 @@ export function GuestChat({ seed, backendUrl, onBack, onRegister }: {
           </div>
           <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>Juridica puede equivocarse. Verifica las citas con su enlace oficial. No subas datos sensibles de clientes en modo invitado.</p>
         </div>
+      </div>
       </div>
     </div>
   );
