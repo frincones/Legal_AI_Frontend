@@ -68,7 +68,7 @@ function useWidth() {
 
 export default function JuridicaApp({
   backendUrl,
-  accessToken,
+  accessToken: accessTokenProp,
   email,
   initialMissionMode = false,
 }: {
@@ -77,6 +77,19 @@ export default function JuridicaApp({
   email: string | null;
   initialMissionMode?: boolean;   // resuelto en el server → sin flash al refrescar
 }) {
+  // Token VIVO: el del SSR es fijo y vence (~1h). Usamos el del cliente Supabase, que se
+  // auto-refresca, para que las llamadas al API no fallen con 401 al dejar la pestaña abierta.
+  const [accessToken, setAccessToken] = useState(accessTokenProp);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.access_token) setAccessToken(data.session.access_token);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session?.access_token) setAccessToken(session.access_token);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
   const [route, setRoute] = useState<string>("home");
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState("");
