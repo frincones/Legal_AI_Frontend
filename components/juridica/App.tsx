@@ -6,7 +6,7 @@ import { Toasts, CommandPalette, EmptyState, type Toast } from "./atoms";
 import { Sidebar } from "./shell";
 import { Home, Library, Settings } from "./screens";
 import { ChatView } from "./ChatView";
-import { Canvas } from "./Canvas";
+import { Canvas, type Artifact } from "./Canvas";
 import { Wizard } from "./Wizard";
 import type { LibraryItem } from "./data";
 import { createClient } from "@/lib/supabase/client";
@@ -105,6 +105,8 @@ export default function JuridicaApp({
   const [libTemplates, setLibTemplates] = useState<LibraryItem[]>([]);
   const [reusePatronId, setReusePatronId] = useState<string | undefined>(undefined);
   const [reuseTitle, setReuseTitle] = useState<string | undefined>(undefined);
+  // Documento ya generado (p.ej. dentro de una misión) que se abre en el Canvas para editar.
+  const [openArtifact, setOpenArtifact] = useState<Artifact | undefined>(undefined);
   const [showWizard, setShowWizard] = useState(false);
   const [openSessionId, setOpenSessionId] = useState<string | undefined>(undefined);
   // Mission Control (F2): flag por org + estado de misión/aprobación.
@@ -238,6 +240,7 @@ export default function JuridicaApp({
     if (modeOverride) setMode(modeOverride);
     setReusePatronId(undefined);
     setReuseTitle(undefined);
+    setOpenArtifact(undefined);
     setOpenSessionId(undefined);
     setChatMatterId(undefined);
     setChatSeed(text.trim());
@@ -254,11 +257,26 @@ export default function JuridicaApp({
   function reusePatron(it: LibraryItem) {
     setReusePatronId(it.patronId);
     setReuseTitle(it.title);
+    setOpenArtifact(undefined);
     setChatSeed(undefined);
     setMode("Documento");
     setChatKey((k) => k + 1);
     setRoute("canvas");
     pushToast(`Plantilla «${it.title}» cargada · describe tu caso`, "primary");
+  }
+
+  // Abre un documento ya generado (desde el chat de una misión, p.ej.) en el Canvas editable.
+  // El Canvas lo muestra y deja edit_artifact_id listo: las ediciones crean versiones nuevas.
+  function openArtifactInCanvas(a: Artifact) {
+    setOpenArtifact(a);
+    setReusePatronId(undefined);
+    setReuseTitle(undefined);
+    setChatSeed(undefined);
+    setChatSeedDocs(undefined);
+    setOpenSessionId(undefined);
+    setMode("Documento");
+    setChatKey((k) => k + 1);
+    setRoute("canvas");
   }
 
   // Abre una conversación existente desde 'Recientes' (carga su historial en ChatView).
@@ -268,6 +286,7 @@ export default function JuridicaApp({
     setChatSeedDocs(undefined);
     setReusePatronId(undefined);
     setReuseTitle(undefined);
+    setOpenArtifact(undefined);
     setChatMatterId(undefined);
     setChatKey((k) => k + 1);
     setRoute("chat");
@@ -298,6 +317,7 @@ export default function JuridicaApp({
     setChatSeedDocs(documentIds);
     setOpenSessionId(undefined);
     setReusePatronId(undefined);
+    setOpenArtifact(undefined);
     setMode("Documento");
     setChatKey((k) => k + 1);
     setRoute("chat");
@@ -319,7 +339,7 @@ export default function JuridicaApp({
   else if (missionMode && route === "expedientes")
     main = <Misiones backendUrl={backendUrl} accessToken={accessToken} onOpen={openMission} onNavigate={go} onNewMission={newMission} />;
   else if (missionMode && route === "expediente" && currentMissionId)
-    main = <MissionDetail backendUrl={backendUrl} accessToken={accessToken} missionId={currentMissionId} onBack={() => go("expedientes")} onOpenChat={openMissionChat} onApprove={() => setApprovalOpen(true)} pushToast={pushToast} />;
+    main = <MissionDetail backendUrl={backendUrl} accessToken={accessToken} missionId={currentMissionId} onBack={() => go("expedientes")} onOpenChat={openMissionChat} onApprove={() => setApprovalOpen(true)} pushToast={pushToast} onOpenArtifact={openArtifactInCanvas} />;
   else if (missionMode && route === "mission")
     main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt, docs) => { openMissionChat(id, prompt, docs); }} pushToast={pushToast} blocked={creditsBlocked} />;
   else if (route === "admin" && isAdmin)
@@ -363,6 +383,7 @@ export default function JuridicaApp({
         blocked={creditsBlocked}
         onCredits={onCredits}
         onBlocked={onBlocked}
+        onOpenArtifact={openArtifactInCanvas}
       />
     );
   else if (route === "canvas")
@@ -375,6 +396,7 @@ export default function JuridicaApp({
         initialDocumentIds={chatSeedDocs}
         reusePatronId={reusePatronId}
         reuseTitle={reuseTitle}
+        openArtifact={openArtifact}
         narrow={narrow}
         pushToast={pushToast}
         blocked={creditsBlocked}

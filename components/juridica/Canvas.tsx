@@ -9,7 +9,7 @@ import type { Citation } from "./data";
 /* ============================================================
    Types — the real artifact model from the SSE `artifact` event
    ============================================================ */
-type Block = {
+export type Block = {
   type: "court" | "ref" | "h" | "p";
   text: string;
   num?: string;
@@ -17,7 +17,7 @@ type Block = {
   changed?: boolean;
 };
 
-type Artifact = {
+export type Artifact = {
   id: string;
   kind: string;
   title: string;
@@ -407,6 +407,7 @@ export function Canvas({
   initialDocumentIds,
   reusePatronId,
   reuseTitle,
+  openArtifact,
   narrow = false,
   pushToast,
   blocked,
@@ -422,6 +423,7 @@ export function Canvas({
   onBlocked?: () => void;
   reusePatronId?: string;   // F4: parte de un patrón validado de la biblioteca (reuse_patron_id)
   reuseTitle?: string;      // F4: título de la plantilla reutilizada (para el banner)
+  openArtifact?: Artifact;  // abrir un documento ya generado (p.ej. desde el chat de una misión) para editarlo
   narrow?: boolean;
   pushToast?: (text: string, kind?: string) => void;
 }) {
@@ -595,10 +597,23 @@ export function Canvas({
     }
   }
 
-  // Kick off generation with the message typed on Home.
+  // Kick off generation with the message typed on Home, o abre un documento ya generado para editarlo.
   useEffect(() => {
     if (started.current) return;
     started.current = true;
+    if (openArtifact) {
+      // Documento existente (p.ej. generado dentro de una misión) → cargarlo en el panel y dejarlo
+      // listo para editar. Las ediciones siguientes parchean este mismo artifact (edit_artifact_id).
+      const art = openArtifact;
+      editArtifactId.current = art.id;
+      setVersionStore({ [art.version]: { artifact: art } });
+      setCurrentVersion(art.version);
+      setDocMode(true);
+      setTab("doc");
+      setReveal(999);
+      setMessages([{ role: "assistant", turn: { kind: "gen", thinking: "", steps: [], text: "Documento cargado. Selecciona un párrafo o escríbeme abajo para pedir cambios — generaré una versión nueva manteniendo las citas verificadas.", artifact: art } }]);
+      return;
+    }
     if ((initialMessage && initialMessage.trim()) || (initialDocumentIds && initialDocumentIds.length))
       runMessage(initialMessage || "", { kind: "gen", documentIds: initialDocumentIds });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -734,7 +749,7 @@ export function Canvas({
                 )}
                 {t.artifact && (
                   <div className="fade-up" style={{ marginTop: 14 }}>
-                    <ArtifactCard doc={{ title: t.artifact.title, version: t.artifact.version, uri: t.artifact.uri }} sources={Object.keys(t.artifact.citations).length} onOpen={() => setTab("doc")} />
+                    <ArtifactCard doc={{ title: t.artifact.title, version: t.artifact.version, uri: t.artifact.uri }} sources={Object.keys(t.artifact.citations).length} onOpen={() => setTab("doc")} backendUrl={backendUrl} accessToken={accessToken} artifactId={t.artifact.id} version={t.artifact.version} />
                     {t.kind === "gen" && (
                       <>
                         <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>

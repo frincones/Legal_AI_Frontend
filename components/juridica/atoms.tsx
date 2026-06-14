@@ -214,12 +214,55 @@ export function Reasoning({ text }: { text: string }) {
   );
 }
 
-/* ---------- Artifact card (document) ---------- */
-export function ArtifactCard({ doc, sources = 3, onOpen }: { doc: { title: string; version?: number | string; uri?: string }; sources?: number; onOpen?: () => void }) {
+/* ---------- Artifact card (document) ----------
+   `onOpen` abre el documento (Canvas editable). DOCX descarga el .docx guardado (uri);
+   PDF lo convierte on-demand vía el backend. Para que PDF funcione se requieren
+   backendUrl + accessToken + artifactId (y opcionalmente version). */
+export function ArtifactCard({
+  doc, sources = 3, onOpen, backendUrl, accessToken, artifactId, version,
+}: {
+  doc: { title: string; version?: number | string; uri?: string };
+  sources?: number;
+  onOpen?: () => void;
+  backendUrl?: string;
+  accessToken?: string;
+  artifactId?: string;
+  version?: number | string;
+}) {
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const canPdf = !!(backendUrl && accessToken && artifactId);
+
+  async function downloadPdf(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!canPdf || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const v = version ?? doc.version;
+      const q = v != null ? `?version=${v}` : "";
+      const res = await fetch(`${backendUrl}/api/artifacts/${artifactId}/pdf${q}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(doc.title || "documento").replace(/[^\w.-]+/g, "_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch {
+      /* el toast global no está disponible aquí; el botón simplemente vuelve a su estado */
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   return (
     <div
       className="fade-up"
-      style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--bg-surface)", boxShadow: "var(--sh-2)", overflow: "hidden", transition: "box-shadow .2s, transform .2s", cursor: "pointer" }}
+      style={{ border: "1px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--bg-surface)", boxShadow: "var(--sh-2)", overflow: "hidden", transition: "box-shadow .2s, transform .2s", cursor: onOpen ? "pointer" : "default" }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = "var(--sh-3)";
         e.currentTarget.style.transform = "translateY(-2px)";
@@ -250,35 +293,34 @@ export function ArtifactCard({ doc, sources = 3, onOpen }: { doc: { title: strin
         </div>
       </div>
       <div style={{ display: "flex", gap: 8, padding: "0 16px 14px", flexWrap: "wrap" }}>
+        {onOpen && (
+          <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); onOpen(); }}>
+            <Icon name="pencil" size={15} />
+            Abrir y editar
+          </button>
+        )}
         {doc.uri ? (
           <a
-            className="btn btn-secondary btn-sm"
+            className="btn btn-ghost btn-sm"
             href={doc.uri}
             target="_blank"
             rel="noreferrer"
+            download
             onClick={(e) => e.stopPropagation()}
             style={{ textDecoration: "none" }}
           >
             <Icon name="download" size={15} />
-            Descargar
+            DOCX
           </a>
         ) : (
-          <button className="btn btn-secondary btn-sm" onClick={onOpen}>
-            <Icon name="eye" size={15} />
-            Vista previa
+          <button className="btn btn-ghost btn-sm" disabled>
+            <Icon name="download" size={15} />
+            DOCX
           </button>
         )}
-        <button className="btn btn-ghost btn-sm">
-          <Icon name="download" size={15} />
-          DOCX
-        </button>
-        <button className="btn btn-ghost btn-sm">
-          <Icon name="download" size={15} />
-          PDF
-        </button>
-        <span style={{ flex: 1 }} />
-        <button className="btn btn-ghost btn-sm">
-          <Icon name="history" size={15} />
+        <button className="btn btn-ghost btn-sm" onClick={downloadPdf} disabled={!canPdf || pdfBusy}>
+          <Icon name={pdfBusy ? "sparkles" : "download"} size={15} style={pdfBusy ? { animation: "spin 2s linear infinite" } : undefined} />
+          {pdfBusy ? "Generando…" : "PDF"}
         </button>
       </div>
     </div>

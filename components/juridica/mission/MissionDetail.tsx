@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { ChatView } from "../ChatView";
+import type { Artifact } from "../Canvas";
 import { api, type Mission, type TimelineEvent } from "./data";
 import { ConfirmNote, ProgressBar, SectionLabel, SEVERITY } from "./atoms";
 
@@ -16,10 +17,11 @@ const TABS: [string, string, string][] = [
 type DocItem = { id: string; title: string; mime_type: string; ingest_status: string; created_at: string };
 
 export function MissionDetail({
-  backendUrl, accessToken, missionId, onBack, onOpenChat, onApprove, pushToast,
+  backendUrl, accessToken, missionId, onBack, onOpenChat, onApprove, pushToast, onOpenArtifact,
 }: {
   backendUrl: string; accessToken: string; missionId: string;
   onBack: () => void; onOpenChat: (id: string, seed?: string) => void; onApprove: () => void; pushToast: (t: string, k?: string) => void;
+  onOpenArtifact?: (a: Artifact) => void;
 }) {
   const [m, setM] = useState<Mission | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
@@ -228,7 +230,7 @@ export function MissionDetail({
           {tab !== "config" && <ConfirmNote icon="shieldCheck">Los borradores quedan pendientes hasta tu aprobación.</ConfirmNote>}
         </div>
         </div>
-        <MissionChatPanel backendUrl={backendUrl} accessToken={accessToken} matterId={m.id} title={m.title} />
+        <MissionChatPanel backendUrl={backendUrl} accessToken={accessToken} matterId={m.id} title={m.title} onOpenArtifact={onOpenArtifact} />
       </div>
     </div>
   );
@@ -236,7 +238,7 @@ export function MissionDetail({
 
 /* Panel lateral "Asistente de la misión" — CHAT REAL embebido (mismo agente, ligado al matter).
    Se queda DENTRO de la misión: los documentos/verificaciones se adjuntan al expediente. */
-function MissionChatPanel({ backendUrl, accessToken, matterId, title }: { backendUrl: string; accessToken: string; matterId: string; title: string }) {
+function MissionChatPanel({ backendUrl, accessToken, matterId, title, onOpenArtifact }: { backendUrl: string; accessToken: string; matterId: string; title: string; onOpenArtifact?: (a: Artifact) => void }) {
   const [mode, setMode] = useState("Documento");
   const [jurisdiction, setJurisdiction] = useState("Colombia · Nacional");
   return (
@@ -250,7 +252,7 @@ function MissionChatPanel({ backendUrl, accessToken, matterId, title }: { backen
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         <ChatView key={matterId} backendUrl={backendUrl} accessToken={accessToken} matterId={matterId}
-          mode={mode} setMode={setMode} jurisdiction={jurisdiction} setJurisdiction={setJurisdiction} compact />
+          mode={mode} setMode={setMode} jurisdiction={jurisdiction} setJurisdiction={setJurisdiction} compact onOpenArtifact={onOpenArtifact} />
       </div>
     </div>
   );

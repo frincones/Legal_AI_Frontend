@@ -5,9 +5,9 @@ import { Composer, ChatMessage } from "./shell";
 import { ArtifactCard } from "./atoms";
 import { Markdown } from "./Markdown";
 import { ThoughtPill, ActivitySidebar, SourcesFooter, type ActStep } from "./Activity";
+import type { Artifact } from "./Canvas";
 
 type Step = ActStep;
-type Artifact = { title: string; uri: string; kind: string };
 type Turn = { thinking: string; steps: Step[]; text: string; artifacts: Artifact[]; agent?: string;
   startedAt?: number; firstTextAt?: number; durationMs?: number | null };
 type Msg = { role: "user"; text: string } | { role: "assistant"; turn: Turn };
@@ -82,6 +82,7 @@ export function ChatView({
   blocked,
   onCredits,
   onBlocked,
+  onOpenArtifact,
 }: {
   backendUrl: string;
   accessToken: string;
@@ -97,6 +98,7 @@ export function ChatView({
   blocked?: boolean;        // sin créditos → composer bloqueado
   onCredits?: (info: { balance?: number | null; cap?: number | null; low?: boolean }) => void;
   onBlocked?: () => void;
+  onOpenArtifact?: (a: Artifact) => void;   // abrir un documento generado en el Canvas editable
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -153,7 +155,12 @@ export function ChatView({
             const s = [...t.steps].reverse().find((x) => x.name === data.name && x.status === "running");
             if (s) { s.status = "done"; s.endedAt = Date.now(); s.output = data.output; if (data.sources?.length) s.sources = data.sources; }
           });
-        else if (event === "artifact") patchTurn((t) => t.artifacts.push({ title: data.title, uri: data.uri, kind: data.kind }));
+        else if (event === "artifact") patchTurn((t) => t.artifacts.push({
+          id: data.id, kind: data.kind, title: data.title, version: data.version ?? 1,
+          uri: data.uri, version_id: data.version_id,
+          blocks: Array.isArray(data.blocks) ? data.blocks : [],
+          citations: data.citations || {},
+        }));
         else if (event === "credits") onCredits?.(data);
         else if (event === "blocked") { patchTurn((t) => (t.text += data.message || "Sin créditos disponibles.")); onBlocked?.(); }
         else if (event === "error") patchTurn((t) => (t.text += `\n\n⚠️ ${data.message}`));
@@ -249,7 +256,16 @@ export function ChatView({
                   )}
                   {m.turn.text && <SourcesFooter steps={m.turn.steps} />}
                   {m.turn.artifacts.map((a, j) => (
-                    <ArtifactCard key={j} doc={{ title: a.title, uri: a.uri }} />
+                    <ArtifactCard
+                      key={j}
+                      doc={{ title: a.title, version: a.version, uri: a.uri }}
+                      sources={Object.keys(a.citations || {}).length || 3}
+                      backendUrl={backendUrl}
+                      accessToken={accessToken}
+                      artifactId={a.id}
+                      version={a.version}
+                      onOpen={onOpenArtifact && a.kind === "document" ? () => onOpenArtifact(a) : undefined}
+                    />
                   ))}
                 </div>
               </ChatMessage>
