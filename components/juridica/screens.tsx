@@ -358,7 +358,7 @@ export function Settings({
   backendUrl?: string;
   accessToken?: string;
   email?: string | null;
-  credits?: { balance: number | null; cap: number | null };
+  credits?: { balance: number | null; cap: number | null; plan?: string | null; trial_ends_at?: string | null };
   isAdmin?: boolean;
 }) {
   const [tone, setTone] = useState("Formal jurídico");
@@ -613,18 +613,33 @@ export function Settings({
               const pct = cap > 0 ? Math.max(0, Math.min(100, Math.round((bal / cap) * 100))) : 0;
               const low = cap > 0 && bal <= cap * 0.1;
               const barColor = bal <= 0 ? "var(--danger, #DC2626)" : low ? "var(--warning)" : "var(--primary)";
+              const isFree = (credits.plan ?? "free") === "free";
+              let trialDays: number | null = null;
+              if (credits.trial_ends_at) {
+                const ms = new Date(credits.trial_ends_at).getTime() - Date.now();
+                trialDays = ms > 0 ? Math.ceil(ms / 86400000) : 0;
+              }
               return (
                 <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em", color: barColor }}>{bal}</span>
                     <span style={{ fontSize: 15, color: "var(--text-muted)" }}>de {cap} créditos disponibles</span>
                   </div>
+                  {isFree && trialDays != null && (
+                    <div style={{ fontSize: 12.5, color: trialDays <= 1 ? "var(--warning)" : "var(--text-muted)", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                      <Icon name="clock" size={13} />
+                      {trialDays > 0 ? `Plan Free · ${trialDays} ${trialDays === 1 ? "día restante" : "días restantes"} de prueba` : "Tu prueba gratuita terminó"}
+                    </div>
+                  )}
                   <div style={{ height: 10, borderRadius: 999, background: "var(--bg-elevated-2)", overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 999, transition: "width .3s" }} />
                   </div>
                   <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 10 }}>
-                    Cada consulta o documento del asistente consume créditos. Se renuevan automáticamente cada mes.
-                    {bal <= 0 && " Te quedaste sin créditos: el asistente está bloqueado hasta la renovación."}
+                    {isFree
+                      ? "Cada consulta o documento del asistente consume créditos del plan Free."
+                      : "Cada consulta o documento del asistente consume créditos. Se renuevan automáticamente cada mes."}
+                    {bal <= 0 && " Te quedaste sin créditos: el asistente está bloqueado."}
+                    {isFree && trialDays === 0 && " Tu prueba gratuita terminó: el asistente está bloqueado."}
                   </div>
                 </div>
               );

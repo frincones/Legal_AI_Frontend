@@ -114,7 +114,7 @@ export default function JuridicaApp({
   const [missionMode, setMissionMode] = useState(initialMissionMode);
   // Créditos: saldo del pool de la org. Admins = ilimitado (nunca se bloquean).
   const isAdmin = ADMIN_EMAILS.includes((email || "").toLowerCase());
-  const [credits, setCreditsState] = useState<{ balance: number | null; cap: number | null }>({ balance: null, cap: null });
+  const [credits, setCreditsState] = useState<{ balance: number | null; cap: number | null; plan?: string | null; trial_ends_at?: string | null }>({ balance: null, cap: null, plan: null, trial_ends_at: null });
   const creditsBlocked = !isAdmin && credits.balance != null && credits.balance <= 0;
   const [currentMissionId, setCurrentMissionId] = useState<string | undefined>(undefined);
   const [chatMatterId, setChatMatterId] = useState<string | undefined>(undefined);
@@ -125,17 +125,17 @@ export default function JuridicaApp({
   useEffect(() => {
     if (!backendUrl || !accessToken) return;
     missionApi.me(backendUrl, accessToken).then((m) => setMissionMode(!!m?.features?.mission_control)).catch(() => {});
-    missionApi.credits(backendUrl, accessToken).then((c) => setCreditsState({ balance: c.balance, cap: c.cap })).catch(() => {});
+    missionApi.credits(backendUrl, accessToken).then((c: any) => setCreditsState({ balance: c.balance, cap: c.cap, plan: c.plan ?? null, trial_ends_at: c.trial_ends_at ?? null })).catch(() => {});
   }, [backendUrl, accessToken]);
 
   // El runner emite el nuevo saldo tras cada acción del agente → actualiza el pill + toast al 10%.
   function onCredits(info: { balance?: number | null; cap?: number | null; low?: boolean }) {
     if (info.balance == null) return;
-    setCreditsState((c) => ({ balance: info.balance ?? c.balance, cap: info.cap ?? c.cap }));
-    if (info.low && !isAdmin) pushToast(`Te quedan ${info.balance} créditos. Se renuevan el día 1.`, "warning");
+    setCreditsState((c) => ({ ...c, balance: info.balance ?? c.balance, cap: info.cap ?? c.cap }));
+    if (info.low && !isAdmin) pushToast(`Te quedan ${info.balance} créditos.`, "warning");
   }
   function onBlocked() {
-    setCreditsState((c) => ({ balance: 0, cap: c.cap }));
+    setCreditsState((c) => ({ ...c, balance: 0 }));
     pushToast("Sin créditos: el agente quedó bloqueado. Recarga o espera la renovación.", "warning");
   }
 
