@@ -230,7 +230,7 @@ export function ChatView({
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <div ref={scrollRef} className="no-scrollbar" style={{ flex: 1, overflow: "auto" }}>
+      <div ref={scrollRef} style={{ flex: 1, overflow: "auto" }}>
         <div style={{ maxWidth: compact ? "100%" : 800, margin: "0 auto", padding: compact ? "18px 16px 12px" : "32px 28px 24px" }}>
           {messages.map((m, i) =>
             m.role === "user" ? (

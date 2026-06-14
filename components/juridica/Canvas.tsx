@@ -682,7 +682,7 @@ export function Canvas({
   // ===== chat pane =====
   const chatPane = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-surface)", minWidth: 0 }}>
-      <div ref={chatRef} className="no-scrollbar" style={{ flex: 1, overflow: "auto", padding: "22px 22px 8px" }}>
+      <div ref={chatRef} style={{ flex: 1, overflow: "auto", padding: "22px 22px 8px" }}>
         {/* F4 — Banner de reutilización: indica con qué plantilla se trabaja en el chat vacío. */}
         {reusePatronId && messages.length === 0 && (
           <div className="fade-up" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", textAlign: "center", gap: 16, padding: "0 24px" }}>
