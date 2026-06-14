@@ -201,7 +201,12 @@ export function ChatView({
                           sources: s.sources || [],
                         })),
                         text: m.text || "",
-                        artifacts: [],
+                        artifacts: (m.artifacts || []).map((a: any) => ({
+                          id: a.id, kind: a.kind, title: a.title, version: a.version ?? 1,
+                          uri: a.uri, version_id: a.version_id,
+                          blocks: Array.isArray(a.blocks) ? a.blocks : [],
+                          citations: a.citations || {},
+                        })),
                         durationMs: m.durationMs ?? null,
                       },
                     },
