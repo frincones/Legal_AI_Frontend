@@ -124,7 +124,13 @@ export default function JuridicaApp({
   // Lee el flag mission_control de la org (aditivo). Si está off, el UI clásico queda idéntico.
   useEffect(() => {
     if (!backendUrl || !accessToken) return;
-    missionApi.me(backendUrl, accessToken).then((m) => setMissionMode(!!m?.features?.mission_control)).catch(() => {});
+    missionApi.me(backendUrl, accessToken).then((m: any) => {
+      setMissionMode(!!m?.features?.mission_control);
+      // Onboarding: se muestra si el backend dice que el usuario aún no lo completó (flag en DB),
+      // nunca dentro del popup OAuth, y respetando un skip de sesión en localStorage.
+      const isPopup = typeof window !== "undefined" && !!window.opener && !!new URLSearchParams(window.location.search).get("connected");
+      if (!isPopup && m && m.onboarded === false && !localStorage.getItem("juridica_onboarded")) setShowWizard(true);
+    }).catch(() => {});
     missionApi.credits(backendUrl, accessToken).then((c: any) => setCreditsState({ balance: c.balance, cap: c.cap, plan: c.plan ?? null, trial_ends_at: c.trial_ends_at ?? null })).catch(() => {});
   }, [backendUrl, accessToken]);
 
@@ -138,15 +144,6 @@ export default function JuridicaApp({
     setCreditsState((c) => ({ ...c, balance: 0 }));
     pushToast("Sin créditos: el agente quedó bloqueado. Recarga o espera la renovación.", "warning");
   }
-
-  // F6.3 — Wizard de onboarding: solo la primera vez (flag en localStorage) y nunca en el popup OAuth.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const isPopup = !!window.opener && !!new URLSearchParams(window.location.search).get("connected");
-    if (!isPopup && backendUrl && accessToken && !localStorage.getItem("juridica_onboarded")) {
-      setShowWizard(true);
-    }
-  }, [backendUrl, accessToken]);
 
   function closeWizard() {
     try {
