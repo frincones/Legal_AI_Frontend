@@ -9,6 +9,7 @@ import {
   TrustBar, ProblemSection, PillarsSection, HowItWorks, DiffTable, Pricing, FAQ, FinalCTA, Footer,
   type Plan,
 } from "./sections";
+import { GuestChat, RegisterModal } from "./GuestChat";
 
 const NAV_LINKS: [string, string][] = [
   ["Producto", "solucion"],
@@ -131,6 +132,9 @@ function Hero({ onTry }: { onTry: (text: string) => void }) {
 export default function Landing({ authed, backendUrl }: { authed: boolean; backendUrl: string }) {
   const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS);
+  const [view, setView] = useState<"landing" | "guest">("landing");
+  const [seed, setSeed] = useState("");
+  const [register, setRegister] = useState(false);
 
   useEffect(() => {
     if (!backendUrl) return;
@@ -140,24 +144,35 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
       .catch(() => { /* usa fallback */ });
   }, [backendUrl]);
 
+  useEffect(() => { document.body.style.overflow = view === "guest" ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [view]);
+
   const goLogin = () => router.push("/login");
   const goPanel = () => router.push("/chat");
-  // Fase 2: probar = ir a login/registro. En Fase 3 esto abrirá el modo invitado con el seed.
-  const onTry = (_text: string) => { void _text; router.push("/login"); };
+  // Cero fricción: escribir en el hero abre el chat de invitado (sin login) con el seed.
+  // Si ya hay sesión, va directo al panel.
+  const onTry = (text: string) => {
+    if (authed) { goPanel(); return; }
+    setSeed(text); setView("guest"); window.scrollTo(0, 0);
+  };
 
   return (
-    <div style={{ minHeight: "100%", background: "var(--bg-base)" }}>
-      <LandingNav authed={authed} onStart={goLogin} onLogin={goLogin} onNav={scrollToId} onPanel={goPanel} />
-      <Hero onTry={onTry} />
-      <TrustBar />
-      <ProblemSection />
-      <PillarsSection />
-      <HowItWorks />
-      <DiffTable />
-      <Pricing plans={plans} onStart={goLogin} />
-      <FAQ />
-      <FinalCTA onStart={goLogin} />
-      <Footer onStart={goLogin} onNav={scrollToId} />
-    </div>
+    <>
+      <div style={{ minHeight: "100%", background: "var(--bg-base)" }}>
+        <LandingNav authed={authed} onStart={goLogin} onLogin={goLogin} onNav={scrollToId} onPanel={goPanel} />
+        <Hero onTry={onTry} />
+        <TrustBar />
+        <ProblemSection />
+        <PillarsSection />
+        <HowItWorks />
+        <DiffTable />
+        <Pricing plans={plans} onStart={goLogin} />
+        <FAQ />
+        <FinalCTA onStart={goLogin} />
+        <Footer onStart={goLogin} onNav={scrollToId} />
+      </div>
+
+      {view === "guest" && <GuestChat seed={seed} backendUrl={backendUrl} onBack={() => setView("landing")} onRegister={() => setRegister(true)} />}
+      {register && <RegisterModal onClose={() => setRegister(false)} onGo={goLogin} />}
+    </>
   );
 }
