@@ -101,7 +101,7 @@ function Hero({ onTry }: { onTry: (text: string) => void }) {
         <div style={{ maxWidth: 720, margin: "36px auto 0" }}>
           <div style={{ position: "relative", borderRadius: 26, padding: 1.5, background: focus ? "var(--aurora)" : "var(--border-strong)", transition: "background .2s", boxShadow: focus ? "0 18px 50px -16px rgba(91,77,227,0.45)" : "var(--sh-3)" }}>
             <div style={{ background: "var(--bg-surface)", borderRadius: 24.5, padding: "8px 8px 8px 22px" }}>
-              <textarea ref={taRef} value={val} rows={1}
+              <textarea ref={taRef} value={val} rows={1} className="land-composer"
                 onChange={(e) => setVal(e.target.value)}
                 onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (canSend) onTry(val); } }}

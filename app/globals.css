@@ -150,7 +150,8 @@ textarea:focus-visible {
 
 /* El composer ya tiene su propio borde-acento al enfocar → el textarea no debe pintar el ring
    (esa "línea azul" en medio). Se anula solo dentro del composer. */
-.composer-shell textarea:focus-visible { box-shadow: none; border-radius: 0; }
+.composer-shell textarea:focus-visible,
+textarea.land-composer:focus-visible { box-shadow: none; border-radius: 0; }
 
 /* Buttons */
 .btn {

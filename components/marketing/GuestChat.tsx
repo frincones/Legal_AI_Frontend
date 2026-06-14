@@ -169,7 +169,7 @@ export function GuestChat({ seed, backendUrl, onBack, onRegister }: {
       <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)", padding: "14px 20px 18px" }}>
         <div style={{ maxWidth: 740, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 8, border: "1px solid var(--border-strong)", borderRadius: "var(--r-xl)", padding: "8px 8px 8px 18px", background: "var(--bg-surface)", boxShadow: "var(--sh-2)" }}>
-            <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={1} disabled={busy}
+            <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={1} disabled={busy} className="land-composer"
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder="Escribe tu consulta jurídica…"
               style={{ flex: 1, resize: "none", border: "none", outline: "none", background: "transparent", fontSize: 15.5, lineHeight: 1.5, color: "var(--text)", fontFamily: "var(--font-ui)", padding: "9px 0", maxHeight: 140 }} />
