@@ -79,6 +79,9 @@ export function ChatView({
   setJurisdiction,
   matterId,
   compact,
+  blocked,
+  onCredits,
+  onBlocked,
 }: {
   backendUrl: string;
   accessToken: string;
@@ -91,6 +94,9 @@ export function ChatView({
   setJurisdiction: (j: string) => void;
   matterId?: string;        // Mission Control: liga el chat a una misión (expediente)
   compact?: boolean;        // embebido en el panel de la misión: padding reducido
+  blocked?: boolean;        // sin créditos → composer bloqueado
+  onCredits?: (info: { balance?: number | null; cap?: number | null; low?: boolean }) => void;
+  onBlocked?: () => void;
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -148,6 +154,8 @@ export function ChatView({
             if (s) { s.status = "done"; s.endedAt = Date.now(); s.output = data.output; if (data.sources?.length) s.sources = data.sources; }
           });
         else if (event === "artifact") patchTurn((t) => t.artifacts.push({ title: data.title, uri: data.uri, kind: data.kind }));
+        else if (event === "credits") onCredits?.(data);
+        else if (event === "blocked") { patchTurn((t) => (t.text += data.message || "Sin créditos disponibles.")); onBlocked?.(); }
         else if (event === "error") patchTurn((t) => (t.text += `\n\n⚠️ ${data.message}`));
       }
     } catch (err: any) {
@@ -262,6 +270,7 @@ export function ChatView({
             backendUrl={backendUrl}
             accessToken={accessToken}
             matterId={matterId}
+            blocked={blocked}
             placeholder={compact ? "Pregúntale a esta misión…" : "Escribe un mensaje de seguimiento…"}
           />
         </div>

@@ -124,6 +124,8 @@ export const api = {
   decide: (b: string, t: string, id: string, decision: string, note?: string) =>
     jpost<{ ok?: boolean; status?: string; source_warnings?: SourceWarning[] }>(b, t, `/api/approvals/${id}/${decision}`, { note }, {}),
   credits: (b: string, t: string) => jget<{ balance: number | null; cap: number | null; ledger: unknown[] }>(b, t, "/api/credits", { balance: null, cap: null, ledger: [] }),
+  adminOrgs: (b: string, t: string) => jget<{ orgs: { id: string; name: string | null; balance: number | null; cap: number | null; members: number; cost_usd: number; actions: number; last_activity: string | null }[] }>(b, t, "/api/admin/orgs", { orgs: [] }),
+  adminSetCredits: (b: string, t: string, orgId: string, action: string, amount?: number) => jpost<{ ok?: boolean; balance?: number }>(b, t, `/api/admin/orgs/${orgId}/credits`, { action, amount }, {}),
   notifications: (b: string, t: string) => jget<{ id: string; title: string; body: string; campaign_type: string; related_matter_id: string | null; read_at: string | null; created_at: string }[]>(b, t, "/api/notifications", []),
   unreadCount: (b: string, t: string) => jget<{ count: number }>(b, t, "/api/notifications/unread-count", { count: 0 }),
   markAllRead: (b: string, t: string) => jpost(b, t, "/api/notifications/read-all", {}, {}),

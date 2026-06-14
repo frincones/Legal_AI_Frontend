@@ -21,10 +21,11 @@ function detectPlugin(v: string): { plugin: string; matter_type: string } {
 }
 
 export function NuevaMision({
-  backendUrl, accessToken, onCreated, pushToast,
+  backendUrl, accessToken, onCreated, pushToast, blocked,
 }: {
   backendUrl: string; accessToken: string;
   onCreated: (missionId: string, prompt: string, documentIds?: string[]) => void; pushToast: (t: string, k?: string) => void;
+  blocked?: boolean;
 }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -67,6 +68,7 @@ export function NuevaMision({
           autoFocus
           backendUrl={backendUrl}
           accessToken={accessToken}
+          blocked={blocked}
           placeholder="Ej. Quiero cobrar una deuda de $50M con un pagaré vencido contra Jorge Molina…"
         />
 

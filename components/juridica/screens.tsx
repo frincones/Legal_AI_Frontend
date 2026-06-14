@@ -46,6 +46,7 @@ export function Home({
   setMode,
   backendUrl,
   accessToken,
+  blocked,
 }: {
   composerStyle?: "elevated" | "bordered" | "pill";
   onSubmit: (text: string, modeOverride?: string, documentIds?: string[]) => void;
@@ -58,6 +59,7 @@ export function Home({
   setJurisdiction?: (j: string) => void;
   backendUrl?: string;
   accessToken?: string;
+  blocked?: boolean;
 }) {
   return (
     <div className="no-scrollbar" style={{ height: "100%", overflow: "auto" }}>
@@ -88,6 +90,7 @@ export function Home({
             autoFocus
             backendUrl={backendUrl}
             accessToken={accessToken}
+            blocked={blocked}
             placeholder="Ej. Redacta una demanda ejecutiva por un pagaré de $50.000.000…"
           />
 

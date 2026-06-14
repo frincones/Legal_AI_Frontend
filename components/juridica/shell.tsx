@@ -16,6 +16,9 @@ export function Sidebar({
   recents,
   onOpenRecent,
   missionMode = false,
+  credits,
+  creditsBlocked = false,
+  isAdmin = false,
 }: {
   route: string;
   onNavigate: (r: string) => void;
@@ -26,6 +29,9 @@ export function Sidebar({
   recents?: { id: string; title: string }[];
   onOpenRecent?: (id: string) => void;
   missionMode?: boolean;
+  credits?: { balance: number | null; cap: number | null };
+  creditsBlocked?: boolean;
+  isAdmin?: boolean;
 }) {
   const recentList = recents || [];   // solo conversaciones reales del usuario (sin mock)
   // Nombre/iniciales reales derivados del correo (sin datos mock).
@@ -118,8 +124,9 @@ export function Sidebar({
 
       <div style={{ padding: "0 12px", display: "flex", flexDirection: "column", gap: 8 }}>
         <button className="btn btn-primary" onClick={onNew} style={{ width: "100%", justifyContent: collapsed ? "center" : "flex-start", padding: collapsed ? 0 : "0 14px", height: 42 }} title={missionMode ? "Nueva misión" : "Nuevo"}>
-          <Icon name="plus" size={18} stroke={2.2} />
-          {!collapsed && <span>{missionMode ? "Nueva misión" : "Nuevo documento"}</span>}
+          <Icon name={creditsBlocked ? "lock" : "plus"} size={18} stroke={2.2} />
+          {!collapsed && <span style={{ flex: 1, textAlign: "left" }}>{missionMode ? "Nueva misión" : "Nuevo documento"}</span>}
+          {!collapsed && creditsBlocked && <span style={{ fontSize: 10.5, fontWeight: 700, opacity: 0.85 }}>BLOQUEADO</span>}
         </button>
         {!collapsed ? (
           <button onClick={() => onNavigate("home")} style={{ display: "flex", alignItems: "center", gap: 9, height: 38, padding: "0 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-muted)", fontSize: 13.5, textAlign: "left" }}>
@@ -192,8 +199,25 @@ export function Sidebar({
         ))}
       </div>
 
+      {/* Créditos (visible en ambos modos) */}
+      {!collapsed && (credits?.balance != null || isAdmin) && (
+        <div style={{ padding: "8px 12px 0" }}>
+          <div onClick={() => isAdmin && onNavigate("admin")} title={isAdmin ? "Panel admin" : undefined}
+            style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: creditsBlocked ? "var(--warning-soft)" : "var(--bg-base)", cursor: isAdmin ? "pointer" : "default" }}>
+            <Icon name={creditsBlocked ? "lock" : "coins"} size={16} style={{ color: creditsBlocked ? "var(--warning)" : "var(--primary)", flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)" }}>
+                {isAdmin ? "Créditos: ilimitado" : `${credits?.balance} / ${credits?.cap ?? "—"}`}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{isAdmin ? "Admin" : creditsBlocked ? "Sin créditos" : "créditos del agente"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <div style={{ padding: "8px 12px 12px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 2 }}>
+        {isAdmin && <Item icon="shieldCheck" label="Admin" active={route === "admin"} onClick={() => onNavigate("admin")} />}
         <Item icon="settings" label="Ajustes" active={route === "settings"} onClick={() => onNavigate("settings")} />
         <button
           onClick={() => onNavigate("settings")}
@@ -241,6 +265,7 @@ export function Composer({
   backendUrl,
   accessToken,
   matterId,
+  blocked,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -258,6 +283,7 @@ export function Composer({
   backendUrl?: string;      // dictado por voz + adjuntar. Si faltan, se ocultan mic y clip.
   accessToken?: string;
   matterId?: string;        // asocia el adjunto a la misión (opcional)
+  blocked?: boolean;        // sin créditos → input deshabilitado + banner
 }) {
   const dict = useDictation(backendUrl, accessToken);
   const micEnabled = !!(backendUrl && accessToken);
@@ -317,7 +343,7 @@ export function Composer({
       : { background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "var(--sh-3)" };
 
   const uploading = atts.some((a) => a.loading);
-  const canSend = (value.trim().length > 0 || atts.some((a) => a.id)) && !disabled && !uploading;
+  const canSend = (value.trim().length > 0 || atts.some((a) => a.id)) && !disabled && !uploading && !blocked;
 
   return (
     <div className="composer-shell" style={{ borderRadius: style === "pill" ? 28 : "var(--r-xl)", overflow: "hidden", transition: "box-shadow .2s, border-color .2s", position: "relative", ...shellStyle }}>
@@ -325,6 +351,12 @@ export function Composer({
         className="composer-accent"
         style={{ position: "absolute", inset: 0, borderRadius: "inherit", padding: 1.5, background: "var(--aurora)", WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)", WebkitMaskComposite: "xor", maskComposite: "exclude", opacity: 0, transition: "opacity .2s", pointerEvents: "none" }}
       />
+
+      {blocked && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", background: "var(--warning-soft)", color: "var(--warning)", fontSize: 13, fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
+          <Icon name="lock" size={15} /> Sin créditos — el agente está bloqueado. Recarga o espera la renovación.
+        </div>
+      )}
 
       {dict.transcribing ? (
         /* Transcribiendo el dictado (estilo ChatGPT "Cargando dictado") */
@@ -354,6 +386,7 @@ export function Composer({
             ref={taRef}
             value={value}
             rows={1}
+            disabled={blocked}
             onChange={(e) => onChange(e.target.value)}
             onFocus={(e) => {
               const a = e.currentTarget.parentElement?.querySelector(".composer-accent") as HTMLElement | null;

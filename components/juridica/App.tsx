@@ -19,7 +19,11 @@ import { Terminos } from "./mission/Terminos";
 import { Autopilot } from "./mission/Autopilot";
 import { Inbox } from "./mission/Inbox";
 import { ApprovalModal } from "./mission/ApprovalModal";
+import { AdminPanel } from "./mission/AdminPanel";
 import { api as missionApi } from "./mission/data";
+
+// Admins con créditos ilimitados (debe coincidir con ADMIN_EMAILS del backend).
+const ADMIN_EMAILS = ["freddy.rincones@gmail.com", "freddyrincones@gmail.com"];
 
 // F4 · mapeo de datos reales del backend → LibraryItem (modelo del diseño).
 const ACCENTS = ["#5B4DE3", "#21A8C7", "#C98A14", "#16A34A", "#DC2626", "#2563EB"];
@@ -93,6 +97,10 @@ export default function JuridicaApp({
   // Mission Control (F2): flag por org + estado de misión/aprobación.
   // Arranca con el valor resuelto en el server (sin flash); el useEffect lo reconcilia.
   const [missionMode, setMissionMode] = useState(initialMissionMode);
+  // Créditos: saldo del pool de la org. Admins = ilimitado (nunca se bloquean).
+  const isAdmin = ADMIN_EMAILS.includes((email || "").toLowerCase());
+  const [credits, setCreditsState] = useState<{ balance: number | null; cap: number | null }>({ balance: null, cap: null });
+  const creditsBlocked = !isAdmin && credits.balance != null && credits.balance <= 0;
   const [currentMissionId, setCurrentMissionId] = useState<string | undefined>(undefined);
   const [chatMatterId, setChatMatterId] = useState<string | undefined>(undefined);
   const [approvalOpen, setApprovalOpen] = useState(false);
@@ -102,7 +110,19 @@ export default function JuridicaApp({
   useEffect(() => {
     if (!backendUrl || !accessToken) return;
     missionApi.me(backendUrl, accessToken).then((m) => setMissionMode(!!m?.features?.mission_control)).catch(() => {});
+    missionApi.credits(backendUrl, accessToken).then((c) => setCreditsState({ balance: c.balance, cap: c.cap })).catch(() => {});
   }, [backendUrl, accessToken]);
+
+  // El runner emite el nuevo saldo tras cada acción del agente → actualiza el pill + toast al 10%.
+  function onCredits(info: { balance?: number | null; cap?: number | null; low?: boolean }) {
+    if (info.balance == null) return;
+    setCreditsState((c) => ({ balance: info.balance ?? c.balance, cap: info.cap ?? c.cap }));
+    if (info.low && !isAdmin) pushToast(`Te quedan ${info.balance} créditos. Se renuevan el día 1.`, "warning");
+  }
+  function onBlocked() {
+    setCreditsState((c) => ({ balance: 0, cap: c.cap }));
+    pushToast("Sin créditos: el agente quedó bloqueado. Recarga o espera la renovación.", "warning");
+  }
 
   // F6.3 — Wizard de onboarding: solo la primera vez (flag en localStorage) y nunca en el popup OAuth.
   useEffect(() => {
@@ -288,7 +308,9 @@ export default function JuridicaApp({
   else if (missionMode && route === "expediente" && currentMissionId)
     main = <MissionDetail backendUrl={backendUrl} accessToken={accessToken} missionId={currentMissionId} onBack={() => go("expedientes")} onOpenChat={openMissionChat} onApprove={() => setApprovalOpen(true)} pushToast={pushToast} />;
   else if (missionMode && route === "mission")
-    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt, docs) => { openMissionChat(id, prompt, docs); }} pushToast={pushToast} />;
+    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt, docs) => { openMissionChat(id, prompt, docs); }} pushToast={pushToast} blocked={creditsBlocked} />;
+  else if (route === "admin" && isAdmin)
+    main = <AdminPanel backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />;
   else if (missionMode && route === "terminos")
     main = <Terminos backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} />;
   else if (missionMode && route === "autopilot")
@@ -308,6 +330,7 @@ export default function JuridicaApp({
         setJurisdiction={setJurisdiction}
         backendUrl={backendUrl}
         accessToken={accessToken}
+        blocked={creditsBlocked}
       />
     );
   else if (route === "chat")
@@ -324,6 +347,9 @@ export default function JuridicaApp({
         jurisdiction={jurisdiction}
         setJurisdiction={setJurisdiction}
         matterId={chatMatterId}
+        blocked={creditsBlocked}
+        onCredits={onCredits}
+        onBlocked={onBlocked}
       />
     );
   else if (route === "canvas")
@@ -338,6 +364,9 @@ export default function JuridicaApp({
         reuseTitle={reuseTitle}
         narrow={narrow}
         pushToast={pushToast}
+        blocked={creditsBlocked}
+        onCredits={onCredits}
+        onBlocked={onBlocked}
       />
     );
   else if (route === "library")
@@ -379,7 +408,7 @@ export default function JuridicaApp({
 
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden" }}>
-      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={missionMode ? newMission : newDoc} email={email} recents={recents} onOpenRecent={openConversation} missionMode={missionMode} />}
+      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={missionMode ? newMission : newDoc} email={email} recents={recents} onOpenRecent={openConversation} missionMode={missionMode} credits={credits} creditsBlocked={creditsBlocked} isAdmin={isAdmin} />}
       <main style={{ flex: 1, minWidth: 0, height: "100%", position: "relative", display: "flex", flexDirection: "column" }}>
         {mobile && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}>

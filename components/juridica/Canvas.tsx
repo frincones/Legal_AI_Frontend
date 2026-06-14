@@ -409,11 +409,17 @@ export function Canvas({
   reuseTitle,
   narrow = false,
   pushToast,
+  blocked,
+  onCredits,
+  onBlocked,
 }: {
   backendUrl: string;
   accessToken: string;
   initialMessage?: string;
   initialDocumentIds?: string[];   // adjuntos del composer de Home (primer mensaje)
+  blocked?: boolean;
+  onCredits?: (info: { balance?: number | null; cap?: number | null; low?: boolean }) => void;
+  onBlocked?: () => void;
   reusePatronId?: string;   // F4: parte de un patrón validado de la biblioteca (reuse_patron_id)
   reuseTitle?: string;      // F4: título de la plantilla reutilizada (para el banner)
   narrow?: boolean;
@@ -550,6 +556,8 @@ export function Canvas({
               if (s) s.status = "done";
             }
           });
+        else if (event === "credits") onCredits?.(data);
+        else if (event === "blocked") { patchTurn((t) => (t.text += data.message || "Sin créditos disponibles.")); onBlocked?.(); }
         else if (event === "artifact") {
           const art: Artifact = {
             id: data.id,
@@ -767,16 +775,22 @@ export function Canvas({
             </button>
           </div>
         )}
+        {blocked && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", marginBottom: 6, borderRadius: "var(--r-md)", background: "var(--warning-soft)", color: "var(--warning)", fontSize: 12.5, fontWeight: 600 }}>
+            <Icon name="lock" size={14} /> Sin créditos — el agente está bloqueado.
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "flex-end", gap: 8, border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "6px 6px 6px 14px", background: "var(--bg-base)" }}>
           <textarea
             ref={followRef}
             value={followup}
             onChange={(e) => setFollowup(e.target.value)}
             rows={1}
+            disabled={blocked}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                runEdit();
+                if (!blocked) runEdit();
               }
             }}
             placeholder={selContext ? "Describe el cambio para la selección…" : hasDoc ? "Pide un cambio o una nueva sección…" : "Escribe tu mensaje…"}
@@ -784,14 +798,14 @@ export function Canvas({
           />
           <button
             onClick={runEdit}
-            disabled={!followup.trim() || busy}
+            disabled={!followup.trim() || busy || blocked}
             style={{
               width: 36,
               height: 36,
               borderRadius: 9,
               border: "none",
-              background: followup.trim() && !busy ? "var(--aurora)" : "var(--bg-elevated-2)",
-              color: followup.trim() && !busy ? "#fff" : "var(--text-muted)",
+              background: followup.trim() && !busy && !blocked ? "var(--aurora)" : "var(--bg-elevated-2)",
+              color: followup.trim() && !busy && !blocked ? "#fff" : "var(--text-muted)",
               display: "grid",
               placeItems: "center",
               flexShrink: 0,
