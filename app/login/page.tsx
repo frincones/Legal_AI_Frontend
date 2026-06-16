@@ -105,7 +105,7 @@ export default function LoginPage() {
                 Te enviamos un código de 6 dígitos a <strong style={{ color: "var(--text)" }}>{email}</strong>. Escríbelo aquí para entrar.
               </p>
               <input
-                inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code}
+                inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} required placeholder="••••••"
                 className="focus-ring"
                 style={{ ...inp, textAlign: "center", fontSize: 26, letterSpacing: 10, fontWeight: 700, height: 56 }}
