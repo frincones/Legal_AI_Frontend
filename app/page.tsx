@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Landing from "@/components/marketing/Landing";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://legal-ai-frontend-freddy-ricones-projects.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://juroviapp.com"),
   title: "Juridica — Copiloto jurídico verificable para abogados en Colombia",
   description:
     "IA legal que verifica cada ley y sentencia contra las fuentes oficiales, redacta tus escritos en Word y vigila tus casos. Empieza gratis.",
