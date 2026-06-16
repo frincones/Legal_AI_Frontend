@@ -502,23 +502,29 @@ export function Settings({
 
         <Section title="Jurisdicción y redacción" icon="scale">
           <Field label="Jurisdicción principal" hint="Define las fuentes oficiales que se consultan por defecto.">
-            <SelectBox value="Colombia · Bogotá D.C." options={["Colombia · Bogotá D.C.", "Colombia · Nacional", "Antioquia", "Valle del Cauca"]} />
+            <SelectBox
+              value={data?.profile?.primary_jurisdiction || "Colombia · Nacional"}
+              options={Array.from(new Set([
+                data?.profile?.primary_jurisdiction || "Colombia · Nacional",
+                "Colombia · Nacional", "Colombia · Bogotá D.C.", "Antioquia", "Valle del Cauca",
+              ]))}
+            />
           </Field>
           <Field label="Tono de los documentos" hint="Estilo de redacción aplicado a los borradores.">
             <Segmented value={tone} onChange={setTone} options={["Formal jurídico", "Claro y directo", "Conciliador"]} />
           </Field>
-          <Field label="Membrete / plantilla base" hint="Documento de referencia (.docx) con el estilo del bufete.">
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px dashed var(--border-strong)", borderRadius: "var(--r-md)", background: "var(--bg-base)" }}>
-              <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--primary-soft)", display: "grid", placeItems: "center" }}>
-                <Icon name="fileText" size={17} style={{ color: "var(--primary)" }} />
+          <Field label="Membrete / plantilla base" hint="Documento de referencia (.docx) con el estilo de tu firma.">
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px", border: "1px dashed var(--border-strong)", borderRadius: "var(--r-md)", background: "var(--bg-base)" }}>
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--bg-elevated-2)", display: "grid", placeItems: "center" }}>
+                <Icon name="fileText" size={17} style={{ color: "var(--text-muted)" }} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>membrete-restrepo-2026.docx</div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Subido el 12 may 2026 · 84 KB</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>Aún no has subido un membrete</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Sube un .docx con el estilo de tu firma para aplicarlo a tus borradores.</div>
               </div>
-              <button className="btn btn-secondary btn-sm">
+              <button className="btn btn-secondary btn-sm" onClick={() => pushToast?.("Subida de membrete — próximamente", "info")}>
                 <Icon name="upload" size={15} />
-                Reemplazar
+                Subir
               </button>
             </div>
           </Field>
