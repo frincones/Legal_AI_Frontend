@@ -127,7 +127,7 @@ export function MissionDetail({
               <div style={{ borderRadius: "calc(var(--r-lg) - 1.5px)", background: "var(--bg-surface)", padding: 18, display: "flex", gap: 13 }}>
                 <span style={{ width: 32, height: 32, borderRadius: 9, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="sparkles" size={17} style={{ color: "var(--primary)" }} /></span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", marginBottom: 4 }}>Recomendación de Juridica</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", marginBottom: 4 }}>Recomendación de Jurovia</div>
                   <div style={{ fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.55 }}>
                     {m.keyFacts || `El caso avanza (${m.progress}%). ${m.nextBestAction?.label ? `La siguiente acción es: ${m.nextBestAction.label.toLowerCase()}.` : "Revisa los datos faltantes para poder avanzar."} ${falta.length > 0 ? "Solicita lo que falta al cliente para evitar demoras." : "Las normas están verificadas."}`}
                   </div>

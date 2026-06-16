@@ -481,11 +481,11 @@ export function Settings({
     <div style={{ height: "100%", maxHeight: "100dvh", overflow: "auto" }}>
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "32px 36px 60px" }}>
         <h1 className="t-h1" style={{ margin: "0 0 4px" }}>Perfil de la firma</h1>
-        <p style={{ color: "var(--text-secondary)", margin: "0 0 28px", fontSize: 14.5 }}>Configura el contexto que Juridica usa al redactar y verificar.</p>
+        <p style={{ color: "var(--text-secondary)", margin: "0 0 28px", fontSize: 14.5 }}>Configura el contexto que Jurovia usa al redactar y verificar.</p>
 
         {/* Firm header card */}
         <div className="card" style={{ padding: 22, display: "flex", alignItems: "center", gap: 18, marginBottom: 22 }}>
-          <div style={{ width: 60, height: 60, borderRadius: 16, background: "var(--aurora)", display: "grid", placeItems: "center", flexShrink: 0, boxShadow: "0 6px 18px -6px rgba(91,77,227,0.5)" }}>
+          <div style={{ width: 60, height: 60, borderRadius: 16, background: "var(--aurora)", display: "grid", placeItems: "center", flexShrink: 0, boxShadow: "0 6px 18px -6px rgba(123,61,245,0.5)" }}>
             <Icon name="building" size={28} style={{ color: "#fff" }} />
           </div>
           <div style={{ flex: 1 }}>

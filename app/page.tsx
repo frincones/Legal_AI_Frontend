@@ -4,11 +4,11 @@ import Landing from "@/components/marketing/Landing";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://juroviapp.com"),
-  title: "Juridica — Copiloto jurídico verificable para abogados en Colombia",
+  title: "Jurovia — Copiloto jurídico verificable para abogados en Colombia",
   description:
     "IA legal que verifica cada ley y sentencia contra las fuentes oficiales, redacta tus escritos en Word y vigila tus casos. Empieza gratis.",
   openGraph: {
-    title: "Juridica — Copiloto jurídico verificable",
+    title: "Jurovia — Copiloto jurídico verificable",
     description:
       "Fundamenta cada escrito con citas verificadas contra las fuentes oficiales. Pruébalo gratis.",
     locale: "es_CO",

@@ -38,7 +38,7 @@ const TOUR: { icon: string; title: string; body: string }[] = [
   { icon: "message", title: "Chat con fundamentación verificada", body: "Pregúntale al agente o pídele un escrito. Verifica cada ley y sentencia contra las fuentes oficiales y te deja la cita con su enlace." },
   { icon: "folder", title: "Misiones (expedientes)", body: "Crea una misión por caso: cronología, partes, documentos, calendario y avance, todo en un solo lugar." },
   { icon: "fileText", title: "Documentos en Word", body: "Los documentos se generan en .docx (y PDF), listos para descargar y editar. Tus plantillas se reutilizan." },
-  { icon: "radar", title: "Autopilot · vigilancia", body: "Deja que Juridica vigile tus casos y te avise si una norma cambió o hay novedades — incluso desde tu correo." },
+  { icon: "radar", title: "Autopilot · vigilancia", body: "Deja que Jurovia vigile tus casos y te avise si una norma cambió o hay novedades — incluso desde tu correo." },
   { icon: "coins", title: "Créditos", body: "Cada consulta o documento consume créditos del plan. Revisa tu saldo y tu plan en Ajustes." },
 ];
 
@@ -113,7 +113,7 @@ export function Wizard({ backendUrl, accessToken, onClose }: { backendUrl: strin
           {step === 0 && (
             <div className="fade-up" style={{ textAlign: "center", padding: "12px 6px" }}>
               <div style={{ width: 60, height: 60, borderRadius: 16, background: "var(--aurora)", display: "grid", placeItems: "center", margin: "0 auto 18px", boxShadow: "var(--glow-primary)" }}><Icon name="sparkles" size={30} style={{ color: "#fff" }} /></div>
-              <h2 style={{ fontSize: 22, fontWeight: 680, letterSpacing: "-0.02em", margin: "0 0 8px" }}>Bienvenido a Juridica</h2>
+              <h2 style={{ fontSize: 22, fontWeight: 680, letterSpacing: "-0.02em", margin: "0 0 8px" }}>Bienvenido a Jurovia</h2>
               <p style={{ fontSize: 14.5, color: "var(--text-secondary)", lineHeight: 1.6, maxWidth: 420, margin: "0 auto" }}>
                 Tu copiloto jurídico verificable. En menos de un minuto te dejamos listo: cuéntanos de ti, conecta tus herramientas (opcional) y te mostramos cómo usar cada módulo.
               </p>
@@ -171,7 +171,7 @@ export function Wizard({ backendUrl, accessToken, onClose }: { backendUrl: strin
 
           {step === 3 && (
             <div className="fade-up">
-              <h2 style={{ fontSize: 19, fontWeight: 650, margin: "0 0 4px" }}>Cómo usar Juridica</h2>
+              <h2 style={{ fontSize: 19, fontWeight: 650, margin: "0 0 4px" }}>Cómo usar Jurovia</h2>
               <p style={{ fontSize: 13.5, color: "var(--text-secondary)", margin: "0 0 16px" }}>Un vistazo rápido a cada módulo. Lo tienes siempre a mano en la barra lateral.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {TOUR.map((t, i) => (
@@ -201,7 +201,7 @@ export function Wizard({ backendUrl, accessToken, onClose }: { backendUrl: strin
               <Icon name="arrowRight" size={16} />
             </button>
           ) : (
-            <button className="btn btn-primary" onClick={onClose} style={{ flexShrink: 0 }}>Ir a Juridica<Icon name="arrowRight" size={16} /></button>
+            <button className="btn btn-primary" onClick={onClose} style={{ flexShrink: 0 }}>Ir a Jurovia<Icon name="arrowRight" size={16} /></button>
           )}
         </div>
       </div>

@@ -84,7 +84,7 @@ export default function LoginPage() {
         {/* Marca */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 26 }}>
           <Logo size={52} />
-          <h1 style={{ fontSize: 26, fontWeight: 650, letterSpacing: "-0.02em", margin: "16px 0 4px" }}>Juridica</h1>
+          <h1 style={{ fontSize: 26, fontWeight: 650, letterSpacing: "-0.02em", margin: "16px 0 4px" }}>Jurovia</h1>
           <p style={{ color: "var(--text-secondary)", fontSize: 14.5, margin: 0 }}>Tu copiloto jurídico verificable</p>
         </div>
 

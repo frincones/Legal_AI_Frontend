@@ -144,14 +144,14 @@ export function AgentAvatar({ size = 30, generating = false }: { size?: number; 
             position: "absolute",
             inset: -3,
             borderRadius: "50%",
-            background: "conic-gradient(from 0deg, #7B6CF6, #4F7BFF, #21C7D8, #7B6CF6)",
+            background: "conic-gradient(from 0deg, #FF3D7F, #7B3DF5, #2F6BFF, #FF3D7F)",
             animation: "auroraRing 1.6s linear infinite",
             WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px))",
             mask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px))",
           }}
         />
       )}
-      <div style={{ width: size, height: size, borderRadius: "50%", background: "var(--aurora)", display: "grid", placeItems: "center", boxShadow: "0 2px 8px -2px rgba(91,77,227,0.5)" }}>
+      <div style={{ width: size, height: size, borderRadius: "50%", background: "var(--aurora)", display: "grid", placeItems: "center", boxShadow: "0 2px 8px -2px rgba(123,61,245,0.5)" }}>
         <Icon name="sparkles" size={size * 0.5} stroke={2} style={{ color: "#fff" }} />
       </div>
     </div>

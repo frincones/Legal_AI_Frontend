@@ -55,7 +55,7 @@ export function Misiones({
           <div className="card" style={{ padding: "44px 24px", textAlign: "center" }}>
             <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center", margin: "0 auto 14px" }}><Icon name="target" size={28} style={{ color: "var(--primary)" }} /></div>
             <div style={{ fontWeight: 650, fontSize: 16 }}>Aún no tienes misiones</div>
-            <div style={{ fontSize: 13.5, color: "var(--text-muted)", marginTop: 4, marginBottom: 16 }}>Crea tu primera misión y Juridica arma el expediente por ti.</div>
+            <div style={{ fontSize: 13.5, color: "var(--text-muted)", marginTop: 4, marginBottom: 16 }}>Crea tu primera misión y Jurovia arma el expediente por ti.</div>
             <button className="btn btn-primary" onClick={onNewMission}><Icon name="plus" size={16} stroke={2.2} />Nueva misión</button>
           </div>
         )}

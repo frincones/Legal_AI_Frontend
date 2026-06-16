@@ -1,6 +1,6 @@
 /* ============================================================
-   JURIDICA — Design tokens (light mode premium) + base styles
-   Source of truth: PRD Apéndice A
+   JUROVIA — Design tokens (light mode premium) + base styles
+   Marca: gradiente rosa → magenta → púrpura → azul. Dorado = "verificado".
    ============================================================ */
 
 :root {
@@ -13,16 +13,16 @@
   --border-strong: #D7DCE8;
 
   /* Text */
-  --text: #0D1320;
+  --text: #191427;
   --text-secondary: #566076;
   --text-muted: #8A93A6;
 
-  /* Brand */
-  --primary: #5B4DE3;
-  --primary-hover: #4F42D6;
-  --primary-press: #4536C2;
-  --primary-soft: rgba(91, 77, 227, 0.10);
-  --primary-soft-2: rgba(91, 77, 227, 0.06);
+  /* Brand (Jurovia — púrpura central de la marca) */
+  --primary: #7B3DF5;
+  --primary-hover: #6A2BE8;
+  --primary-press: #5C1FD6;
+  --primary-soft: rgba(123, 61, 245, 0.10);
+  --primary-soft-2: rgba(123, 61, 245, 0.06);
 
   /* Authority gold */
   --gold: #C98A14;
@@ -39,18 +39,18 @@
   --info: #2563EB;
   --info-soft: rgba(37, 99, 235, 0.10);
 
-  /* Gradients */
-  --grad-aurora: linear-gradient(135deg, #7B6CF6 0%, #4F7BFF 45%, #21C7D8 100%);
-  --grad-aurora-strong: linear-gradient(135deg, #6F5BFF 0%, #3D6BFF 48%, #12C2D6 100%);
-  --grad-aurora-soft: linear-gradient(135deg, rgba(123,108,246,0.14) 0%, rgba(33,199,216,0.10) 100%);
+  /* Gradients (Jurovia: rosa → magenta → púrpura → azul) */
+  --grad-aurora: linear-gradient(135deg, #FF3D7F 0%, #D23BE0 34%, #7B3DF5 68%, #2F6BFF 100%);
+  --grad-aurora-strong: linear-gradient(135deg, #FF2E76 0%, #C82BD8 34%, #6E2BF0 68%, #1F5BFF 100%);
+  --grad-aurora-soft: linear-gradient(135deg, rgba(255,61,127,0.14) 0%, rgba(123,61,245,0.12) 55%, rgba(47,107,255,0.10) 100%);
   --grad-gold: linear-gradient(135deg, #F2B338 0%, #E8902A 100%);
   --grad-mesh:
-    radial-gradient(42% 60% at 18% 8%, rgba(123,108,246,0.18) 0%, transparent 60%),
-    radial-gradient(48% 52% at 88% 18%, rgba(33,199,216,0.16) 0%, transparent 62%),
-    radial-gradient(44% 44% at 62% 92%, rgba(242,179,56,0.13) 0%, transparent 60%);
+    radial-gradient(42% 60% at 18% 8%, rgba(255,61,127,0.16) 0%, transparent 60%),
+    radial-gradient(48% 52% at 88% 18%, rgba(47,107,255,0.15) 0%, transparent 62%),
+    radial-gradient(44% 44% at 62% 92%, rgba(123,61,245,0.13) 0%, transparent 60%);
 
   /* Glow */
-  --glow-primary: 0 0 0 1px rgba(91,77,227,0.22), 0 10px 28px -8px rgba(91,77,227,0.42);
+  --glow-primary: 0 0 0 1px rgba(123,61,245,0.22), 0 10px 28px -8px rgba(123,61,245,0.42);
 
   /* Radii */
   --r-sm: 8px;
@@ -69,6 +69,7 @@
   --font-ui: "Geist", "Inter", system-ui, -apple-system, sans-serif;
   --font-doc: "Source Serif 4", "Lora", Georgia, serif;
   --font-mono: "Geist Mono", "JetBrains Mono", ui-monospace, monospace;
+  --font-brand: "Space Grotesk", "Geist", system-ui, sans-serif;  /* wordmark Jurovia */
 
   /* Aurora intensity (driven by tweak) */
   --aurora: var(--grad-aurora);
@@ -144,7 +145,7 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px rgba(91,77,227,0.45);
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px rgba(123,61,245,0.45);
   border-radius: var(--r-sm);
 }
 
@@ -331,7 +332,7 @@ html { scroll-behavior: smooth; }
 }
 .faq-a { font-size: 15px; line-height: 1.6; color: var(--text-secondary); overflow: hidden; }
 
-.land-footer { background: #0D1320; color: #C7CEDC; }
+.land-footer { background: #15121F; color: #C7CEDC; }
 .land-footer a { color: #AEB7CA; text-decoration: none; font-size: 14px; transition: color .15s; }
 .land-footer a:hover { color: #fff; }
 

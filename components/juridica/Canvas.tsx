@@ -216,7 +216,7 @@ export function DocumentView({
               compare && b.changed ? { background: "rgba(22,163,74,0.12)", boxShadow: "inset 3px 0 0 var(--success)", borderRadius: 3 } : {};
             const hoverProps = {
               onMouseEnter: (e: React.MouseEvent<HTMLParagraphElement>) => {
-                if (!compare) e.currentTarget.style.background = "rgba(91,77,227,0.05)";
+                if (!compare) e.currentTarget.style.background = "rgba(123,61,245,0.05)";
               },
               onMouseLeave: (e: React.MouseEvent<HTMLParagraphElement>) => {
                 if (!compare && !(compare && b.changed)) e.currentTarget.style.background = "";

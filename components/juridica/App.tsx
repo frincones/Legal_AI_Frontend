@@ -26,7 +26,7 @@ import { api as missionApi } from "./mission/data";
 const ADMIN_EMAILS = ["freddy.rincones@gmail.com", "freddyrincones@gmail.com"];
 
 // F4 · mapeo de datos reales del backend → LibraryItem (modelo del diseño).
-const ACCENTS = ["#5B4DE3", "#21A8C7", "#C98A14", "#16A34A", "#DC2626", "#2563EB"];
+const ACCENTS = ["#7B3DF5", "#2F6BFF", "#C98A14", "#16A34A", "#DC2626", "#2563EB"];
 const KIND_LABEL: Record<string, string> = { document: "Documento", memo: "Memo", letter: "Carta", table: "Tabla" };
 function artifactToItem(a: any, i: number): LibraryItem {
   return {

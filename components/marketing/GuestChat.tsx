@@ -151,7 +151,7 @@ export function GuestChat({ seed, backendUrl, onBack, onRegister }: {
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 20px", background: "var(--grad-aurora-soft)", borderBottom: "1px solid var(--border)", fontSize: 13, color: "var(--text-secondary)" }}>
         <Icon name="sparkles" size={15} style={{ color: "var(--primary)", flexShrink: 0 }} />
-        <span style={{ flex: 1 }}>Estás probando Juridica sin registrarte. Las respuestas vienen <strong style={{ color: "var(--text)" }}>verificadas con su fuente</strong>. Regístrate gratis para generar documentos y guardar tu conversación.</span>
+        <span style={{ flex: 1 }}>Estás probando Jurovia sin registrarte. Las respuestas vienen <strong style={{ color: "var(--text)" }}>verificadas con su fuente</strong>. Regístrate gratis para generar documentos y guardar tu conversación.</span>
         <button onClick={onRegister} className="btn btn-gold btn-sm land-hide-mobile" style={{ flexShrink: 0 }}>Crear cuenta</button>
       </div>
 
@@ -194,7 +194,7 @@ export function GuestChat({ seed, backendUrl, onBack, onRegister }: {
               style={{ flex: 1, resize: "none", border: "none", outline: "none", background: "transparent", fontSize: 15.5, lineHeight: 1.5, color: "var(--text)", fontFamily: "var(--font-ui)", padding: "9px 0", maxHeight: 140 }} />
             <button onClick={send} disabled={!input.trim() || busy} style={{ width: 40, height: 40, borderRadius: 11, border: "none", background: input.trim() && !busy ? "var(--aurora)" : "var(--bg-elevated-2)", color: input.trim() && !busy ? "#fff" : "var(--text-muted)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="arrowUp" size={19} stroke={2.4} /></button>
           </div>
-          <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>Juridica puede equivocarse. Verifica las citas con su enlace oficial. No subas datos sensibles de clientes en modo invitado.</p>
+          <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", margin: "10px 0 0" }}>Jurovia puede equivocarse. Verifica las citas con su enlace oficial. No subas datos sensibles de clientes en modo invitado.</p>
         </div>
       </div>
       </div>

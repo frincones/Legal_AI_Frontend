@@ -42,7 +42,7 @@ export function ApprovalModal({
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
           <span style={{ width: 36, height: 36, borderRadius: 10, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center" }}><Icon name="sparkles" size={18} style={{ color: "var(--primary)" }} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 650, fontSize: 15 }}>{cur ? "Juridica preparó un borrador" : "Sin borradores pendientes"}</div>
+            <div style={{ fontWeight: 650, fontSize: 15 }}>{cur ? "Jurovia preparó un borrador" : "Sin borradores pendientes"}</div>
             <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{cur ? cur.title || cur.kind : "Todo aprobado"}{items.length > 1 ? ` · ${idx + 1}/${items.length}` : ""}</div>
           </div>
           <button onClick={onClose} className="btn-ghost focus-ring" style={{ border: "none", width: 32, height: 32, borderRadius: 8, display: "grid", placeItems: "center", color: "var(--text-muted)" }}><Icon name="x" size={17} /></button>
@@ -52,7 +52,7 @@ export function ApprovalModal({
           {cur ? (
             <div style={{ background: "#fff", border: "1px solid var(--border)", borderRadius: 6, boxShadow: "var(--sh-2)", padding: "30px 34px", fontFamily: "var(--font-doc)", color: "#15110B", fontSize: 14.5, lineHeight: 1.7 }}>
               <p style={{ textAlign: "center", fontWeight: 700, margin: "0 0 6px" }}>{cur.title || "Documento"}</p>
-              <p style={{ color: "#6B5E4A", margin: "0 0 16px", fontSize: 13, textAlign: "center" }}>Borrador preparado por Juridica · pendiente de tu aprobación</p>
+              <p style={{ color: "#6B5E4A", margin: "0 0 16px", fontSize: 13, textAlign: "center" }}>Borrador preparado por Jurovia · pendiente de tu aprobación</p>
               <p style={{ margin: 0, textAlign: "justify", color: "#55493a" }}>
                 {String((cur.payload && (cur.payload.summary as string)) || "El documento está listo en el expediente. Ábrelo en el editor para revisarlo en detalle, o apruébalo para continuar.")}
               </p>

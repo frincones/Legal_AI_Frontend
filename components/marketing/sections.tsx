@@ -164,7 +164,7 @@ function MockExpediente() {
   ];
   return (
     <div className="mock">
-      <div className="mock-bar"><Icon name="folder" size={15} style={{ color: "#5B4DE3" }} /><span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Banco XYZ vs. Pérez · expediente</span></div>
+      <div className="mock-bar"><Icon name="folder" size={15} style={{ color: "#7B3DF5" }} /><span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>Banco XYZ vs. Pérez · expediente</span></div>
       <div style={{ padding: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}><span style={{ color: "var(--text-muted)" }}>Avance del caso</span><strong>72%</strong></div>
         <div style={{ height: 6, background: "var(--bg-elevated-2)", borderRadius: 999, overflow: "hidden", marginBottom: 16 }}><div style={{ height: "100%", width: "72%", background: "var(--aurora)", borderRadius: 999 }} /></div>
@@ -183,17 +183,17 @@ function MockExpediente() {
 /* ---------- Pillars ---------- */
 export function PillarsSection() {
   const pillars = [
-    { id: "producto", eyebrow: "Fundamentación", icon: "shieldCheck", title: "Cada cita, verificada contra la fuente oficial.", body: "Juridica consulta en vivo los portales oficiales de leyes y jurisprudencia, cita solo lo verificado y te entrega el enlace oficial de cada norma o sentencia para que tú lo confirmes. Lo que no se puede verificar, queda marcado — no se cita en falso.", micro: "Adiós al “libro físico y estar leyendo”.", mock: <MockVerified />, flip: false },
-    { id: "vigilancia", eyebrow: "Vigilancia", icon: "radar", title: "Te avisamos cuando algo cambia.", body: "Pídele a Juridica que vigile tus casos: te avisa si una norma que usaste fue derogada o si hay novedades en tus procesos. Puede revisar tu correo y dejarte un resumen al final del día.", micro: "El dolor por el que los abogados dijeron que pagarían.", mock: <MockVigilancia />, flip: true },
+    { id: "producto", eyebrow: "Fundamentación", icon: "shieldCheck", title: "Cada cita, verificada contra la fuente oficial.", body: "Jurovia consulta en vivo los portales oficiales de leyes y jurisprudencia, cita solo lo verificado y te entrega el enlace oficial de cada norma o sentencia para que tú lo confirmes. Lo que no se puede verificar, queda marcado — no se cita en falso.", micro: "Adiós al “libro físico y estar leyendo”.", mock: <MockVerified />, flip: false },
+    { id: "vigilancia", eyebrow: "Vigilancia", icon: "radar", title: "Te avisamos cuando algo cambia.", body: "Pídele a Jurovia que vigile tus casos: te avisa si una norma que usaste fue derogada o si hay novedades en tus procesos. Puede revisar tu correo y dejarte un resumen al final del día.", micro: "El dolor por el que los abogados dijeron que pagarían.", mock: <MockVigilancia />, flip: true },
     { id: "word", eyebrow: "Redacción", icon: "fileText", title: "De una semana a unos minutos — en tu formato.", body: "Genera contestaciones, demandas, derechos de petición y más, en Word (.docx), citando solo lo verificado. Guarda tus plantillas y reutilízalas para que cada escrito salga con tus formatos y tecnicismos.", micro: "Porque tu mejor amigo siempre fue Word. Aquí también.", mock: <MockWord />, flip: false },
-    { id: "casos", eyebrow: "Control", icon: "folder", title: "Todo tu caso en un solo lugar.", body: "Cada caso es un expediente con cronología, partes, documentos, calendario y avance. Y para lo repetitivo, Juridica calcula liquidaciones laborales y plazos/términos de forma exacta y reproducible.", micro: null, mock: <MockExpediente />, flip: true },
+    { id: "casos", eyebrow: "Control", icon: "folder", title: "Todo tu caso en un solo lugar.", body: "Cada caso es un expediente con cronología, partes, documentos, calendario y avance. Y para lo repetitivo, Jurovia calcula liquidaciones laborales y plazos/términos de forma exacta y reproducible.", micro: null, mock: <MockExpediente />, flip: true },
   ];
   return (
     <section id="solucion" className="land-section anchor" style={{ background: "var(--bg-surface)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
       <div className="land-container">
         <Reveal style={{ textAlign: "center", maxWidth: 680, margin: "0 auto 64px" }}>
           <span className="eyebrow" style={{ justifyContent: "center" }}><Icon name="sparkles" size={15} />La solución</span>
-          <h2 className="land-h2">Cuatro formas en que Juridica te respalda.</h2>
+          <h2 className="land-h2">Cuatro formas en que Jurovia te respalda.</h2>
           <p className="land-lead" style={{ margin: "16px auto 0" }}>Cada una nace de un dolor real del ejercicio — y la cubre el producto, hoy.</p>
         </Reveal>
         <div style={{ display: "flex", flexDirection: "column", gap: 88 }}>
@@ -220,8 +220,8 @@ export function PillarsSection() {
 export function HowItWorks() {
   const steps = [
     { n: "01", icon: "message", t: "Cuéntale tu caso.", d: "Escribe o háblale por voz; adjunta tus documentos." },
-    { n: "02", icon: "shieldCheck", t: "Juridica investiga y verifica.", d: "Consulta las fuentes oficiales y arma la fundamentación con citas enlazadas." },
-    { n: "03", icon: "download", t: "Recibe tu escrito — y quédate tranquilo.", d: "Descárgalo en Word y deja que Juridica vigile tus casos por cambios." },
+    { n: "02", icon: "shieldCheck", t: "Jurovia investiga y verifica.", d: "Consulta las fuentes oficiales y arma la fundamentación con citas enlazadas." },
+    { n: "03", icon: "download", t: "Recibe tu escrito — y quédate tranquilo.", d: "Descárgalo en Word y deja que Jurovia vigile tus casos por cambios." },
   ];
   return (
     <section id="como-funciona" className="land-section anchor">
@@ -235,7 +235,7 @@ export function HowItWorks() {
             <Reveal key={i} delay={i * 100}>
               <div className="card" style={{ padding: 26, height: "100%" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ width: 46, height: 46, borderRadius: 13, background: "var(--aurora)", display: "grid", placeItems: "center", boxShadow: "0 6px 16px -6px rgba(91,77,227,0.5)" }}><Icon name={s.icon} size={22} style={{ color: "#fff" }} /></span>
+                  <span style={{ width: 46, height: 46, borderRadius: 13, background: "var(--aurora)", display: "grid", placeItems: "center", boxShadow: "0 6px 16px -6px rgba(123,61,245,0.5)" }}><Icon name={s.icon} size={22} style={{ color: "#fff" }} /></span>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 26, fontWeight: 600, color: "var(--border-strong)" }}>{s.n}</span>
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 650, margin: "20px 0 8px" }}>{s.t}</div>
@@ -269,7 +269,7 @@ export function DiffTable() {
       <div className="land-container">
         <Reveal style={{ textAlign: "center", maxWidth: 620, margin: "0 auto 44px" }}>
           <span className="eyebrow" style={{ justifyContent: "center" }}><Icon name="gitCompare" size={15} />La diferencia</span>
-          <h2 className="land-h2">ChatGPT te da el escrito. Juridica te da la fundamentación que puedes defender.</h2>
+          <h2 className="land-h2">ChatGPT te da el escrito. Jurovia te da la fundamentación que puedes defender.</h2>
         </Reveal>
         <Reveal>
           <div className="card" style={{ overflow: "hidden", maxWidth: 860, margin: "0 auto" }}>
@@ -279,7 +279,7 @@ export function DiffTable() {
                   <th style={{ width: "52%" }}></th>
                   <th style={{ textAlign: "center" }}>ChatGPT / Claude</th>
                   <th className="col-jur" style={{ textAlign: "center" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "var(--primary)", fontWeight: 700 }}><Logo size={18} />Juridica</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "var(--primary)", fontWeight: 700 }}><Logo size={18} />Jurovia</span>
                   </th>
                 </tr>
               </thead>
@@ -319,7 +319,7 @@ export function Pricing({ plans, onStart }: { plans: Plan[]; onStart: () => void
               <span style={{ position: "absolute", top: -12, left: 28, background: "var(--aurora)", color: "#fff", fontSize: 11.5, fontWeight: 700, padding: "4px 12px", borderRadius: 999, letterSpacing: "0.03em" }}>DISPONIBLE HOY</span>
               <div style={{ fontSize: 16, fontWeight: 650 }}>{free?.name ?? "Free"}</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 6, margin: "10px 0 4px" }}><span style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-0.03em" }}>$0</span></div>
-              <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>Prueba Juridica con <strong>{freeCredits} créditos</strong> durante <strong>{freeDays} días</strong>.</div>
+              <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>Prueba Jurovia con <strong>{freeCredits} créditos</strong> durante <strong>{freeDays} días</strong>.</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "20px 0" }}>
                 {["Agente con fundamentación verificada", "Escritos en Word (.docx)", "Vigilancia básica de cambios", "Expedientes y cálculos"].map((t, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14 }}><Icon name="check" size={16} stroke={2.4} style={{ color: "var(--success)" }} />{t}</div>
@@ -354,9 +354,9 @@ export function Pricing({ plans, onStart }: { plans: Plan[]; onStart: () => void
 /* ---------- FAQ ---------- */
 export function FAQ() {
   const faqs: [string, string][] = [
-    ["¿En qué se diferencia de ChatGPT o Claude?", "Juridica verifica las citas contra las fuentes oficiales y te da el enlace; además vigila cambios y entrega en Word. La IA genérica redacta, pero no fundamenta de forma verificable."],
+    ["¿En qué se diferencia de ChatGPT o Claude?", "Jurovia verifica las citas contra las fuentes oficiales y te da el enlace; además vigila cambios y entrega en Word. La IA genérica redacta, pero no fundamenta de forma verificable."],
     ["¿De dónde saca la información?", "De portales oficiales de leyes y jurisprudencia. Cada cita incluye su enlace para que tú la valides."],
-    ["¿Reemplaza al abogado?", "No. Es tu copiloto: tú decides y firmas. Juridica te ahorra la parte de buscar, verificar y redactar."],
+    ["¿Reemplaza al abogado?", "No. Es tu copiloto: tú decides y firmas. Jurovia te ahorra la parte de buscar, verificar y redactar."],
     ["¿Entrega en Word?", "Sí, en .docx (y PDF), listo para editar y presentar."],
     ["¿Mis datos están seguros?", "Cada cuenta y caso está aislado por organización."],
     ["¿Necesito tarjeta para la prueba?", "No. El plan Free no requiere tarjeta."],
@@ -420,16 +420,15 @@ export function Footer({ onStart, onNav }: { onStart: () => void; onNav: (id: st
   const cols: [string, [string, string | null][]][] = [
     ["Producto", [["Cómo funciona", "como-funciona"], ["Precios", "precios"], ["Iniciar sesión", "login"]]],
     ["Legal", [["Términos", null], ["Privacidad", null]]],
-    ["Contacto", [["hola@juridica.co", null], ["LinkedIn", null]]],
+    ["Contacto", [["hola@juroviapp.com", null], ["LinkedIn", null]]],
   ];
   return (
     <footer className="land-footer" style={{ marginTop: 96 }}>
       <div className="land-container" style={{ padding: "56px 28px 32px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 32 }} className="footer-grid">
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Logo size={30} />
-              <span style={{ fontSize: 18, fontWeight: 650, color: "#fff" }}>Juridica</span>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <Logo size={30} withText light />
             </div>
             <p style={{ fontSize: 14, color: "#8A93A6", margin: "14px 0 0", maxWidth: 260, lineHeight: 1.55 }}>Tu copiloto jurídico verificable. Hecho para abogados de Colombia.</p>
           </div>
@@ -443,7 +442,7 @@ export function Footer({ onStart, onNav }: { onStart: () => void; onNav: (id: st
           ))}
         </div>
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", marginTop: 40, paddingTop: 22, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12, fontSize: 13, color: "#6B7385" }}>
-          <span>© Juridica 2026 · Hecho para abogados de Colombia.</span>
+          <span>© Jurovia 2026 · Hecho para abogados de Colombia.</span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="globe" size={14} />Español (Colombia)</span>
         </div>
       </div>

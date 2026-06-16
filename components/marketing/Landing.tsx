@@ -1,5 +1,5 @@
 "use client";
-/* Landing de Juridica — nav + hero con composer central + secciones de marketing.
+/* Landing de Jurovia — nav + hero con composer central + secciones de marketing.
    Fase 2: el composer y los CTAs llevan a /login (registro). El modo invitado (cero fricción)
    se conecta en Fase 3 reemplazando `onTry`. */
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +26,7 @@ const HERO_CHIPS = [
 ];
 
 const FALLBACK_PLANS: Plan[] = [
-  { tier: "free", name: "Free", active: true, price_usd: 0, credits: 10, trial_days: 7, blurb: "Prueba Juridica con 10 créditos durante 7 días." },
+  { tier: "free", name: "Free", active: true, price_usd: 0, credits: 10, trial_days: 7, blurb: "Prueba Jurovia con 10 créditos durante 7 días." },
   { tier: "pro", name: "Pro", active: false, price_usd: null, credits: null, trial_days: null, blurb: "Para el abogado independiente." },
   { tier: "team", name: "Equipo / Firma", active: false, price_usd: null, credits: null, trial_days: null, blurb: "Para firmas y equipos." },
 ];
@@ -99,7 +99,7 @@ function Hero({ onTry }: { onTry: (text: string) => void }) {
         </p>
 
         <div style={{ maxWidth: 720, margin: "36px auto 0" }}>
-          <div style={{ position: "relative", borderRadius: 26, padding: 1.5, background: focus ? "var(--aurora)" : "var(--border-strong)", transition: "background .2s", boxShadow: focus ? "0 18px 50px -16px rgba(91,77,227,0.45)" : "var(--sh-3)" }}>
+          <div style={{ position: "relative", borderRadius: 26, padding: 1.5, background: focus ? "var(--aurora)" : "var(--border-strong)", transition: "background .2s", boxShadow: focus ? "0 18px 50px -16px rgba(123,61,245,0.45)" : "var(--sh-3)" }}>
             <div style={{ background: "var(--bg-surface)", borderRadius: 24.5, padding: "8px 8px 8px 22px" }}>
               <textarea ref={taRef} value={val} rows={1} className="land-composer"
                 onChange={(e) => setVal(e.target.value)}

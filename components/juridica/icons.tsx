@@ -94,10 +94,12 @@ export function Icon({
   );
 }
 
-/* Brand logo mark — aurora gradient rounded square with scale glyph */
-export function Logo({ size = 30, withText = false }: { size?: number; withText?: boolean }) {
+/* Marca Jurovia — cuadrado redondeado con gradiente + glifo "J." blanco.
+   `withText` muestra el wordmark estilizado "Jurov·ia" (Space Grotesk, punto + "ia" en gradiente).
+   `light` (para fondos oscuros) pinta "Jurov" en blanco. */
+export function Logo({ size = 30, withText = false, light = false }: { size?: number; withText?: boolean; light?: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: size * 0.34 }}>
       <div
         style={{
           width: size,
@@ -106,25 +108,49 @@ export function Logo({ size = 30, withText = false }: { size?: number; withText?
           background: "var(--aurora)",
           display: "grid",
           placeItems: "center",
-          boxShadow: "0 4px 14px -4px rgba(91,77,227,0.55)",
+          boxShadow: "0 4px 14px -4px rgba(123,61,245,0.55)",
           flexShrink: 0,
         }}
       >
         <svg
-          width={size * 0.62}
-          height={size * 0.62}
-          viewBox="0 0 24 24"
+          width={size * 0.66}
+          height={size * 0.66}
+          viewBox="14 12 68 76"
           fill="none"
           stroke="#fff"
-          strokeWidth="1.9"
+          strokeWidth="13"
           strokeLinecap="round"
           strokeLinejoin="round"
-          dangerouslySetInnerHTML={{ __html: ICON_PATHS.scale }}
-        />
+        >
+          <path d="M38 26 H60 V58 a16 16 0 1 1 -32 0" />
+          <circle cx="70" cy="67" r="6.5" fill="#fff" stroke="none" />
+        </svg>
       </div>
       {withText && (
-        <span style={{ fontSize: size * 0.6, fontWeight: 650, letterSpacing: "-0.02em", color: "var(--text)" }}>
-          Juridica
+        <span
+          style={{
+            fontFamily: "var(--font-brand)",
+            fontSize: size * 0.62,
+            fontWeight: 500,
+            letterSpacing: "-0.04em",
+            color: light ? "#fff" : "var(--text)",
+            display: "inline-flex",
+            alignItems: "baseline",
+            lineHeight: 1,
+          }}
+        >
+          Jurov
+          <span
+            style={{
+              width: "0.2em",
+              height: "0.2em",
+              borderRadius: "50%",
+              margin: "0 0.06em 0.1em",
+              alignSelf: "flex-end",
+              background: "var(--aurora)",
+            }}
+          />
+          <span style={{ background: "var(--aurora)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>ia</span>
         </span>
       )}
     </div>

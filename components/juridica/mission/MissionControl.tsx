@@ -77,7 +77,7 @@ export function MissionControl({
   const faltantes = missions.filter((m) => (m.requirementsMap?.falta?.length || 0) > 0);
   const cards: Card[] = [];
   if (urg) cards.push({ severity: "critico", icon: "alert", eyebrow: "Lo urgente", title: urg.title, sub: urg.sub, suggestion: "Acción sugerida: revisar el borrador", action: "Revisar", onAction: () => (urg.expId ? onOpenMission(urg.expId) : onNavigate("terminos")) });
-  if (prep > 0) cards.push({ severity: "ok", gold: true, icon: "sparkles", eyebrow: "Lo preparado", title: `Juridica preparó ${prep} documento${prep > 1 ? "s" : ""}`, sub: "Verificados · listos para tu revisión", suggestion: "Listos para aprobar", action: "Ver", onAction: () => onNavigate("autopilot") });
+  if (prep > 0) cards.push({ severity: "ok", gold: true, icon: "sparkles", eyebrow: "Lo preparado", title: `Jurovia preparó ${prep} documento${prep > 1 ? "s" : ""}`, sub: "Verificados · listos para tu revisión", suggestion: "Listos para aprobar", action: "Ver", onAction: () => onNavigate("autopilot") });
   if (faltantes.length > 0) {
     const f0 = faltantes[0].requirementsMap?.falta?.[0]?.label || "documentos del cliente";
     cards.push({ severity: "pronto", icon: "paperclip", eyebrow: "Lo faltante", title: `Faltan datos en ${faltantes.length} caso${faltantes.length > 1 ? "s" : ""}`, sub: f0, suggestion: "Puedes solicitarlos en un toque", action: "Solicitar", onAction: () => onOpenMission(faltantes[0].id) });
@@ -168,7 +168,7 @@ export function MissionControl({
             <span style={{ width: 44, height: 44, borderRadius: 12, background: "var(--aurora)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="sparkles" size={22} style={{ color: "#fff" }} /></span>
             <div style={{ flex: 1, minWidth: 200 }}>
               <div style={{ fontWeight: 650, fontSize: 16 }}>¿Qué necesitas hoy?</div>
-              <div style={{ fontSize: 13.5, color: "var(--text-muted)" }}>Describe tu objetivo y Juridica arma el expediente.</div>
+              <div style={{ fontSize: 13.5, color: "var(--text-muted)" }}>Describe tu objetivo y Jurovia arma el expediente.</div>
             </div>
             <button className="btn btn-primary" onClick={onNewMission}><Icon name="plus" size={17} stroke={2.2} />Nueva misión</button>
           </div>
