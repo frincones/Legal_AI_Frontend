@@ -43,14 +43,19 @@ export default function LoginPage() {
     else setSent(true);
   }
 
-  // Paso 2: verifica el código y crea la sesión.
+  // Paso 2: verifica el código y crea la sesión. Sirve para login (type 'email') y para
+  // confirmación de registro de usuario nuevo (type 'signup') — probamos ambos.
   async function verifyCode(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
-    const { error } = await createClient().auth.verifyOtp({
-      email, token: code.trim(), type: "email",
-    });
+    const supabase = createClient();
+    const tok = code.trim();
+    let { error } = await supabase.auth.verifyOtp({ email, token: tok, type: "email" });
+    if (error) {
+      const r2 = await supabase.auth.verifyOtp({ email, token: tok, type: "signup" });
+      error = r2.error;
+    }
     setBusy(false);
     if (error) setMsg(error.message);
     else router.push("/chat");
