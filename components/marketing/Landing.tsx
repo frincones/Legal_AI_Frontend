@@ -10,7 +10,6 @@ import {
   type Plan,
 } from "./sections";
 import { GuestChat } from "./GuestChat";
-import { WaitlistModal } from "./WaitlistModal";
 import { DemoPlansModal } from "./DemoPlansModal";
 import { api } from "../juridica/mission/data";
 import { createClient } from "@/lib/supabase/client";
@@ -148,7 +147,6 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
   const [inviteOnly, setInviteOnly] = useState(false);
   const [demoKey, setDemoKey] = useState<string | null>(null);                                   // ad deep-link demo
   const [regCtx, setRegCtx] = useState<Record<string, unknown> | undefined>(undefined);          // "qué probó" → waitlist
-  const [forceWaitlist, setForceWaitlist] = useState(false);   // "continuar gratis" desde la modal de planes
   const [initialEmail, setInitialEmail] = useState("");        // email traído de la modal de planes
   const [directPlans, setDirectPlans] = useState<{ tier?: string; email?: string } | null>(null);   // deep-link BOFU: ?checkout/?planes → modal de planes directo
 
@@ -284,31 +282,23 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
         />
       )}
       {register && (
-        (!forceWaitlist) ? (   // muro de planes (trial) para TODOS los orígenes; el escape "continuar gratis" → WaitlistModal
-          <DemoPlansModal
-            backendUrl={backendUrl}
-            context={regCtx}
-            onClose={() => { setRegister(false); setRegCtx(undefined); setForceWaitlist(false); }}
-            onFree={(em) => { if (em) setInitialEmail(em); setForceWaitlist(true); }}
-          />
-        ) : (
-          <WaitlistModal
-            backendUrl={backendUrl}
-            source={typeof register === "string" ? register : "register_cta"}
-            guestId={readGuestId()}
-            context={regCtx}
-            initialEmail={initialEmail}
-            onClose={() => { setRegister(false); setRegCtx(undefined); setForceWaitlist(false); setInitialEmail(""); }}
-          />
-        )
+        // Opción B: muro de PRUEBA (trial sin tarjeta) para TODOS los orígenes. Ya no hay waitlist.
+        <DemoPlansModal
+          backendUrl={backendUrl}
+          context={regCtx}
+          mode="trial"
+          initialEmail={initialEmail}
+          onClose={() => { setRegister(false); setRegCtx(undefined); setInitialEmail(""); }}
+        />
       )}
       {directPlans && !register && (
+        // Deep-link BOFU (?checkout=<tier>): compra directa (suscripción, sin trial).
         <DemoPlansModal
           backendUrl={backendUrl}
           initialTier={directPlans.tier}
           initialEmail={directPlans.email}
+          mode="subscribe"
           onClose={() => setDirectPlans(null)}
-          onFree={(em) => { setDirectPlans(null); if (em) setInitialEmail(em); setRegister("register_cta"); }}
         />
       )}
     </>

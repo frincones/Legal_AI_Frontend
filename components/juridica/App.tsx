@@ -115,7 +115,11 @@ export default function JuridicaApp({
   // Créditos: saldo del pool de la org. Admins = ilimitado (nunca se bloquean).
   const isAdmin = ADMIN_EMAILS.includes((email || "").toLowerCase());
   const [credits, setCreditsState] = useState<{ balance: number | null; cap: number | null; plan?: string | null; trial_ends_at?: string | null }>({ balance: null, cap: null, plan: null, trial_ends_at: null });
-  const creditsBlocked = !isAdmin && credits.balance != null && credits.balance <= 0;
+  // Modelo de acceso (Opción B): 'credits' (legacy free) bloquea por saldo; 'trial_daily'/'paid' bloquean
+  // por el evento SSE del agente (turnos/día o límites), NO por el pill de saldo.
+  const [accessModel, setAccessModel] = useState<string>("credits");
+  const [sseBlocked, setSseBlocked] = useState(false);
+  const creditsBlocked = !isAdmin && (sseBlocked || (accessModel === "credits" && credits.balance != null && credits.balance <= 0));
   const [currentMissionId, setCurrentMissionId] = useState<string | undefined>(undefined);
   const [chatMatterId, setChatMatterId] = useState<string | undefined>(undefined);
   const [approvalOpen, setApprovalOpen] = useState(false);
@@ -161,6 +165,7 @@ export default function JuridicaApp({
     if (!backendUrl || !accessToken) return;
     missionApi.me(backendUrl, accessToken).then((m: any) => {
       setMissionMode(!!m?.features?.mission_control);
+      if (m?.access?.model) setAccessModel(m.access.model);
       // Onboarding: se muestra si el backend dice que el usuario aún no lo completó (flag en DB),
       // nunca dentro del popup OAuth, y respetando un skip de sesión en localStorage.
       const isPopup = typeof window !== "undefined" && !!window.opener && !!new URLSearchParams(window.location.search).get("connected");
@@ -176,6 +181,9 @@ export default function JuridicaApp({
     setCreditsState((c) => ({ ...c, balance: info.balance ?? c.balance, cap: info.cap ?? c.cap }));
   }
   function onBlocked() {
+    // El agente emitió `blocked` (sin turnos/créditos): marca el bloqueo real (independiente del saldo,
+    // para que trial_daily/paid también bloqueen y muestren el muro de suscripción).
+    setSseBlocked(true);
     setCreditsState((c) => ({ ...c, balance: 0 }));
   }
 

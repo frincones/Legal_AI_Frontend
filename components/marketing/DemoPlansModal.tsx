@@ -112,10 +112,14 @@ function FaqList({ items, title }: { items: [string, string][]; title?: string }
   );
 }
 
-export function DemoPlansModal({ backendUrl, context, onClose, initialTier, initialEmail }: {
+export function DemoPlansModal({ backendUrl, context, onClose, initialTier, initialEmail, mode = "trial" }: {
   backendUrl: string; context?: Record<string, unknown>; onClose: () => void; onFree?: (email?: string) => void;
   initialTier?: string; initialEmail?: string;
+  // Opción B: 'trial' = "Activar trial" SIN tarjeta (crea cuenta → 3 turnos/día × 7d → /chat).
+  //           'subscribe' = "Suscribirme" → checkout Paddle (compra directa, sin trial).
+  mode?: "trial" | "subscribe";
 }) {
+  const isSubscribe = mode === "subscribe";
   const [cfg, setCfg] = useState<{ enabled: boolean; environment: string; client_token: string } | null>(null);
   const [plans, setPlans] = useState<PlanCat[]>([]);
   const [copRate, setCopRate] = useState(0);
@@ -184,9 +188,12 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
     if (focus) setTimeout(() => emailRef.current?.focus(), 320);
   }
 
+  const leadIdRef = useRef<string>("");
   async function ensureAccount(): Promise<string | null> {
     const em = (emailValRef.current || email).trim().toLowerCase();
-    await api.waitlistJoin(backendUrl, { email: em, source: "demo_plans", context: { ...context, sid: getSessionId() }, final: true, consent: true, consent_version: CONSENT_VERSION });
+    // Lead (Meta): el correo entra al registrar el trial. Mismo eventID a Pixel + CAPI (dedup).
+    if (!leadIdRef.current) { try { leadIdRef.current = crypto.randomUUID(); } catch { leadIdRef.current = String(Date.now()); } }
+    await api.waitlistJoin(backendUrl, { email: em, source: "demo_plans", context: { ...context, sid: getSessionId() }, final: true, consent: true, consent_version: CONSENT_VERSION, lead_event_id: leadIdRef.current });
     const ia = await api.instantAccess(backendUrl, em);
     if (ia?.instant && ia.token_hash) {
       const { data, error } = await createClient().auth.verifyOtp({ token_hash: ia.token_hash, type: "magiclink" });
@@ -195,7 +202,8 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
     return null;
   }
 
-  // Crea la cuenta (instant-access) → habilita el render de Paddle (ya precargado) en el bloque tarjeta.
+  // Crea la cuenta (instant-access). En 'trial' (Opción B) → NO Paddle: entra directo con 3 turnos/día × 7d.
+  // En 'subscribe' → habilita el render de Paddle (compra directa) en el bloque tarjeta.
   async function startTrial() {
     if (busy || accountReady || !selTier) return;
     if (!validEmail || !consent) { setErr("Ingresa tu correo y acepta la política para continuar."); return; }
@@ -203,7 +211,21 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
     try {
       const token = await ensureAccount();
       if (!token) { setErr("Ese correo ya tiene una cuenta."); setLoginPlan(selTier); setBusy(false); return; }
-      authTokenRef.current = token; setAccountReady(true); setBusy(false);
+      authTokenRef.current = token;
+      if (!isSubscribe) {
+        // Trial SIN tarjeta activado: cuenta creada + sesión lista → a la app. StartTrial + Lead a Meta.
+        // Lead (Pixel, mismo eventID que la CAPI del waitlistJoin → Meta deduplica) + StartTrial.
+        try {
+          const w = window as unknown as { fbq?: (...a: unknown[]) => void };
+          if (w.fbq && leadIdRef.current) w.fbq("track", "Lead", { content_name: "Prueba Jurovia" }, { eventID: leadIdRef.current });
+          metaEvent("StartTrial", backendUrl, {});
+        } catch { /* noop */ }
+        track("trial_activated", { tier: selTier, via: "demo" });
+        setDone(true);
+        setTimeout(() => { try { router.push("/chat"); } catch { /* noop */ } }, 900);
+        return;
+      }
+      setAccountReady(true); setBusy(false);
     } catch { setErr("No se pudo continuar. Intenta de nuevo."); prewarmRef.current = false; setBusy(false); }
   }
 
@@ -234,7 +256,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
             else if (n === "checkout.completed") {
               completedRef.current = true; setDone(true);
               track("purchase_completed", { tier: tierRef.current, via: "demo", email: em, video_sec: Math.round(videoSecRef.current) });
-              metaEvent("StartTrial", backendUrl, { email: em, value: priceRef.current ?? undefined, currency: "USD" });
+              // Compra directa (Opción B): el Purchase (Meta) lo dispara el webhook de Paddle con gross>0.
               try { (window as unknown as { Paddle?: { Checkout?: { close?: () => void } } }).Paddle?.Checkout?.close?.(); } catch { /* noop */ }
               setTimeout(() => { try { router.push("/chat"); } catch { /* noop */ } }, 1400);
             }
@@ -257,15 +279,16 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   }, [validEmail, consent, accountReady, busy, loginPlan]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abre/renderiza el checkout inline cuando la cuenta está lista (Paddle ya precargado); re-abre al cambiar de plan.
+  // Solo en modo 'subscribe' (compra directa). En 'trial' no hay Paddle (se entró directo a la app).
   useEffect(() => {
-    if (!accountReady || !selTier || !authTokenRef.current || !paddleReady || !paddleRef.current) return;
+    if (!isSubscribe || !accountReady || !selTier || !authTokenRef.current || !paddleReady || !paddleRef.current) return;
     let cancelled = false;
     (async () => {
       setCheckoutLoading(true);
       try {
         completedRef.current = false; tierRef.current = selTier;
         priceRef.current = plans.find((p) => p.tier === selTier)?.price_usd ?? null;
-        const r = await api.billingCheckout(backendUrl, authTokenRef.current!, selTier, fbCookies(), true);   // trial 7 días con tarjeta
+        const r = await api.billingCheckout(backendUrl, authTokenRef.current!, selTier, fbCookies(), false);   // Opción B: compra directa (sin trial)
         if (!r?.transaction_id) throw new Error("no txn");
         if (cancelled) return;
         const successUrl = (typeof window !== "undefined" ? window.location.origin : "https://juroviapp.com") + "/chat?purchased=1";
@@ -286,7 +309,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
 
   const guarantee = (
     <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 15px", borderRadius: 12, background: "var(--success-soft)", border: "1px solid var(--success)", color: "var(--success)", fontSize: 13.5, fontWeight: 750, lineHeight: 1.35 }}>
-      <Icon name="shieldCheck" size={18} stroke={2.2} style={{ flexShrink: 0 }} /> $0 hoy · no se cobra hasta el día 7 · cancela cuando quieras en 1 clic
+      <Icon name="shieldCheck" size={18} stroke={2.2} style={{ flexShrink: 0 }} /> {isSubscribe ? "Pago cifrado · activa tu plan al instante · cancela cuando quieras" : "Sin tarjeta · pruébalo gratis 7 días · cancela cuando quieras"}
     </div>
   );
 
@@ -415,7 +438,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
                     </div>
                   )}
                   <button data-track={`plan_${p.tier}`} onClick={(e) => { e.stopPropagation(); pickPlan(p.tier, p.price_usd); goToCard(!accountReady); }} className={`${pro ? "btn btn-primary" : "btn btn-secondary"} dp-btn`} style={{ width: "100%", fontWeight: 800, marginTop: 12, height: pro ? 50 : 46 }}>
-                    Empezar gratis <Icon name="arrowRight" size={17} stroke={2.4} />
+                    {isSubscribe ? "Suscribirme" : "Activar prueba gratis"} <Icon name="arrowRight" size={17} stroke={2.4} />
                   </button>
                 </div>
               );
@@ -433,7 +456,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
               </div>
             ) : accountReady ? (
               <>
-                <div style={{ fontSize: 15.5, fontWeight: 800, marginBottom: 4 }}>Activa tu prueba — $0 hoy</div>
+                <div style={{ fontSize: 15.5, fontWeight: 800, marginBottom: 4 }}>Completa tu suscripción</div>
                 {checkoutLoading && <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 8 }}>Cargando pago seguro…</div>}
                 <div className="dp-paddle-frame" style={{ minHeight: 420 }} />
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 12, fontSize: 12, color: "var(--text-muted)" }}>
@@ -496,10 +519,10 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
         {!done && proPlan && !gateActive && (
           <div style={{ flexShrink: 0, padding: "12px 16px calc(14px + env(safe-area-inset-bottom))", borderTop: "1px solid var(--border)", background: "var(--bg-surface)", boxShadow: "0 -8px 24px -12px rgba(0,0,0,.25)" }}>
             <button data-track="cta_sticky" onClick={onCta} className="dp-cta" style={{ width: "100%", height: 54, fontSize: 15.5, fontWeight: 800, color: "#fff", border: "none", borderRadius: "var(--r-md)", background: JV_AURORA, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "var(--font-ui)" }}>
-              {accountReady ? "Ir al pago" : `Empezar gratis · ${sel?.name || "Pro"}`} <Icon name="arrowRight" size={18} stroke={2.4} />
+              {isSubscribe ? (accountReady ? "Ir al pago" : `Suscribirme · ${sel?.name || "Pro"}`) : `Activar prueba gratis · ${sel?.name || "Pro"}`} <Icon name="arrowRight" size={18} stroke={2.4} />
             </button>
             <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", marginTop: 8, fontWeight: 600 }}>
-              $0 hoy · 7 días gratis · cancela cuando quieras
+              {isSubscribe ? "Pago cifrado · cancela cuando quieras" : "Sin tarjeta · 3 turnos/día gratis por 7 días"}
             </div>
           </div>
         )}

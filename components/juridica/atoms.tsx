@@ -793,9 +793,8 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
               } else if (n === "checkout.completed") {
                 completedRef.current = true; setDone(true);
                 track("purchase_completed", { tier: tierRef.current });
-                // StartTrial (Pixel + CAPI): pasó el muro y dejó tarjeta → inició el trial (para medir en Meta).
-                metaEvent("StartTrial", backendUrl, { value: priceRef.current ?? undefined, currency: "USD" });
-                // Purchase (Meta) lo dispara el webhook de Paddle al cobrar el día 7 (no aquí).
+                // Muro de SUSCRIPCIÓN (Opción B): compra directa (sin trial). El Purchase (Meta) lo
+                // dispara el webhook de Paddle al cobrar (fuente única con gross>0, dedup por txn).
               } else if (n === "checkout.closed") {
                 if (!completedRef.current) track("checkout_abandoned", { tier: tierRef.current });
               }
@@ -805,7 +804,7 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
         }
         completedRef.current = false; tierRef.current = tier;
         priceRef.current = plans.find((p) => p.tier === tier)?.price_usd ?? null;
-        const r = await api.billingCheckout(backendUrl, accessToken, tier, fbCookies(), true);   // trial 7 días con tarjeta
+        const r = await api.billingCheckout(backendUrl, accessToken, tier, fbCookies(), false);   // Opción B: suscripción directa (sin trial)
         if (!r?.transaction_id) throw new Error("no txn");
         if (cancelled) return;
         P.Checkout?.open({
