@@ -118,6 +118,7 @@ export default function JuridicaApp({
   // Modelo de acceso (Opción B): 'credits' (legacy free) bloquea por saldo; 'trial_daily'/'paid' bloquean
   // por el evento SSE del agente (turnos/día o límites), NO por el pill de saldo.
   const [accessModel, setAccessModel] = useState<string>("credits");
+  const [currentTier, setCurrentTier] = useState<string | null>(null);   // plan pagado vigente → el muro marca "Plan actual" y solo ofrece mejoras
   const [sseBlocked, setSseBlocked] = useState(false);
   const creditsBlocked = !isAdmin && (sseBlocked || (accessModel === "credits" && credits.balance != null && credits.balance <= 0));
   const [currentMissionId, setCurrentMissionId] = useState<string | undefined>(undefined);
@@ -166,6 +167,7 @@ export default function JuridicaApp({
     missionApi.me(backendUrl, accessToken).then((m: any) => {
       setMissionMode(!!m?.features?.mission_control);
       if (m?.access?.model) setAccessModel(m.access.model);
+      setCurrentTier(m?.access?.plan ?? null);
       // Onboarding: se muestra si el backend dice que el usuario aún no lo completó (flag en DB),
       // nunca dentro del popup OAuth, y respetando un skip de sesión en localStorage.
       const isPopup = typeof window !== "undefined" && !!window.opener && !!new URLSearchParams(window.location.search).get("connected");
@@ -744,6 +746,7 @@ export default function JuridicaApp({
       <UpgradeModal
         open={upgradeTier !== null}
         initialTier={upgradeTier || undefined}
+        currentTier={currentTier}
         onClose={() => setUpgradeTier(null)}
         backendUrl={backendUrl}
         accessToken={accessToken}

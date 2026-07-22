@@ -745,9 +745,14 @@ export const JV_INCLUDED = [
   "Integraciones y dictado por voz",
 ];
 
-export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTier }: {
+// Orden de planes (menor→mayor) para distinguir mejora vs plan actual vs inferior.
+const TIER_ORDER = ["free", "estandar", "pro", "firma"];
+
+export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTier, currentTier }: {
   open: boolean; onClose: () => void; backendUrl: string; accessToken: string; initialTier?: string;
+  currentTier?: string | null;   // plan pagado vigente → se marca "Plan actual"; solo se ofrecen mejoras
 }) {
+  const curIdx = currentTier ? TIER_ORDER.indexOf(currentTier) : -1;
   const [cfg, setCfg] = useState<{ enabled: boolean; environment: string; client_token: string } | null>(null);
   const [plans, setPlans] = useState<PlanCat[]>([]);
   const [tier, setTier] = useState<string | null>(null);   // plan elegido → vista de pago inline
@@ -770,12 +775,13 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
         setCfg(c);
         setPlans((p.plans || []).filter((x) => x.tier !== "free" && x.price_usd != null));
         // Deep-link BOFU: pre-selecciona el plan → abre directo en la vista de pago.
-        if (initialTier) setTier(initialTier);
+        // Nunca pre-selecciona el plan que el usuario YA tiene (evita re-suscripción).
+        if (initialTier && initialTier !== currentTier) setTier(initialTier);
       }).catch(() => setErr("No se pudo cargar la información de planes."));
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, backendUrl, accessToken, onClose, initialTier]);
+  }, [open, backendUrl, accessToken, onClose, initialTier, currentTier]);
 
   // #1 PRECARGA: al abrir la modal (con config lista) carga el SDK e Initialize UNA vez → cuando el
   // usuario elige plan, el checkout abre sin condiciones de carrera (patrón del DemoPlansModal que sí sirve).
@@ -892,17 +898,24 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
               {plans.map((p) => {
                 const c = PLAN_COPY[p.tier] || { icon: "•", tagline: p.blurb, persona: "", usage: [] };
                 const featured = p.tier === "pro";
+                const pIdx = TIER_ORDER.indexOf(p.tier);
+                const isCurrent = curIdx >= 0 && p.tier === currentTier;   // plan que YA tiene
+                const isLower = curIdx >= 0 && pIdx >= 0 && pIdx < curIdx;  // downgrade (no auto-servicio)
+                const locked = isCurrent || isLower;                       // no re-suscribible
                 return (
                   <div key={p.tier} style={{
                     flex: "1 1 240px", minWidth: 236, borderRadius: 18, padding: 22, position: "relative",
                     display: "flex", flexDirection: "column",
-                    border: featured ? "1.5px solid transparent" : "1px solid var(--border)",
-                    background: featured
+                    border: isCurrent ? "1.5px solid var(--primary)" : featured ? "1.5px solid transparent" : "1px solid var(--border)",
+                    background: featured && !isCurrent
                       ? "linear-gradient(var(--bg-surface),var(--bg-surface)) padding-box, " + JV_AURORA + " border-box"
                       : "var(--bg-surface)",
-                    boxShadow: featured ? "0 16px 40px -16px rgba(123,61,245,.45)" : "none",
+                    boxShadow: featured && !locked ? "0 16px 40px -16px rgba(123,61,245,.45)" : "none",
+                    opacity: isLower ? 0.6 : 1,
                   }}>
-                    {featured && <span style={{ position: "absolute", top: -11, left: 22, fontSize: 10.5, fontWeight: 750, letterSpacing: ".04em", textTransform: "uppercase", background: JV_AURORA, color: "#fff", borderRadius: 999, padding: "4px 11px" }}>Más popular</span>}
+                    {isCurrent
+                      ? <span style={{ position: "absolute", top: -11, left: 22, fontSize: 10.5, fontWeight: 750, letterSpacing: ".04em", textTransform: "uppercase", background: "var(--primary)", color: "#fff", borderRadius: 999, padding: "4px 11px" }}>Plan actual</span>
+                      : featured && <span style={{ position: "absolute", top: -11, left: 22, fontSize: 10.5, fontWeight: 750, letterSpacing: ".04em", textTransform: "uppercase", background: JV_AURORA, color: "#fff", borderRadius: 999, padding: "4px 11px" }}>Más popular</span>}
                     <div style={{ fontSize: 22, lineHeight: 1 }}>{c.icon}</div>
                     <div style={{ fontSize: 18, fontWeight: 780, color: "var(--text)", marginTop: 8 }}>{p.name}</div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 10 }}>
@@ -918,7 +931,15 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
                         </div>
                       ))}
                     </div>
-                    <button className={`${featured ? "btn btn-primary jv-sub-btn-pro" : "btn btn-secondary"} jv-sub-btn`} onClick={() => { track("subscribe_click", { tier: p.tier }); metaEvent("AddToCart", backendUrl, { value: p.price_usd ?? undefined, currency: "USD" }); setTier(p.tier); }} style={{ width: "100%", fontWeight: 700 }}>Suscribirme</button>
+                    {isCurrent ? (
+                      <button disabled className="btn btn-secondary" style={{ width: "100%", fontWeight: 700, cursor: "default", opacity: 0.75 }}>
+                        <Icon name="check" size={15} stroke={2.6} style={{ marginRight: 6 }} />Tu plan actual
+                      </button>
+                    ) : isLower ? (
+                      <button disabled className="btn btn-secondary" style={{ width: "100%", fontWeight: 650, cursor: "default" }}>Incluido en tu plan</button>
+                    ) : (
+                      <button className={`${featured ? "btn btn-primary jv-sub-btn-pro" : "btn btn-secondary"} jv-sub-btn`} onClick={() => { track("subscribe_click", { tier: p.tier }); metaEvent("AddToCart", backendUrl, { value: p.price_usd ?? undefined, currency: "USD" }); setTier(p.tier); }} style={{ width: "100%", fontWeight: 700 }}>{curIdx >= 0 ? "Mejorar a este plan" : "Suscribirme"}</button>
+                    )}
                   </div>
                 );
               })}

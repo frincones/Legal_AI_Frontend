@@ -645,7 +645,7 @@ export function Settings({
             )}
           </div>
         </div>
-        {backendUrl && accessToken && <UpgradeModal open={showUpg} onClose={() => setShowUpg(false)} backendUrl={backendUrl} accessToken={accessToken} />}
+        {backendUrl && accessToken && <UpgradeModal open={showUpg} onClose={() => setShowUpg(false)} backendUrl={backendUrl} accessToken={accessToken} currentTier={accessModel === "paid" ? (credits?.plan ?? null) : null} />}
         {delOpen && (
           <div onClick={() => !delBusy && setDelOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,13,20,0.5)", backdropFilter: "blur(3px)", zIndex: 400, display: "grid", placeItems: "center", padding: 20 }}>
             <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: "min(460px,96vw)", padding: 24 }}>
