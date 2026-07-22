@@ -68,6 +68,16 @@ export const CITATIONS: Record<string, Citation> = {
 
 export type Suggestion = { icon: string; label: string; mode: string };
 
+/* Task cards on Home — guían al usuario hacia el "trabajo por hacer" (no auto-envían). */
+export type Task = { icon: string; title: string; desc: string; kind: "redactar" | "revisar" | "consultar" | "caso" };
+
+export const TASKS: Task[] = [
+  { icon: "pencil", title: "Redactar un documento", desc: "Tutela, demanda, contrato, derecho de petición…", kind: "redactar" },
+  { icon: "shieldCheck", title: "Revisar un documento", desc: "Sube un contrato o escrito y te señalo riesgos", kind: "revisar" },
+  { icon: "scale", title: "Consultar una norma", desc: "¿Sigue vigente? ¿Qué dice la jurisprudencia?", kind: "consultar" },
+  { icon: "folder", title: "Gestionar un caso", desc: "Crea un expediente con cronología y documentos", kind: "caso" },
+];
+
 /* Suggestion chips on Home */
 export const SUGGESTIONS: Suggestion[] = [
   { icon: "gavel", label: "Demanda ejecutiva por pagaré", mode: "Documento" },

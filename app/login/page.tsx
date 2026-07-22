@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Logo, Icon } from "@/components/juridica/icons";
+import { api } from "@/components/juridica/mission/data";
+import { CONSENT_VERSION } from "@/components/company";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +16,7 @@ export default function LoginPage() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"magic" | "password">("magic");
+  const pendingPlanRef = useRef<string | null>(null);   // deep-link BOFU: plan a mejorar tras autenticar
 
   // Si un enlace de email rebotó aquí (p.ej. token expirado/consumido por un escáner),
   // muestra un mensaje claro en vez de dejar al usuario sin contexto.
@@ -29,11 +32,43 @@ export default function LoginPage() {
     }
   }, []);
 
+  // Deep-link BOFU: /login?next=upgrade&plan=<tier>&e=<email> → prefill correo + recuerda el plan para abrir
+  // el UpgradeModal in-app tras autenticar (lo consume App.tsx vía jurovia_pending_upgrade). Aditivo, fail-open.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    const em = q.get("e"); if (em) setEmail(em);
+    const plan = q.get("plan") || "";
+    if (q.get("next") === "upgrade" && ["estandar", "pro", "firma"].includes(plan)) pendingPlanRef.current = plan;
+  }, []);
+
+  function finishAndGo() {
+    try { if (pendingPlanRef.current) localStorage.setItem("jurovia_pending_upgrade", pendingPlanRef.current); } catch { /* noop */ }
+    router.push("/chat");
+  }
+
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
+  // Gate de acceso por invitación: solo emails autorizados continúan; el resto entran a la waitlist.
+  // FAIL-OPEN: si no hay backend o la consulta falla, NO bloquea (nadie queda fuera por un error de red).
+  async function gateAllows(em: string): Promise<boolean> {
+    if (!backendUrl) return true;
+    try {
+      const a = await api.checkAccess(backendUrl, em.trim().toLowerCase());
+      if (!a.invite_only || a.authorized) return true;
+      await api.waitlistJoin(backendUrl, { email: em.trim().toLowerCase(), source: "login", final: true, consent: true, consent_version: CONSENT_VERSION });
+      setMsg("Estás en la lista de espera. Te avisaremos por correo en cuanto habilitemos tu acceso. ✅");
+      return false;
+    } catch {
+      return true;
+    }
+  }
+
   // Paso 1: envía un CÓDIGO de 6 dígitos al correo (a prueba de escáneres de enlaces).
   async function sendMagicLink(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
+    if (!(await gateAllows(email))) { setBusy(false); return; }
     const { error } = await createClient().auth.signInWithOtp({
       email,
       options: { shouldCreateUser: true },
@@ -58,7 +93,7 @@ export default function LoginPage() {
     }
     setBusy(false);
     if (error) setMsg(error.message);
-    else router.push("/chat");
+    else finishAndGo();
   }
 
   async function signIn(e: React.FormEvent) {
@@ -68,12 +103,13 @@ export default function LoginPage() {
     const { error } = await createClient().auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) setMsg(error.message);
-    else router.push("/chat");
+    else finishAndGo();
   }
 
   async function signUp() {
     setBusy(true);
     setMsg(null);
+    if (!(await gateAllows(email))) { setBusy(false); return; }
     const { error } = await createClient().auth.signUp({ email, password });
     setBusy(false);
     setMsg(error ? error.message : "Cuenta creada. Revisa tu correo si requiere confirmación.");
@@ -131,6 +167,10 @@ export default function LoginPage() {
                   </button>
                   <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "14px 0 0", textAlign: "center", lineHeight: 1.5 }}>
                     Sin contraseña: te llega un código de 6 dígitos a tu correo.
+                  </p>
+                  <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "8px 0 0", textAlign: "center", lineHeight: 1.5 }}>
+                    Al continuar, aceptas el tratamiento de tus datos según la{" "}
+                    <a href="/privacidad" target="_blank" rel="noopener" style={{ color: "var(--primary)" }}>Política de Privacidad</a>.
                   </p>
                 </form>
               ) : (

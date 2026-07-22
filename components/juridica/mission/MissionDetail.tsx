@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { ChatView } from "../ChatView";
 import type { Artifact } from "../Canvas";
-import { api, type Mission, type TimelineEvent } from "./data";
+import { api, type Mission, type TimelineEvent, type TaskItem } from "./data";
 import { ConfirmNote, ProgressBar, SectionLabel, SEVERITY } from "./atoms";
 
 const TABS: [string, string, string][] = [
@@ -25,6 +25,7 @@ export function MissionDetail({
 }) {
   const [m, setM] = useState<Mission | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [tab, setTab] = useState("resumen");
   const [docs, setDocs] = useState<DocItem[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -36,6 +37,7 @@ export function MissionDetail({
     api.mission(backendUrl, accessToken, missionId).then((mm) => { setM(mm); setRadicadoInput(mm?.radicado && mm.radicado !== "—" ? mm.radicado : ""); });
     api.timeline(backendUrl, accessToken, missionId).then(setTimeline);
     api.missionDocuments(backendUrl, accessToken, missionId).then(setDocs);
+    api.tasks(backendUrl, accessToken, missionId).then((ts) => setTasks(ts.filter((t) => t.status !== "done" && t.status !== "cancelled")));
   }, [backendUrl, accessToken, missionId]);
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -150,6 +152,25 @@ export function MissionDetail({
                       <button className="btn btn-sm btn-secondary" onClick={async () => { await api.requestClient(backendUrl, accessToken, m.id, mm.label); pushToast("Solicitud registrada: tarea + recordatorio creados", "success"); api.timeline(backendUrl, accessToken, m.id).then(setTimeline); }}><Icon name="message" size={14} />Solicitar</button>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+            {tasks.length > 0 && (
+              <div className="card" style={{ padding: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}><Icon name="check" size={16} style={{ color: "var(--primary)" }} /><span style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--text-muted)" }}>Pendientes de este caso ({tasks.length})</span></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {tasks.slice(0, 8).map((t) => {
+                    const dl = t.due_date ? Math.round((new Date(t.due_date + "T00:00:00").getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000) : null;
+                    const tone = dl === null ? "var(--text-muted)" : dl < 0 ? "var(--danger)" : dl <= 3 ? "var(--gold-text)" : "var(--text-secondary)";
+                    const when = dl === null ? "" : dl < 0 ? `vencido hace ${-dl}d` : dl === 0 ? "vence hoy" : dl === 1 ? "vence mañana" : `en ${dl} días`;
+                    return (
+                      <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: tone, flexShrink: 0 }} />
+                        <span style={{ flex: 1, fontSize: 13.5 }}>{t.title}{t.created_by_ai && <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 6 }}>· IA</span>}</span>
+                        {when && <span style={{ fontSize: 12.5, fontWeight: 600, color: tone, whiteSpace: "nowrap" }}>{when}</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

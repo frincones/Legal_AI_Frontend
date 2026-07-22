@@ -249,6 +249,58 @@ textarea.land-composer:focus-visible { box-shadow: none; border-radius: 0; }
 .fade-up { animation: fadeUp .34s ease-out both; }
 .fade-in { animation: fadeIn .3s ease-out both; }
 
+/* CTA de feedback — glow pulsante para que SIEMPRE llame la atención (BETA). */
+@keyframes feedbackPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(123,61,245,0.45), 0 6px 18px -6px rgba(123,61,245,0.55); }
+  50%      { box-shadow: 0 0 0 7px rgba(123,61,245,0.00), 0 10px 26px -6px rgba(123,61,245,0.80); }
+}
+.feedback-cta { animation: feedbackPulse 2.1s ease-in-out infinite; will-change: box-shadow, transform; transition: filter .15s, transform .15s; }
+.feedback-cta:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.fb-shine { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.40) 50%, transparent 70%); background-size: 220% 100%; animation: shimmerSweep 2.6s linear infinite; pointer-events: none; }
+
+/* CTA de invitar/referidos — glow DORADO pulsante (se distingue del morado del feedback). */
+@keyframes invitePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,138,20,0.50), 0 6px 18px -6px rgba(201,138,20,0.55); }
+  50%      { box-shadow: 0 0 0 7px rgba(201,138,20,0.00), 0 10px 26px -6px rgba(232,144,42,0.85); }
+}
+.invite-cta { animation: invitePulse 2.3s ease-in-out infinite; will-change: box-shadow, transform; transition: filter .15s, transform .15s; }
+.invite-cta:hover { filter: brightness(1.06); transform: translateY(-1px); }
+
+/* ============================================================
+   RESPONSIVE — helpers (desktop = igual que hoy; el móvil sobreescribe).
+   Breakpoints estándar: 640 (sm/teléfono) · 768 (md/tablet).
+   ============================================================ */
+html, body { max-width: 100%; overflow-x: hidden; }
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Padding de contenedor de módulo (desktop 34/36; móvil compacto + espacio para bottom-nav). */
+.app-pad { padding: 34px 36px 56px; }
+@media (max-width: 640px) { .app-pad { padding: 16px 14px 88px; } }
+
+/* Grids que colapsan a 1 columna en móvil/tablet. */
+.grid-resp-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-resp-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 760px) { .grid-resp-2, .grid-resp-3 { grid-template-columns: 1fr; gap: 12px; } }
+
+/* Tabla con scroll horizontal en pantallas chicas (no se desborda la página). */
+.table-wrap { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Grid de biblioteca: en móvil baja el mínimo para que entren 2 tarjetas (no 1 gigante). */
+@media (max-width: 640px) {
+  .lib-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 12px !important; }
+}
+
+/* Tipografía fluida. */
+.h1-fluid { font-size: clamp(24px, 6vw, 38px); }
+.h2-fluid { font-size: clamp(20px, 5vw, 26px); }
+
+/* Safe areas (notch / barra de inicio). */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+
+/* Botones/ítems táctiles cómodos en móvil (>= 44px). */
+@media (max-width: 640px) { .tap44 { min-height: 44px; min-width: 44px; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
   .cursor-blink::after { animation: none; }
@@ -353,3 +405,49 @@ html { scroll-behavior: smooth; }
   .land-container { padding: 0 18px; }
   .footer-grid { grid-template-columns: 1fr !important; }
 }
+
+/* Sticky CTA móvil (Fase B) — barra fija inferior con el CTA primario */
+.land-sticky-cta {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 120;
+  /* aire generoso abajo: en el navegador de FB env(safe-area) suele ser 0, por eso una base sólida */
+  padding: 12px 16px max(16px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+  background: var(--bg-surface); border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 24px rgba(15, 18, 28, 0.10);
+}
+
+/* Performance + layout móvil (Fase C) — solo ≤900px; el desktop no se toca */
+@media (max-width: 900px) {
+  .land-root-pad { padding-bottom: 104px; }   /* deja espacio para la sticky bar (no tapa el footer) */
+  /* backdrop-filter (blur) es costoso en Androids de gama baja → se reduce en móvil */
+  .land-nav { backdrop-filter: saturate(150%) blur(6px); -webkit-backdrop-filter: saturate(150%) blur(6px); }
+}
+@media (max-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .reveal { transform: none; transition: opacity .4s ease; }  /* sin translate (menos compositing en móvil) */
+}
+
+/* CTAs del hero/sticky — clases AISLADAS (no tocan .btn global del resto de la app) */
+.cta-beta {
+  background: var(--grad-aurora); background-size: 180% 180%;
+  color: #fff; border-color: transparent; font-weight: 600; border-radius: 14px;
+  box-shadow: var(--glow-primary); animation: gradient-pan 7s ease infinite;
+}
+.cta-beta:hover { box-shadow: 0 0 0 1px rgba(123,61,245,.28), 0 14px 34px -10px rgba(123,61,245,.55); }
+.cta-beta:active { transform: scale(.985); }
+.cta-chat {
+  background: rgba(255,255,255,.55); border: 1px solid var(--border-strong);
+  color: var(--text); font-weight: 550; border-radius: 14px; box-shadow: none;
+}
+.cta-chat:hover { background: rgba(255,255,255,.85); border-color: var(--primary); }
+.cta-chat:active { transform: scale(.99); }
+@keyframes gradient-pan { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@media (prefers-reduced-motion: reduce) { .cta-beta { animation: none; } }
+
+/* Hero: fondo plano en móvil (limpieza estilo ChatGPT + perf en Androids de gama baja) */
+@media (max-width: 900px) { .hero-bg { display: none !important; } }
+
+/* Chips del Hook Model (Nir Eyal) — próximas acciones al final de cada respuesta del agente. */
+@keyframes jvHookIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes jvHookGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(123,61,245,0); } 50% { box-shadow: 0 0 15px -4px rgba(123,61,245,.42); } }
+.jv-hook-chip { animation: jvHookIn .38s ease both, jvHookGlow 2.6s ease-in-out infinite; transition: transform .13s ease, box-shadow .13s ease; }
+.jv-hook-chip:hover { transform: translateY(-2px); box-shadow: 0 6px 18px -6px rgba(123,61,245,.5); }
+@media (prefers-reduced-motion: reduce) { .jv-hook-chip { animation: jvHookIn .38s ease both; } }

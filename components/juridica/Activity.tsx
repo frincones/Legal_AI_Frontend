@@ -3,10 +3,10 @@
      (clic → abre el sidebar con la línea de tiempo de pasos).
    - ActivitySidebar: drawer derecho con razonamiento + cada paso ejecutado (input/output/duración). */
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon } from "./icons";
 
-export type SourceLink = { consulta?: string; entidad?: string; url: string; estado?: string; tier?: number };
+export type SourceLink = { consulta?: string; entidad?: string; url: string; estado?: string; tier?: number; verified?: boolean };
 
 export type ActStep = {
   name: string; label: string; icon: string; status: "running" | "done";
@@ -24,6 +24,16 @@ function estadoColor(estado?: string): string {
 // Badge clicable a la página OFICIAL donde se verificó. Etiqueta = la CITA (norma/sentencia) para que
 // el usuario sepa a qué corresponde el link; luego estado y la entidad/portal que lo respalda.
 export function SourceBadge({ s }: { s: SourceLink }) {
+  // Fuente CONSULTADA (no verificada): enlace simple, sin sello, borde punteado → no implica verificación.
+  if (s.verified === false) {
+    return (
+      <a href={s.url} target="_blank" rel="noopener noreferrer" title={`${s.entidad || s.consulta || ""}\n${s.url}`}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: "var(--r-pill)", border: "1px dashed var(--border-strong)", background: "var(--bg-base)", color: "var(--text-muted)", fontSize: 12, fontWeight: 500, textDecoration: "none", maxWidth: "100%" }}>
+        <Icon name="link" size={11} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+        <span style={{ fontWeight: 600, color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 220 }}>{s.consulta || s.entidad || "Fuente"}</span>
+      </a>
+    );
+  }
   return (
     <a href={s.url} target="_blank" rel="noopener noreferrer" title={`${s.consulta || ""} · ${s.entidad || ""} (${s.estado || "—"})\n${s.url}`}
       style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 500, textDecoration: "none", maxWidth: "100%" }}>
@@ -36,20 +46,37 @@ export function SourceBadge({ s }: { s: SourceLink }) {
   );
 }
 
-// Footer "Fuentes verificadas" bajo la respuesta — unión de las fuentes de todos los pasos.
+// Footer bajo la respuesta — separa "Fuentes verificadas" (sello oficial) de "Fuentes consultadas"
+// (enlaces que el agente leyó pero NO verificó). Retrocompatible: sin `verified` → cuenta como verificada.
 export function SourcesFooter({ steps }: { steps: ActStep[] }) {
   const seen = new Set<string>();
-  const sources: SourceLink[] = [];
-  for (const st of steps) for (const s of st.sources || []) if (s.url && !seen.has(s.url)) { seen.add(s.url); sources.push(s); }
-  if (sources.length === 0) return null;
+  const verified: SourceLink[] = [];
+  const consultadas: SourceLink[] = [];
+  for (const st of steps) for (const s of st.sources || []) if (s.url && s.verified !== false && !seen.has(s.url)) { seen.add(s.url); verified.push(s); }
+  for (const st of steps) for (const s of st.sources || []) if (s.url && s.verified === false && !seen.has(s.url)) { seen.add(s.url); consultadas.push(s); }
+  if (verified.length === 0 && consultadas.length === 0) return null;
   return (
     <div style={{ marginTop: 6, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>
-        <Icon name="shieldCheck" size={13} style={{ color: "var(--success)" }} /> Fuentes verificadas ({sources.length})
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {sources.map((s, i) => <SourceBadge key={i} s={s} />)}
-      </div>
+      {verified.length > 0 && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>
+            <Icon name="shieldCheck" size={13} style={{ color: "var(--success)" }} /> Fuentes verificadas ({verified.length})
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {verified.map((s, i) => <SourceBadge key={i} s={s} />)}
+          </div>
+        </>
+      )}
+      {consultadas.length > 0 && (
+        <div style={{ marginTop: verified.length > 0 ? 12 : 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 8 }}>
+            <Icon name="link" size={13} style={{ color: "var(--text-muted)" }} /> Fuentes consultadas ({consultadas.length})
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {consultadas.map((s, i) => <SourceBadge key={i} s={s} />)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -106,6 +133,72 @@ export function ThoughtPill({
       {durationMs != null ? `Pensó durante ${fmtDur(durationMs)}` : "Ver razonamiento"}
       <Icon name="chevronRight" size={13} style={{ color: "var(--text-muted)" }} />
     </button>
+  );
+}
+
+// ── Cronómetro vivo (tickea cada 1s mientras la fase está en curso) ──
+function LiveTimer({ startedAt }: { startedAt: number }) {
+  const [now, setNow] = useState(startedAt);
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <span style={{ fontSize: 11.5, color: "var(--text-muted)", flexShrink: 0 }}>{fmtDur(Math.max(0, now - startedAt))}</span>;
+}
+
+export type LiveActivity = { name: string; label: string; detail?: string | null; startedAt: number };
+
+// ── Timeline INLINE (estilo Claude): pasos hechos + la fase actual con shimmer y cronómetro vivo.
+//    Reemplaza el "cursor titilando" mudo durante la generación. El detalle completo (fuentes,
+//    razonamiento) sigue en el ActivitySidebar vía "ver actividad". ──
+export function InlineActivity({
+  steps, activity, onOpen,
+}: {
+  steps: ActStep[]; activity?: LiveActivity | null; onOpen: () => void;
+}) {
+  const doneSteps = steps.filter((s) => s.status === "done");
+  const runningStep = steps.find((s) => s.status === "running");
+  // Fase actual = el paso corriendo (trae sus fuentes/detalle), o la actividad anunciada por 'phase'.
+  const current = runningStep
+    ? { label: runningStep.label, detail: stepDetail(runningStep.input), startedAt: runningStep.startedAt ?? Date.now() }
+    : activity
+    ? { label: activity.label, detail: activity.detail ?? null, startedAt: activity.startedAt }
+    : null;
+  return (
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {doneSteps.map((s, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+          <span style={{ width: 18, height: 18, borderRadius: 6, flexShrink: 0, display: "grid", placeItems: "center", background: "var(--success-soft)", color: "var(--success)" }}>
+            <Icon name="check" size={11} stroke={2.4} />
+          </span>
+          <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>{s.label}</span>
+          {s.startedAt && s.endedAt && s.endedAt > s.startedAt && (
+            <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{fmtDur(s.endedAt - s.startedAt)}</span>
+          )}
+        </div>
+      ))}
+      {current ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, minWidth: 0 }}>
+          <Icon name="sparkles" size={15} style={{ color: "var(--primary)", animation: "spin 2.4s linear infinite", flexShrink: 0 }} />
+          <span className="shimmer-text" style={{ fontWeight: 550, flexShrink: 0 }}>{current.label}</span>
+          {current.detail && (
+            <span style={{ color: "var(--text-muted)", fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>· {current.detail}</span>
+          )}
+          <LiveTimer startedAt={current.startedAt} />
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5 }}>
+          <Icon name="sparkles" size={15} style={{ color: "var(--primary)", animation: "spin 2.4s linear infinite", flexShrink: 0 }} />
+          <span className="shimmer-text" style={{ fontWeight: 550 }}>Pensando…</span>
+        </div>
+      )}
+      {(doneSteps.length > 0 || runningStep) && (
+        <button onClick={onOpen} className="focus-ring" style={{ alignSelf: "flex-start", border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 12.5, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, padding: 0 }}>
+          ver actividad <Icon name="chevronRight" size={13} />
+        </button>
+      )}
+    </div>
   );
 }
 

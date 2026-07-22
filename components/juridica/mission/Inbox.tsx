@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { api } from "./data";
+import { EmptyState } from "../atoms";
+import { Coachmark, useFirstVisit } from "../Coachmark";
 
 type Notif = { id: string; title: string; body: string; campaign_type: string; related_matter_id: string | null; read_at: string | null; created_at: string };
 
@@ -22,14 +24,22 @@ export function Inbox({
   const load = useCallback(() => { if (backendUrl && accessToken) api.notifications(backendUrl, accessToken).then(setItems); }, [backendUrl, accessToken]);
   useEffect(() => { load(); }, [load]);
   const unread = items.filter((i) => !i.read_at).length;
+  const [coachShow, coachDismiss] = useFirstVisit("inbox");
 
   return (
     <div style={{ height: "100%", overflow: "auto" }}>
-      <div style={{ maxWidth: 820, margin: "0 auto", padding: "34px 36px 56px" }}>
+      <div className="app-pad" style={{ maxWidth: 820, margin: "0 auto" }}>
+        <Coachmark
+          show={coachShow}
+          onDismiss={coachDismiss}
+          icon="bell"
+          title="Tu bandeja jurídica"
+          body="Aquí llegan tus alertas y borradores listos para aprobar."
+        />
         <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
           <span style={{ width: 48, height: 48, borderRadius: 14, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="bell" size={24} style={{ color: "var(--primary)" }} /></span>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <h1 style={{ fontSize: 26, fontWeight: 650, margin: 0 }}>Bandeja jurídica</h1>
+            <h1 className="h2-fluid" style={{ fontWeight: 650, margin: 0 }}>Bandeja jurídica</h1>
             <p style={{ color: "var(--text-secondary)", margin: "6px 0 0", fontSize: 14.5 }}>Todo lo que Autopilot detectó, preparó o necesita de ti — en un solo lugar.</p>
           </div>
           {unread > 0 && <button className="btn btn-secondary btn-sm" onClick={async () => { await api.markAllRead(backendUrl, accessToken); load(); pushToast("Marcadas como leídas", "info"); }}><Icon name="check" size={14} />Marcar leídas ({unread})</button>}
@@ -53,10 +63,12 @@ export function Inbox({
             })}
           </div>
         ) : (
-          <div className="card" style={{ padding: "44px 24px", textAlign: "center" }}>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--success-soft)", display: "grid", placeItems: "center", margin: "0 auto 14px" }}><Icon name="circleCheck" size={28} style={{ color: "var(--success)" }} /></div>
-            <div style={{ fontWeight: 650, fontSize: 16 }}>Bandeja al día</div>
-            <div style={{ fontSize: 13.5, color: "var(--text-muted)", marginTop: 4 }}>Autopilot avisará aquí cuando detecte un correo del juzgado, prepare un borrador o falte algo del cliente.</div>
+          <div className="card" style={{ minHeight: 320 }}>
+            <EmptyState
+              icon="bell"
+              title="Bandeja al día"
+              desc="Aquí llegarán tus alertas y borradores listos para aprobar: un correo del juzgado, un borrador preparado o algo que falte del cliente."
+            />
           </div>
         )}
       </div>

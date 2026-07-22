@@ -18,10 +18,10 @@ export function Misiones({
 
   return (
     <div style={{ height: "100%", overflow: "auto" }}>
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "34px 36px 56px" }}>
+      <div className="app-pad" style={{ maxWidth: 1080, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 650, letterSpacing: "-0.02em", margin: 0 }}>Misiones</h1>
+            <h1 className="h2-fluid" style={{ fontWeight: 650, letterSpacing: "-0.02em", margin: 0 }}>Misiones</h1>
             <p style={{ color: "var(--text-secondary)", margin: "6px 0 0", fontSize: 14.5 }}>Cada objetivo, con su avance y próxima acción.</p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>

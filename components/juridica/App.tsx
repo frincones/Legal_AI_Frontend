@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Icon, Logo } from "./icons";
-import { Toasts, CommandPalette, EmptyState, type Toast } from "./atoms";
+import { Toasts, CommandPalette, EmptyState, FeedbackModal, ReferralModal, OutOfCreditsPopup, UpgradeModal, type Toast } from "./atoms";
 import { Sidebar } from "./shell";
 import { Home, Library, Settings } from "./screens";
 import { ChatView } from "./ChatView";
@@ -119,6 +119,41 @@ export default function JuridicaApp({
   const [currentMissionId, setCurrentMissionId] = useState<string | undefined>(undefined);
   const [chatMatterId, setChatMatterId] = useState<string | undefined>(undefined);
   const [approvalOpen, setApprovalOpen] = useState(false);
+  // Feedback (BETA): modal global + banner dismissible persistido.
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // Referidos (growth loop): modal "Invitar y ganar créditos".
+  const [referralOpen, setReferralOpen] = useState(false);
+  // Popup animado al agotar créditos (invita y gana). Anti-fatiga: 1 vez por sesión.
+  const [creditsPopup, setCreditsPopup] = useState(false);
+  const creditsPopupShown = useRef(false);
+  const [betaDismissed, setBetaDismissed] = useState(true);
+  useEffect(() => {
+    try { setBetaDismissed(localStorage.getItem("jurovia_beta_banner_dismissed") === "1"); } catch { /* ignore */ }
+  }, []);
+  function dismissBeta() {
+    try { localStorage.setItem("jurovia_beta_banner_dismissed", "1"); } catch { /* ignore */ }
+    setBetaDismissed(true);
+  }
+
+  // F3 — Atribución de referidos: captura el ?ref= al montar y lo guarda para reclamarlo post-login.
+  useEffect(() => {
+    try {
+      const code = new URLSearchParams(window.location.search).get("ref");
+      if (code) localStorage.setItem("jurovia_ref", code);
+    } catch { /* ignore */ }
+  }, []);
+
+  // F3 — Reclama el código guardado en cuanto haya sesión; borra el código tras cualquier resultado.
+  useEffect(() => {
+    if (!backendUrl || !accessToken) return;
+    let code: string | null = null;
+    try { code = localStorage.getItem("jurovia_ref"); } catch { /* ignore */ }
+    if (!code) return;
+    (async () => {
+      try { await missionApi.referralClaim(backendUrl, accessToken, code as string); } catch { /* ignore */ }
+      finally { try { localStorage.removeItem("jurovia_ref"); } catch { /* ignore */ } }
+    })();
+  }, [backendUrl, accessToken]);
   const toastId = useRef(0);
 
   // Lee el flag mission_control de la org (aditivo). Si está off, el UI clásico queda idéntico.
@@ -137,13 +172,22 @@ export default function JuridicaApp({
   // El runner emite el nuevo saldo tras cada acción del agente → actualiza el pill + toast al 10%.
   function onCredits(info: { balance?: number | null; cap?: number | null; low?: boolean }) {
     if (info.balance == null) return;
+    // El saldo se mantiene internamente (gate), pero NO se muestra la cantidad al usuario (100% interno).
     setCreditsState((c) => ({ ...c, balance: info.balance ?? c.balance, cap: info.cap ?? c.cap }));
-    if (info.low && !isAdmin) pushToast(`Te quedan ${info.balance} créditos.`, "warning");
   }
   function onBlocked() {
     setCreditsState((c) => ({ ...c, balance: 0 }));
-    pushToast("Sin créditos: el agente quedó bloqueado. Recarga o espera la renovación.", "warning");
   }
+
+  // Al agotar créditos → popup animado "invita y gana" (1 vez por sesión). Dispara tanto cuando el saldo
+  // llega a 0 tras una acción como cuando el agente emite `blocked`. No aplica a admins (nunca se bloquean).
+  useEffect(() => {
+    if (!creditsBlocked || creditsPopupShown.current) return;
+    try { if (sessionStorage.getItem("jv_credits_popup")) { creditsPopupShown.current = true; return; } } catch { /* modo privado */ }
+    creditsPopupShown.current = true;
+    try { sessionStorage.setItem("jv_credits_popup", "1"); } catch { /* noop */ }
+    setCreditsPopup(true);
+  }, [creditsBlocked]);
 
   function closeWizard() {
     try {
@@ -153,6 +197,55 @@ export default function JuridicaApp({
     }
     setShowWizard(false);
   }
+
+  // Continuidad guest → registrado: si viene del chat invitado (flag pendiente), importa esa conversación
+  // a una sesión real y ábrela ("sigue en el mismo chat"). Una sola vez. Fail-open: si falla, arranca normal.
+  const claimedRef = useRef(false);
+  useEffect(() => {
+    if (!backendUrl || !accessToken || claimedRef.current) return;
+    let raw: string | null = null;
+    try { raw = localStorage.getItem("jurovia_pending_guest_chat"); } catch { return; }
+    if (!raw) return;
+    claimedRef.current = true;
+    // Continuidad sin fricción: suprime el onboarding y aterriza directo en el chat (venían del agente).
+    try { localStorage.removeItem("jurovia_pending_guest_chat"); localStorage.setItem("juridica_onboarded", "1"); } catch { /* noop */ }
+    setShowWizard(false);
+    try {
+      const { sid, gid } = JSON.parse(raw);
+      if (sid) missionApi.claimGuest(backendUrl, accessToken, sid, gid).then((d: { session_id: string | null }) => {
+        if (d?.session_id) { setChatKey((k) => k + 1); openConversation(d.session_id); }
+      }).catch(() => {});
+    } catch { /* noop */ }
+  }, [backendUrl, accessToken]);
+
+  const [upgradeTier, setUpgradeTier] = useState<string | null>(null);   // deep-link BOFU → UpgradeModal in-app pre-seleccionado
+
+  // Deep-link de correo (?ask=…) para usuario logueado/auto-logueado: siembra la pregunta de la campaña
+  // en un chat nuevo (usa sus créditos, flujo normal). Una sola vez. Fail-open: si no hay flag, nada cambia.
+  const askedRef = useRef(false);
+  useEffect(() => {
+    if (!backendUrl || !accessToken || askedRef.current) return;
+    let ask: string | null = null;
+    try { ask = localStorage.getItem("jurovia_pending_ask"); } catch { return; }
+    if (!ask || !ask.trim()) return;
+    askedRef.current = true;
+    try { localStorage.removeItem("jurovia_pending_ask"); localStorage.setItem("juridica_onboarded", "1"); } catch { /* noop */ }
+    setShowWizard(false);
+    submitToChat(ask, "Pregunta");
+  }, [backendUrl, accessToken]);
+
+  // Deep-link BOFU (/login?next=upgrade&plan=…) → abre el UpgradeModal in-app pre-seleccionado. Una sola
+  // vez. Fail-open: sin flag, nada cambia. Aditivo — no toca el flujo de créditos ni el chat.
+  const upgradeRef = useRef(false);
+  useEffect(() => {
+    if (!backendUrl || !accessToken || upgradeRef.current) return;
+    let plan: string | null = null;
+    try { plan = localStorage.getItem("jurovia_pending_upgrade"); } catch { return; }
+    if (!plan) return;
+    upgradeRef.current = true;
+    try { localStorage.removeItem("jurovia_pending_upgrade"); } catch { /* noop */ }
+    setUpgradeTier(plan === "select" ? "" : plan);   // "" = abre el modal en la selección de planes (sin pre-seleccionar)
+  }, [backendUrl, accessToken]);
 
   // F1.3 — recientes reales desde el backend (/api/sessions). Si no hay, el sidebar muestra estado vacío (sin mock).
   useEffect(() => {
@@ -195,7 +288,16 @@ export default function JuridicaApp({
 
   const width = useWidth();
   const narrow = width < 900;
-  const mobile = width < 720;
+  const mobile = width < 640;
+  // F2 — drawer "Más" (accesos que no caben en la bottom-nav móvil).
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => { if (!mobile) setMoreOpen(false); }, [mobile]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const on = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, [moreOpen]);
 
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
@@ -407,6 +509,9 @@ export default function JuridicaApp({
         initialTab="library"
         docs={libDocs}
         templates={libTemplates}
+        onNavigate={go}
+        backendUrl={backendUrl}
+        accessToken={accessToken}
         onReuse={(it: LibraryItem) => {
           // Patrón real → reuse_patron_id (flywheel). Documento sin patrón → prompt normal.
           if (it.patronId) reusePatron(it);
@@ -420,6 +525,7 @@ export default function JuridicaApp({
         initialTab="templates"
         docs={libDocs}
         templates={libTemplates}
+        onNavigate={go}
         onReuse={(it: LibraryItem) => {
           if (it.patronId) reusePatron(it);
           else submitToChat("Reusar plantilla de la firma: " + it.title);
@@ -440,8 +546,20 @@ export default function JuridicaApp({
 
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden" }}>
-      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={missionMode ? newMission : newDoc} email={email} recents={recents} onOpenRecent={openConversation} missionMode={missionMode} credits={credits} creditsBlocked={creditsBlocked} isAdmin={isAdmin} />}
+      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={missionMode ? newMission : newDoc} onOpenCommand={() => setCmdOpen(true)} email={email} recents={recents} onOpenRecent={openConversation} missionMode={missionMode} credits={credits} creditsBlocked={creditsBlocked} isAdmin={isAdmin} onFeedback={() => setFeedbackOpen(true)} onInvite={() => setReferralOpen(true)} />}
       <main style={{ flex: 1, minWidth: 0, height: "100dvh", position: "relative", display: "flex", flexDirection: "column" }}>
+        {!betaDismissed && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 16px", background: "var(--primary-soft)", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+            <Icon name="sparkles" size={15} style={{ color: "var(--primary)", flexShrink: 0 }} />
+            <span style={{ fontSize: 12.5, color: "var(--text)", fontWeight: 500, flex: 1, minWidth: 0 }}>
+              Estás en la <strong style={{ color: "var(--primary)" }}>BETA</strong> — tu feedback la mejora.
+            </span>
+            <button onClick={() => setFeedbackOpen(true)} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>Enviar feedback</button>
+            <button onClick={dismissBeta} title="Cerrar" style={{ border: "none", background: "transparent", color: "var(--text-muted)", display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
+              <Icon name="x" size={16} />
+            </button>
+          </div>
+        )}
         {mobile && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}>
             <button onClick={() => go("home")} style={{ background: "none", border: "none", padding: 0 }}>
@@ -458,27 +576,146 @@ export default function JuridicaApp({
         )}
         <div style={{ flex: 1, minHeight: 0, maxHeight: "100dvh", overflow: "auto" }}>{main}</div>
         {mobile && (
-          <nav style={{ display: "flex", borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}>
+          <nav className="safe-bottom" style={{ display: "flex", borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}>
             {(
-              [
-                ["home", "Inicio", "message"],
-                ["library", "Biblioteca", "book"],
-                ["templates", "Plantillas", "template"],
-                ["settings", "Ajustes", "settings"],
-              ] as [string, string, string][]
-            ).map(([id, label, ic]) => (
-              <button key={id} onClick={() => go(id)} style={{ flex: 1, border: "none", background: "transparent", padding: "9px 0 11px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: route === id ? "var(--primary)" : "var(--text-muted)", fontSize: 10.5, fontWeight: 600 }}>
-                <Icon name={ic} size={20} stroke={1.7} />
-                {label}
-              </button>
-            ))}
+              missionMode
+                ? [
+                    ["home", "Inicio", "target", () => go("home")],
+                    ["expedientes", "Misiones", "folder", () => go("expedientes")],
+                    ["terminos", "Términos", "calendarClock", () => go("terminos")],
+                    ["inbox", "Bandeja", "bell", () => go("inbox")],
+                    ["__more", "Más", "menu", () => setMoreOpen(true)],
+                  ]
+                : [
+                    ["home", "Inicio", "message", () => go("home")],
+                    ["library", "Biblioteca", "book", () => go("library")],
+                    ["templates", "Plantillas", "template", () => go("templates")],
+                    ["cases", "Casos", "folder", () => go("cases")],
+                    ["__more", "Más", "menu", () => setMoreOpen(true)],
+                  ]
+            ).map(([id, label, ic, onClick]) => {
+              const active = id === "__more" ? moreOpen : (id === "expedientes" ? route === "expedientes" || route === "expediente" : route === id);
+              return (
+                <button key={id as string} onClick={onClick as () => void} style={{ flex: 1, minHeight: 44, border: "none", background: "transparent", padding: "8px 0 10px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, color: active ? "var(--primary)" : "var(--text-muted)", fontSize: 10.5, fontWeight: 600 }}>
+                  <Icon name={ic as string} size={20} stroke={1.7} />
+                  {label as string}
+                </button>
+              );
+            })}
           </nav>
         )}
       </main>
 
-      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} onNavigate={go} onNew={newDoc} />
+      {/* F2 — Drawer "Más" (móvil): accesos que no caben en la bottom-nav. */}
+      {mobile && moreOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 80 }}>
+          <div onClick={() => setMoreOpen(false)} className="fade-in" style={{ position: "absolute", inset: 0, background: "rgba(13,19,32,0.42)" }} />
+          <div className="fade-up safe-bottom" style={{ position: "absolute", left: 0, right: 0, bottom: 0, background: "var(--bg-surface)", borderTopLeftRadius: 18, borderTopRightRadius: 18, boxShadow: "var(--sh-3)", padding: "10px 14px 16px", maxHeight: "80dvh", overflow: "auto" }}>
+            <div style={{ width: 38, height: 4, borderRadius: 999, background: "var(--border-strong)", margin: "4px auto 12px" }} />
+            <div style={{ display: "flex", alignItems: "center", padding: "0 4px 8px" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em", textTransform: "uppercase", flex: 1 }}>Más</span>
+              <button onClick={() => setMoreOpen(false)} className="tap44" style={{ border: "none", background: "transparent", color: "var(--text-muted)", display: "grid", placeItems: "center", borderRadius: 9 }}>
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+            {/* Historial de chats accesible en móvil (antes solo estaba en el Sidebar de desktop). */}
+            {recents.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.04em", textTransform: "uppercase", padding: "0 4px 6px" }}>Chats recientes</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {recents.slice(0, 6).map((r) => (
+                    <button key={r.id} onClick={() => { openConversation(r.id); setMoreOpen(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 13, width: "100%", minHeight: 46, padding: "0 12px", borderRadius: "var(--r-md)", border: "none", background: "transparent", textAlign: "left", color: "var(--text)", fontSize: 14.5, fontWeight: 500 }}>
+                      <Icon name="message" size={19} stroke={1.7} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
+                      <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.title}</span>
+                      <Icon name="chevronRight" size={16} style={{ color: "var(--text-muted)" }} />
+                    </button>
+                  ))}
+                </div>
+                <div style={{ height: 1, background: "var(--border)", margin: "12px 4px 4px" }} />
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {(
+                [
+                  ...(missionMode
+                    ? ([
+                        ["autopilot", "Autopilot", "radar", () => go("autopilot")],
+                        ["library", "Biblioteca", "book", () => go("library")],
+                      ] as [string, string, string, () => void][])
+                    : []),
+                  ["settings", "Ajustes", "settings", () => go("settings")],
+                  ...(isAdmin ? ([["admin", "Admin", "shieldCheck", () => go("admin")]] as [string, string, string, () => void][]) : []),
+                  ["__feedback", "Enviar feedback", "message", () => setFeedbackOpen(true)],
+                  ["__invite", "Invitar y ganar", "gift", () => setReferralOpen(true)],
+                ] as [string, string, string, () => void][]
+              ).map(([id, label, ic, action]) => (
+                <button
+                  key={id}
+                  onClick={() => { action(); setMoreOpen(false); }}
+                  style={{ display: "flex", alignItems: "center", gap: 13, width: "100%", minHeight: 48, padding: "0 12px", borderRadius: "var(--r-md)", border: "none", background: "transparent", textAlign: "left", color: "var(--text)", fontSize: 15, fontWeight: 550 }}
+                >
+                  <Icon name={ic} size={20} stroke={1.7} style={{ color: "var(--text-secondary)" }} />
+                  <span style={{ flex: 1 }}>{label}</span>
+                  <Icon name="chevronRight" size={16} style={{ color: "var(--text-muted)" }} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <CommandPalette
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        onNavigate={go}
+        onNew={newDoc}
+        recents={recents}
+        onOpenRecent={openConversation}
+        onStart={(prompt, m) => {
+          // Funciona en ambos modos (clásico y Mission Control): abre un chat/canvas.
+          const p = (prompt || "").trim();
+          if (p) {
+            // Con instrucción → siembra el chat (el agente arranca el borrador/intake).
+            submitToChat(prompt, m);
+            return;
+          }
+          // Sin instrucción → abre un chat en blanco para que el usuario escriba.
+          if (m) setMode(m);
+          setChatSeed(undefined);
+          setChatSeedDocs(undefined);
+          setReusePatronId(undefined);
+          setReuseTitle(undefined);
+          setOpenArtifact(undefined);
+          setOpenSessionId(undefined);
+          setChatMatterId(undefined);
+          setChatKey((k) => k + 1);
+          setRoute("chat");
+        }}
+      />
       {showWizard && <Wizard backendUrl={backendUrl} accessToken={accessToken} onClose={closeWizard} />}
       {approvalOpen && <ApprovalModal backendUrl={backendUrl} accessToken={accessToken} onClose={() => setApprovalOpen(false)} pushToast={pushToast} />}
+      <FeedbackModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+        onSubmit={(comment, kind) => missionApi.submitFeedback(backendUrl, accessToken, { kind: kind || "general", comment, context: { where: "sidebar" } })}
+      />
+      <ReferralModal open={referralOpen} onClose={() => setReferralOpen(false)} backendUrl={backendUrl} accessToken={accessToken} />
+      {creditsPopup && (
+        <OutOfCreditsPopup
+          backendUrl={backendUrl}
+          accessToken={accessToken}
+          onInvite={() => { setCreditsPopup(false); setReferralOpen(true); }}
+          onClose={() => setCreditsPopup(false)}
+        />
+      )}
+      <UpgradeModal
+        open={upgradeTier !== null}
+        initialTier={upgradeTier || undefined}
+        onClose={() => setUpgradeTier(null)}
+        backendUrl={backendUrl}
+        accessToken={accessToken}
+      />
       <Toasts items={toasts} />
     </div>
   );

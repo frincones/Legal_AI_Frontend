@@ -4,13 +4,13 @@ import Landing from "@/components/marketing/Landing";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://juroviapp.com"),
-  title: "Jurovia — Copiloto jurídico verificable para abogados en Colombia",
+  title: "Jurovia — Software de gestión y redacción para firmas de abogados en Colombia",
   description:
-    "IA legal que verifica cada ley y sentencia contra las fuentes oficiales, redacta tus escritos en Word y vigila tus casos. Empieza gratis.",
+    "Plataforma de software (SaaS) para firmas de abogados: automatiza la redacción de documentos, organiza tus casos y contrasta tus citas con las fuentes oficiales. No es un bufete ni presta asesoría legal; el abogado revisa y decide. Prueba el software gratis.",
   openGraph: {
-    title: "Jurovia — Copiloto jurídico verificable",
+    title: "Jurovia — Software para firmas de abogados",
     description:
-      "Fundamenta cada escrito con citas verificadas contra las fuentes oficiales. Pruébalo gratis.",
+      "Software (SaaS) que ayuda a las firmas a redactar documentos y verificar sus citas contra las fuentes oficiales. No es asesoría legal; el abogado revisa y decide.",
     locale: "es_CO",
     type: "website",
   },

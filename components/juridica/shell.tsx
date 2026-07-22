@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, type ReactNode, type CSSProperties, type C
 import { Icon, Logo } from "./icons";
 import { AgentAvatar } from "./atoms";
 import { useDictation } from "./Dictation";
+import { AudienciaModal, AudienciaTracker } from "./Audiencia";
 
 /* ---------------- Sidebar ---------------- */
 export function Sidebar({
@@ -12,6 +13,7 @@ export function Sidebar({
   collapsed,
   onToggle,
   onNew,
+  onOpenCommand,
   email,
   recents,
   onOpenRecent,
@@ -19,12 +21,15 @@ export function Sidebar({
   credits,
   creditsBlocked = false,
   isAdmin = false,
+  onFeedback,
+  onInvite,
 }: {
   route: string;
   onNavigate: (r: string) => void;
   collapsed: boolean;
   onToggle: () => void;
   onNew: () => void;
+  onOpenCommand?: () => void;
   email?: string | null;
   recents?: { id: string; title: string }[];
   onOpenRecent?: (id: string) => void;
@@ -32,6 +37,8 @@ export function Sidebar({
   credits?: { balance: number | null; cap: number | null };
   creditsBlocked?: boolean;
   isAdmin?: boolean;
+  onFeedback?: () => void;
+  onInvite?: () => void;
 }) {
   const recentList = recents || [];   // solo conversaciones reales del usuario (sin mock)
   // Nombre/iniciales reales derivados del correo (sin datos mock).
@@ -129,13 +136,13 @@ export function Sidebar({
           {!collapsed && creditsBlocked && <span style={{ fontSize: 10.5, fontWeight: 700, opacity: 0.85 }}>BLOQUEADO</span>}
         </button>
         {!collapsed ? (
-          <button onClick={() => onNavigate("home")} style={{ display: "flex", alignItems: "center", gap: 9, height: 38, padding: "0 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-muted)", fontSize: 13.5, textAlign: "left" }}>
+          <button onClick={() => (onOpenCommand ? onOpenCommand() : onNavigate("home"))} style={{ display: "flex", alignItems: "center", gap: 9, height: 38, padding: "0 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-muted)", fontSize: 13.5, textAlign: "left" }}>
             <Icon name="search" size={16} />
             <span style={{ flex: 1 }}>Buscar</span>
             <kbd style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: 5, padding: "1px 5px", background: "var(--bg-surface)" }}>⌘K</kbd>
           </button>
         ) : (
-          <Item icon="search" label="Buscar" onClick={() => {}} />
+          <Item icon="search" label="Buscar" onClick={() => (onOpenCommand ? onOpenCommand() : onNavigate("home"))} />
         )}
       </div>
 
@@ -199,8 +206,8 @@ export function Sidebar({
         ))}
       </div>
 
-      {/* Créditos (visible en ambos modos) */}
-      {!collapsed && (credits?.balance != null || isAdmin) && (
+      {/* Uso interno: el conteo de créditos SOLO es visible para admins (para el usuario es 100% interno). */}
+      {!collapsed && isAdmin && (
         <div style={{ padding: "8px 12px 0" }}>
           <div onClick={() => isAdmin && onNavigate("admin")} title={isAdmin ? "Panel admin" : undefined}
             style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: creditsBlocked ? "var(--warning-soft)" : "var(--bg-base)", cursor: isAdmin ? "pointer" : "default" }}>
@@ -218,6 +225,53 @@ export function Sidebar({
       {/* Footer */}
       <div style={{ padding: "8px 12px 12px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 2 }}>
         {isAdmin && <Item icon="shieldCheck" label="Admin" active={route === "admin"} onClick={() => onNavigate("admin")} />}
+        {onFeedback && (collapsed ? (
+          <button
+            onClick={onFeedback}
+            title="Enviar feedback"
+            className="feedback-cta focus-ring"
+            style={{ position: "relative", overflow: "hidden", width: 40, height: 40, margin: "2px auto", borderRadius: "50%", border: "none", cursor: "pointer", background: "var(--aurora)", color: "#fff", display: "grid", placeItems: "center" }}
+          >
+            <span className="fb-shine" />
+            <Icon name="message" size={18} stroke={2.1} />
+          </button>
+        ) : (
+          <button
+            onClick={onFeedback}
+            title="Cuéntanos qué mejorar"
+            className="feedback-cta focus-ring"
+            style={{ position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 9, width: "100%", height: 42, padding: "0 12px", marginBottom: 4, borderRadius: "var(--r-md)", border: "none", cursor: "pointer", textAlign: "left", background: "var(--aurora)", color: "#fff", fontSize: 13.5, fontWeight: 700 }}
+          >
+            <span className="fb-shine" />
+            <Icon name="message" size={17} stroke={2.2} />
+            <span style={{ flex: 1, position: "relative" }}>Enviar feedback</span>
+            <span style={{ position: "relative", fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", background: "rgba(255,255,255,0.24)", padding: "2px 7px", borderRadius: 999 }}>BETA</span>
+          </button>
+        ))}
+        {onInvite && (collapsed ? (
+          <button
+            onClick={onInvite}
+            title="Invitar y ganar más uso"
+            className="invite-cta focus-ring"
+            style={{ position: "relative", overflow: "hidden", width: 40, height: 40, margin: "2px auto", borderRadius: "50%", border: "none", cursor: "pointer", background: "var(--grad-gold)", color: "#1A1206", display: "grid", placeItems: "center" }}
+          >
+            <span className="fb-shine" />
+            <Icon name="gift" size={18} stroke={2.2} />
+          </button>
+        ) : (
+          <button
+            onClick={onInvite}
+            title="Invitar amigos y ganar más uso"
+            className="invite-cta focus-ring"
+            style={{ position: "relative", overflow: "hidden", display: "flex", alignItems: "center", gap: 9, width: "100%", height: 42, padding: "0 12px", marginBottom: 6, borderRadius: "var(--r-md)", border: "none", cursor: "pointer", textAlign: "left", background: "var(--grad-gold)", color: "#1A1206", fontSize: 13.5, fontWeight: 800 }}
+          >
+            <span className="fb-shine" />
+            <Icon name="gift" size={17} stroke={2.3} />
+            <span style={{ flex: 1, position: "relative" }}>Invitar y ganar</span>
+            <Icon name="arrowRight" size={15} stroke={2.4} />
+          </button>
+        ))}
+        <Item icon="message" label="Ayuda" onClick={() => { if (typeof window !== "undefined") window.open("/ayuda", "_blank", "noopener"); }} />
         <Item icon="settings" label="Ajustes" active={route === "settings"} onClick={() => onNavigate("settings")} />
         <button
           onClick={() => onNavigate("settings")}
@@ -266,6 +320,9 @@ export function Composer({
   accessToken,
   matterId,
   blocked,
+  sessionId,
+  onQuickSend,
+  audiencias,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -284,8 +341,15 @@ export function Composer({
   accessToken?: string;
   matterId?: string;        // asocia el adjunto a la misión (opcional)
   blocked?: boolean;        // sin créditos → input deshabilitado + banner
+  sessionId?: string;       // liga la audiencia a la conversación actual (opcional)
+  onQuickSend?: (text: string, documentIds?: string[]) => void; // chips de audiencia → dispara al agente
+  audiencias?: boolean;     // muestra el botón "Analizar audiencia" (default: true si hay backend+token)
 }) {
   const dict = useDictation(backendUrl, accessToken);
+  // ── Audiencias (subir/pegar grabación → transcripción + acta) ──
+  const [audModal, setAudModal] = useState(false);
+  const [audJob, setAudJob] = useState<{ id: string; title: string } | null>(null);
+  const audienciasEnabled = (audiencias ?? true) && !!(backendUrl && accessToken);
   const micEnabled = !!(backendUrl && accessToken);
   async function confirmDictation() {
     const t = await dict.stop();
@@ -295,7 +359,7 @@ export function Composer({
   // ── Adjuntar documentos (clip) ──
   const fileRef = useRef<HTMLInputElement>(null);
   const keyRef = useRef(0);
-  const [atts, setAtts] = useState<{ key: number; name: string; id?: string; loading: boolean; err?: boolean }[]>([]);
+  const [atts, setAtts] = useState<{ key: number; name: string; id?: string; loading: boolean; err?: boolean; status?: string }[]>([]);
   const attachEnabled = !!(backendUrl && accessToken);
 
   async function handleFiles(e: ChangeEvent<HTMLInputElement>) {
@@ -311,7 +375,7 @@ export function Composer({
         if (matterId) fd.append("matter_id", matterId);
         const r = await fetch(`${backendUrl}/api/documents`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` }, body: fd });
         const j = r.ok ? await r.json() : null;
-        setAtts((a) => a.map((x) => (x.key === k ? { ...x, loading: false, id: j?.document_id, err: !j?.document_id } : x)));
+        setAtts((a) => a.map((x) => (x.key === k ? { ...x, loading: false, id: j?.document_id, err: !j?.document_id, status: j?.ingest_status } : x)));
       } catch {
         setAtts((a) => a.map((x) => (x.key === k ? { ...x, loading: false, err: true } : x)));
       }
@@ -354,7 +418,7 @@ export function Composer({
 
       {blocked && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", background: "var(--warning-soft)", color: "var(--warning)", fontSize: 13, fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
-          <Icon name="lock" size={15} /> Sin créditos — el agente está bloqueado. Recarga o espera la renovación.
+          <Icon name="lock" size={15} /> Alcanzaste el límite de tu plan. Mejora tu plan para seguir.
         </div>
       )}
 
@@ -403,16 +467,17 @@ export function Composer({
               }
             }}
             placeholder={placeholder || "Describe el documento o la consulta legal…"}
-            style={{ width: "100%", resize: "none", border: "none", outline: "none", background: "transparent", padding: "20px 22px 6px", fontSize: 16, lineHeight: 1.55, color: "var(--text)", fontFamily: "var(--font-ui)", display: "block", maxHeight: 200 }}
+            style={{ width: "100%", resize: "none", border: "none", outline: "none", background: "transparent", padding: "clamp(12px,3.5vw,20px) clamp(14px,4vw,22px) 6px", fontSize: 16, lineHeight: 1.55, color: "var(--text)", fontFamily: "var(--font-ui)", display: "block", maxHeight: 200 }}
           />
           {atts.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "2px 14px 0" }}>
               {atts.map((a) => (
                 <span key={a.key} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 8px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-elevated-2)", fontSize: 12, color: "var(--text-secondary)", maxWidth: 220 }}>
-                  <Icon name="fileText" size={13} style={{ color: "var(--primary)", flexShrink: 0 }} />
+                  <Icon name={/\.(png|jpe?g|webp|gif)$/i.test(a.name) ? "image" : /\.(mp3|m4a|wav|ogg|webm|aac|flac|mp4|mpe?g|mpga)$/i.test(a.name) ? "music" : /\.(xlsx|csv)$/i.test(a.name) ? "sheet" : "fileText"} size={13} style={{ color: "var(--primary)", flexShrink: 0 }} />
                   <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
                   {a.loading ? <Icon name="refresh" size={12} style={{ animation: "spin 1s linear infinite" }} />
                     : a.err ? <Icon name="alert" size={12} style={{ color: "var(--danger, #DC2626)" }} />
+                    : a.status === "ocr_processing" ? <Icon name="refresh" size={12} style={{ animation: "spin 1s linear infinite", color: "var(--text-muted)" }} />
                     : <Icon name="check" size={12} style={{ color: "var(--success)" }} />}
                   <button onClick={() => setAtts((x) => x.filter((y) => y.key !== a.key))} title="Quitar" style={{ border: "none", background: "transparent", padding: 0, display: "grid", placeItems: "center", color: "var(--text-muted)", cursor: "pointer" }}>
                     <Icon name="x" size={13} />
@@ -422,16 +487,21 @@ export function Composer({
             </div>
           )}
           <input ref={fileRef} type="file" multiple onChange={handleFiles} style={{ display: "none" }}
-            accept=".pdf,.doc,.docx,.txt,.md,.rtf,.png,.jpg,.jpeg" />
+            accept=".pdf,.doc,.docx,.txt,.md,.rtf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.m4a,.wav,.ogg,.webm,.aac,.flac,.mp4,.xlsx,.csv,image/*,audio/*" />
           <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, padding: compact ? "6px 8px 10px 10px" : "8px 12px 12px 14px", flexWrap: compact ? "wrap" : "nowrap", rowGap: 6 }}>
             {attachEnabled && (
-              <button onClick={() => fileRef.current?.click()} className="btn-ghost focus-ring" title="Adjuntar documento" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
+              <button onClick={() => fileRef.current?.click()} className="btn-ghost focus-ring" title="Adjuntar documentos, imágenes o audio" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
                 <Icon name="paperclip" size={19} />
               </button>
             )}
             {micEnabled && (
               <button onClick={() => dict.start()} className="btn-ghost focus-ring" title="Dictar por voz" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
                 <Icon name="mic" size={19} />
+              </button>
+            )}
+            {audienciasEnabled && (
+              <button onClick={() => setAudModal(true)} className="btn-ghost focus-ring" title="Analizar audiencia (video o audio)" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
+                <Icon name="play" size={19} />
               </button>
             )}
 
@@ -446,6 +516,27 @@ export function Composer({
             </button>
           </div>
         </>
+      )}
+
+      {audModal && backendUrl && accessToken && (
+        <AudienciaModal
+          backendUrl={backendUrl}
+          accessToken={accessToken}
+          matterId={matterId}
+          sessionId={sessionId}
+          onClose={() => setAudModal(false)}
+          onQueued={(j) => { setAudModal(false); setAudJob({ id: j.id, title: j.title }); }}
+        />
+      )}
+      {audJob && backendUrl && accessToken && (
+        <AudienciaTracker
+          backendUrl={backendUrl}
+          accessToken={accessToken}
+          jobId={audJob.id}
+          title={audJob.title}
+          onQuickSend={onQuickSend}
+          onClose={() => setAudJob(null)}
+        />
       )}
     </div>
   );

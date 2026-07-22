@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { api, type AutopilotSummary } from "./data";
 import { ConfirmNote, SEVERITY } from "./atoms";
+import { EmptyState } from "../atoms";
+import { Coachmark, useFirstVisit } from "../Coachmark";
 
 function fmtWhen(iso: string): string {
   try {
@@ -28,14 +30,23 @@ export function Autopilot({
   const load = useCallback(() => { if (backendUrl && accessToken) api.autopilot(backendUrl, accessToken).then(setAp); }, [backendUrl, accessToken]);
   useEffect(() => { load(); }, [load]);
   const paused = ap?.status === "En pausa";
+  const [coachShow, coachDismiss] = useFirstVisit("autopilot");
+  const isEmpty = !!ap && ap.reviewed.length === 0 && ap.found.length === 0;
 
   return (
     <div style={{ height: "100%", overflow: "auto" }}>
-      <div style={{ maxWidth: 820, margin: "0 auto", padding: "34px 36px 56px" }}>
+      <div className="app-pad" style={{ maxWidth: 820, margin: "0 auto" }}>
+        <Coachmark
+          show={coachShow}
+          onDismiss={coachDismiss}
+          icon="radar"
+          title="Esto es Autopilot"
+          body="Jurovia vigila tus casos y te avisa si una norma cambia o si llega algo del juzgado."
+        />
         <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 26, flexWrap: "wrap" }}>
           <span style={{ width: 52, height: 52, borderRadius: 15, background: "var(--aurora)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="radar" size={26} style={{ color: "#fff" }} /></span>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <h1 style={{ fontSize: 26, fontWeight: 650, margin: 0 }}>Autopilot</h1>
+            <h1 className="h2-fluid" style={{ fontWeight: 650, margin: 0 }}>Autopilot</h1>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 13.5, color: "var(--text-secondary)", flexWrap: "wrap" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: paused ? "var(--text-muted)" : "var(--success)" }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: paused ? "var(--text-muted)" : "var(--success)" }} />{ap?.status || "Activo"}
@@ -56,9 +67,21 @@ export function Autopilot({
           </div>
         )}
 
+        {isEmpty ? (
+          <div className="card" style={{ minHeight: 320 }}>
+            <EmptyState
+              icon="radar"
+              title="Autopilot aún no ha vigilado nada"
+              desc="Conecta tu correo y crea un caso para que Jurovia revise tus juzgados, detecte cambios de norma y prepare borradores para tu aprobación."
+              cta="Revisar ahora"
+              onCta={async () => { pushToast("Revisando…", "primary"); await api.runAutopilot(backendUrl, accessToken); load(); }}
+            />
+          </div>
+        ) : (
+        <>
         <div className="card" style={{ padding: 20, marginBottom: 18 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 14 }}>Revisé</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+          <div className="grid-resp-3" style={{ gap: 14 }}>
             {(ap?.reviewed || []).map((r, i) => (
               <div key={i} style={{ padding: "14px 16px", borderRadius: "var(--r-md)", background: "var(--bg-base)", border: "1px solid var(--border)" }}>
                 <Icon name={r.icon} size={17} style={{ color: "var(--primary)" }} />
@@ -92,6 +115,8 @@ export function Autopilot({
             <ConfirmNote icon="shieldCheck">Autopilot detecta y prepara. Nunca actúa ni radica sin tu aprobación.</ConfirmNote>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

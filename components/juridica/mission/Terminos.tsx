@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { api, type Deadline } from "./data";
 import { DeadlineChip, SEVERITY } from "./atoms";
+import { EmptyState } from "../atoms";
+import { Coachmark, useFirstVisit } from "../Coachmark";
 
 export function Terminos({
   backendUrl, accessToken, onOpenMission,
@@ -12,6 +14,7 @@ export function Terminos({
 }) {
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [range, setRange] = useState<"7" | "30">("30");
+  const [coachShow, coachDismiss] = useFirstVisit("terminos");
   useEffect(() => {
     if (backendUrl && accessToken) api.deadlines(backendUrl, accessToken).then(setDeadlines);
   }, [backendUrl, accessToken]);
@@ -20,9 +23,16 @@ export function Terminos({
 
   return (
     <div style={{ height: "100%", overflow: "auto" }}>
-      <div style={{ maxWidth: 880, margin: "0 auto", padding: "34px 36px 56px" }}>
+      <div className="app-pad" style={{ maxWidth: 880, margin: "0 auto" }}>
+        <Coachmark
+          show={coachShow}
+          onDismiss={coachDismiss}
+          icon="calendarClock"
+          title="Tus plazos, en un solo lugar"
+          body="Tus plazos y vencimientos procesales, en un calendario. Cada término muestra su fundamento legal."
+        />
         <div style={{ marginBottom: 22 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 650, letterSpacing: "-0.02em", margin: 0 }}>Términos y vencimientos</h1>
+          <h1 className="h2-fluid" style={{ fontWeight: 650, letterSpacing: "-0.02em", margin: 0 }}>Términos y vencimientos</h1>
           <p style={{ color: "var(--text-secondary)", margin: "6px 0 0", fontSize: 14.5 }}>Nunca pierdas un término. Cada uno muestra su fundamento legal.</p>
         </div>
 
@@ -53,10 +63,12 @@ export function Terminos({
             })}
           </div>
         ) : (
-          <div className="card" style={{ padding: "40px 24px", textAlign: "center" }}>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--success-soft)", display: "grid", placeItems: "center", margin: "0 auto 14px" }}><Icon name="circleCheck" size={28} style={{ color: "var(--success)" }} /></div>
-            <div style={{ fontWeight: 650, fontSize: 16 }}>Sin términos pendientes</div>
-            <div style={{ fontSize: 13.5, color: "var(--text-muted)", marginTop: 4 }}>No has dejado pasar ningún plazo. Sigue así.</div>
+          <div className="card" style={{ minHeight: 300 }}>
+            <EmptyState
+              icon="calendarClock"
+              title="Sin términos pendientes"
+              desc="Tus plazos y vencimientos procesales aparecerán aquí, en un calendario. Cada uno mostrará su fundamento legal y tú confirmas siempre antes de actuar."
+            />
           </div>
         )}
 

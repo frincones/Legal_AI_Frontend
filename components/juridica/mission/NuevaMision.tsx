@@ -6,6 +6,7 @@ import { Icon } from "../icons";
 import { Composer } from "../shell";
 import { api } from "./data";
 import { ConfirmNote } from "./atoms";
+import { AI_DISCLAIMER } from "../../company";
 
 const SUGGESTIONS = ["Cobrar una deuda con un pagaré", "Demanda laboral por despido", "Tutela de salud contra la EPS", "Contrato de arrendamiento"];
 
@@ -71,6 +72,7 @@ export function NuevaMision({
           blocked={blocked}
           placeholder="Ej. Quiero cobrar una deuda de $50M con un pagaré vencido contra Jorge Molina…"
         />
+        <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.45 }}>{AI_DISCLAIMER}</p>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 16 }}>
           {SUGGESTIONS.map((s) => <button key={s} className="chip" disabled={busy} onClick={() => submit(s)}><Icon name="sparkles" size={14} style={{ color: "var(--primary)" }} />{s}</button>)}

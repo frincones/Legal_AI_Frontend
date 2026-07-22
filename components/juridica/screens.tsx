@@ -4,8 +4,11 @@ import { useState, useEffect, type ReactNode } from "react";
 import { Icon } from "./icons";
 import { Tooltip } from "./atoms";
 import { Composer } from "./shell";
-import { SUGGESTIONS, type LibraryItem } from "./data";
+import { SUGGESTIONS, TASKS, type LibraryItem } from "./data";
 import { ToolLogo } from "./Wizard";
+import { Checklist } from "./Checklist";
+import { EmptyState, UpgradeModal } from "./atoms";
+import { api } from "./mission/data";
 
 /* ============================ HOME ============================ */
 function QuickCard({ icon, title, desc, onClick }: { icon: string; title: string; desc: string; onClick?: () => void }) {
@@ -37,6 +40,34 @@ function QuickCard({ icon, title, desc, onClick }: { icon: string; title: string
   );
 }
 
+function TaskCard({ icon, title, desc, onClick }: { icon: string; title: string; desc: string; onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="card"
+      style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10, padding: "18px 18px", textAlign: "left", cursor: "pointer", transition: "border-color .15s, box-shadow .15s, transform .15s", background: "var(--bg-surface)" }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--primary)";
+        e.currentTarget.style.boxShadow = "var(--sh-2)";
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--border)";
+        e.currentTarget.style.boxShadow = "var(--sh-1)";
+        e.currentTarget.style.transform = "none";
+      }}
+    >
+      <div style={{ width: 40, height: 40, borderRadius: 11, background: "var(--primary-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+        <Icon name={icon} size={19} style={{ color: "var(--primary)" }} />
+      </div>
+      <div>
+        <div style={{ fontSize: 14.5, fontWeight: 650, color: "var(--text)" }}>{title}</div>
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{desc}</div>
+      </div>
+    </button>
+  );
+}
+
 export function Home({
   composerStyle = "elevated",
   onSubmit,
@@ -63,7 +94,7 @@ export function Home({
 }) {
   return (
     <div style={{ height: "100%", overflow: "auto" }}>
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 28px", minHeight: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 clamp(14px,4vw,28px)", minHeight: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div style={{ padding: "60px 0 40px" }}>
           {/* Greeting */}
           <div style={{ marginBottom: 30 }}>
@@ -73,7 +104,7 @@ export function Home({
               </span>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)" }}>Verificado contra fuentes oficiales</span>
             </div>
-            <h1 style={{ fontSize: 38, lineHeight: 1.12, fontWeight: 650, letterSpacing: "-0.025em", margin: 0 }}>
+            <h1 className="h1-fluid" style={{ lineHeight: 1.12, fontWeight: 650, letterSpacing: "-0.025em", margin: 0 }}>
               ¿Qué documento o consulta
               <br />
               legal trabajamos <span className="gradient-text">hoy</span>?
@@ -81,11 +112,37 @@ export function Home({
             <p style={{ fontSize: 16, color: "var(--text-secondary)", margin: "12px 0 0" }}>Redacta, verifica normas y jurisprudencia, y reutiliza tus documentos.</p>
           </div>
 
+          {/* Task cards — el "trabajo por hacer" (no auto-envían) */}
+          <div className="grid-resp-2" style={{ gap: 12, marginBottom: 22 }}>
+            {TASKS.map((t) => (
+              <TaskCard
+                key={t.kind}
+                icon={t.icon}
+                title={t.title}
+                desc={t.desc}
+                onClick={() => {
+                  if (t.kind === "redactar") {
+                    setMode("Documento");
+                    setDraft("Redacta ");
+                  } else if (t.kind === "revisar") {
+                    setDraft("Revisa este documento y dime los riesgos: ");
+                  } else if (t.kind === "consultar") {
+                    setMode("Pregunta");
+                    setDraft("");
+                  } else if (t.kind === "caso") {
+                    onNavigate("expedientes");
+                  }
+                }}
+              />
+            ))}
+          </div>
+
           {/* Composer */}
           <Composer
             value={draft}
             onChange={setDraft}
             onSend={(docIds) => onSubmit(draft, undefined, docIds)}
+            onQuickSend={(text, docs) => onSubmit(text, undefined, docs)}
             style={composerStyle}
             autoFocus
             backendUrl={backendUrl}
@@ -112,10 +169,21 @@ export function Home({
           </div>
 
           {/* Quick access */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 34 }}>
+          <div className="grid-resp-2" style={{ gap: 14, marginTop: 34 }}>
             <QuickCard icon="book" title="Reusar de mi biblioteca" desc="Parte de un documento existente" onClick={() => onNavigate("library")} />
             <QuickCard icon="template" title="Plantillas de la firma" desc="Patrones compartidos y verificados" onClick={() => onNavigate("templates")} />
           </div>
+
+          {/* Checklist de activación (discreto, colapsable, se auto-oculta) */}
+          <Checklist
+            backendUrl={backendUrl}
+            accessToken={accessToken}
+            onNavigate={onNavigate}
+            onStart={(prompt, m) => {
+              if (m) setMode(m);
+              setDraft(prompt);
+            }}
+          />
         </div>
       </div>
     </div>
@@ -137,7 +205,25 @@ function DocThumb({ accent, type }: { accent: string; type: string }) {
   );
 }
 
-function DocCard({ it, onReuse }: { it: LibraryItem; onReuse: () => void }) {
+function DocCard({ it, onReuse, backendUrl, accessToken }: { it: LibraryItem; onReuse: () => void; backendUrl?: string; accessToken?: string }) {
+  const [dlBusy, setDlBusy] = useState<null | "docx" | "pdf">(null);
+  // Descarga real del documento generado (DOCX/PDF) — NO requiere créditos. Reusa /api/artifacts/{id}/{fmt}.
+  async function download(fmt: "docx" | "pdf") {
+    if (!backendUrl || !accessToken || dlBusy) return;
+    setDlBusy(fmt);
+    try {
+      const res = await fetch(`${backendUrl}/api/artifacts/${it.id}/${fmt}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(it.title || "documento").replace(/[^\w.-]+/g, "_")}.${fmt}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch { /* fail-open: no rompe la Biblioteca */ }
+    finally { setDlBusy(null); }
+  }
   return (
     <div
       className="card"
@@ -173,15 +259,16 @@ function DocCard({ it, onReuse }: { it: LibraryItem; onReuse: () => void }) {
           )}
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 13 }}>
-          <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={onReuse}>
-            <Icon name="arrowRight" size={15} />
-            Reusar
+          <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => download("docx")} disabled={dlBusy === "docx"} title="Descargar Word">
+            <Icon name={dlBusy === "docx" ? "sparkles" : "download"} size={15} style={dlBusy === "docx" ? { animation: "spin 2s linear infinite" } : undefined} />
+            {dlBusy === "docx" ? "Descargando…" : "Descargar"}
           </button>
-          <button className="btn btn-secondary btn-sm btn-icon">
-            <Icon name="eye" size={16} />
+          <button className="btn btn-secondary btn-sm" onClick={() => download("pdf")} disabled={dlBusy === "pdf"} title="Descargar PDF">
+            <Icon name={dlBusy === "pdf" ? "sparkles" : "fileText"} size={15} style={dlBusy === "pdf" ? { animation: "spin 2s linear infinite" } : undefined} />
+            PDF
           </button>
-          <button className="btn btn-secondary btn-sm btn-icon">
-            <Icon name="more" size={16} />
+          <button className="btn btn-secondary btn-sm btn-icon" onClick={onReuse} title="Reusar como plantilla">
+            <Icon name="copy" size={16} />
           </button>
         </div>
       </div>
@@ -194,11 +281,17 @@ export function Library({
   onReuse,
   docs,
   templates,
+  onNavigate,
+  backendUrl,
+  accessToken,
 }: {
   initialTab: string;
   onReuse: (it: LibraryItem) => void;
   docs?: LibraryItem[];        // F4: documentos reales del org (/api/artifacts); si vacío, usa mock
   templates?: LibraryItem[];   // F4: patrones reales (/api/patrones); si vacío, usa mock
+  onNavigate?: (r: string) => void;  // opcional: CTA del estado vacío vuelve al inicio
+  backendUrl?: string;         // para descargar los documentos (DOCX/PDF)
+  accessToken?: string;
 }) {
   const [tab, setTab] = useState(initialTab === "templates" ? "Plantillas" : "Mis documentos");
   const [q, setQ] = useState("");
@@ -213,7 +306,7 @@ export function Library({
 
   return (
     <div style={{ height: "100%", overflow: "auto" }}>
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 36px 60px" }}>
+      <div className="app-pad" style={{ maxWidth: 1080, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 22 }}>
           <div>
             <h1 className="t-h1" style={{ margin: 0 }}>Biblioteca</h1>
@@ -247,21 +340,19 @@ export function Library({
 
         {/* Grid */}
         {filtered.length === 0 ? (
-          <div style={{ padding: "60px 24px", textAlign: "center", color: "var(--text-muted)" }}>
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: "var(--bg-elevated-2)", display: "grid", placeItems: "center", margin: "0 auto 14px" }}>
-              <Icon name={tab === "Plantillas" ? "template" : "book"} size={24} />
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>
-              {tab === "Plantillas" ? "Aún no tienes plantillas" : "Aún no tienes documentos"}
-            </div>
-            <div style={{ fontSize: 13.5 }}>
-              {tab === "Plantillas" ? "Cada documento que generes se guarda como plantilla reutilizable." : "Genera tu primer documento desde el inicio y aparecerá aquí."}
-            </div>
+          <div style={{ minHeight: 320 }}>
+            <EmptyState
+              icon={tab === "Plantillas" ? "template" : "book"}
+              title={tab === "Plantillas" ? "Aún no tienes plantillas" : "Aún no tienes documentos"}
+              desc={tab === "Plantillas" ? "Cada documento que generes se guarda como plantilla reutilizable de la firma." : "Genera tu primer documento desde el inicio y aparecerá aquí, listo para reutilizar."}
+              cta="Genera tu primer documento"
+              onCta={() => onNavigate?.("home")}
+            />
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))", gap: 18 }}>
+          <div className="lib-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))", gap: 18 }}>
             {filtered.map((it) => (
-              <DocCard key={it.id} it={it} onReuse={() => onReuse(it)} />
+              <DocCard key={it.id} it={it} onReuse={() => onReuse(it)} backendUrl={backendUrl} accessToken={accessToken} />
             ))}
           </div>
         )}
@@ -364,6 +455,52 @@ export function Settings({
   const [tone, setTone] = useState("Formal jurídico");
   const [theme, setTheme] = useState("Claro");
   const [lang, setLang] = useState("Español");
+  const [showUpg, setShowUpg] = useState(false);
+  const [portalBusy, setPortalBusy] = useState(false);
+  const isPaidPlan = ["estandar", "pro", "firma"].includes(String(credits?.plan || ""));
+
+  // Portal de Paddle (cancelar / facturas / actualizar pago) — abre en pestaña nueva. Fail-safe.
+  async function openBillingPortal() {
+    if (!backendUrl || !accessToken || portalBusy) return;
+    setPortalBusy(true);
+    try {
+      const r = await api.billingPortal(backendUrl, accessToken);
+      if (r?.overview_url) window.open(r.overview_url, "_blank", "noopener");
+      else pushToast?.("Escríbenos a soporte para gestionar tu suscripción.", "info");
+    } catch {
+      pushToast?.("No se pudo abrir el portal. Intenta de nuevo.", "info");
+    }
+    setPortalBusy(false);
+  }
+
+  // L19 — exportar / eliminar cuenta (self-service)
+  const [expBusy, setExpBusy] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delConfirm, setDelConfirm] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
+
+  async function exportMyData() {
+    if (!backendUrl || !accessToken || expBusy) return;
+    setExpBusy(true);
+    try {
+      const d = await api.exportMyData(backendUrl, accessToken);
+      const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "jurovia-mis-datos.json"; a.click();
+      URL.revokeObjectURL(url);
+    } catch { pushToast?.("No se pudo exportar. Intenta de nuevo.", "info"); }
+    setExpBusy(false);
+  }
+
+  async function deleteMyAccount() {
+    if (delConfirm.trim().toUpperCase() !== "ELIMINAR" || !backendUrl || !accessToken || delBusy) return;
+    setDelBusy(true);
+    try {
+      const r = await api.deleteMyAccount(backendUrl, accessToken);
+      if (r?.ok) { onLogout?.(); }
+      else { pushToast?.("No se pudo eliminar. Escríbenos a soporte@juroviapp.com.", "info"); setDelBusy(false); }
+    } catch { pushToast?.("No se pudo eliminar. Intenta de nuevo.", "info"); setDelBusy(false); }
+  }
   const [data, setData] = useState<ProfileData | null>(null);
   const [verifs, setVerifs] = useState<VerifRow[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationRow[]>([]);
@@ -494,11 +631,36 @@ export function Settings({
               {(data?.profile?.primary_jurisdiction || "Colombia")} · {members} {members === 1 ? "miembro" : "miembros"} · {planLabel}
             </div>
           </div>
-          <button className="btn btn-secondary">
-            <Icon name="pencil" size={15} />
-            Editar
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch" }}>
+            <button className="btn btn-primary" onClick={() => setShowUpg(true)}>
+              <Icon name="sparkles" size={15} />
+              Mejorar plan
+            </button>
+            {isPaidPlan && (
+              <button className="btn btn-ghost btn-sm" onClick={openBillingPortal} disabled={portalBusy} style={{ justifyContent: "center" }}>
+                {portalBusy ? "Abriendo…" : "Gestionar suscripción"}
+              </button>
+            )}
+          </div>
         </div>
+        {backendUrl && accessToken && <UpgradeModal open={showUpg} onClose={() => setShowUpg(false)} backendUrl={backendUrl} accessToken={accessToken} />}
+        {delOpen && (
+          <div onClick={() => !delBusy && setDelOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,13,20,0.5)", backdropFilter: "blur(3px)", zIndex: 400, display: "grid", placeItems: "center", padding: 20 }}>
+            <div onClick={(e) => e.stopPropagation()} className="card" style={{ width: "min(460px,96vw)", padding: 24 }}>
+              <div style={{ fontSize: 18, fontWeight: 750, marginBottom: 8, color: "var(--danger, #DC2626)" }}>Eliminar mi cuenta</div>
+              <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
+                Esta acción es <b>permanente</b>: se cancela tu suscripción, se borran tus conversaciones, documentos y datos, y se cierra tu cuenta. <b>No se puede deshacer.</b>
+              </p>
+              <p style={{ fontSize: 13.5, color: "var(--text)", margin: "14px 0 6px" }}>Escribe <b>ELIMINAR</b> para confirmar:</p>
+              <input value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} placeholder="ELIMINAR" autoFocus
+                style={{ width: "100%", padding: "10px 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border-strong)", background: "var(--bg-base)", fontSize: 14.5, color: "var(--text)", fontFamily: "var(--font-ui)", outline: "none" }} />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+                <button className="btn btn-ghost btn-sm" disabled={delBusy} onClick={() => setDelOpen(false)}>Cancelar</button>
+                <button className="btn btn-primary btn-sm" disabled={delConfirm.trim().toUpperCase() !== "ELIMINAR" || delBusy} onClick={deleteMyAccount} style={{ background: "var(--danger, #DC2626)" }}>{delBusy ? "Eliminando…" : "Eliminar definitivamente"}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Section title="Jurisdicción y redacción" icon="scale">
           <Field label="Jurisdicción principal" hint="Define las fuentes oficiales que se consultan por defecto.">
@@ -606,53 +768,34 @@ export function Settings({
           )}
         </Section>
 
-        <Section title="Créditos" icon="coins">
+        <Section title="Plan" icon="coins">
           {isAdmin ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "var(--text)" }}>
               <Icon name="shieldCheck" size={18} style={{ color: "var(--primary)" }} />
-              <span><strong>Créditos ilimitados</strong> · cuenta de administrador.</span>
+              <span><strong>Cuenta de administrador</strong> · uso ilimitado.</span>
             </div>
-          ) : credits?.balance != null ? (
-            (() => {
-              const bal = credits.balance ?? 0;
-              const cap = credits.cap || 0;
-              const pct = cap > 0 ? Math.max(0, Math.min(100, Math.round((bal / cap) * 100))) : 0;
-              const low = cap > 0 && bal <= cap * 0.1;
-              const barColor = bal <= 0 ? "var(--danger, #DC2626)" : low ? "var(--warning)" : "var(--primary)";
-              const isFree = (credits.plan ?? "free") === "free";
-              let trialDays: number | null = null;
-              if (credits.trial_ends_at) {
-                const ms = new Date(credits.trial_ends_at).getTime() - Date.now();
-                trialDays = ms > 0 ? Math.ceil(ms / 86400000) : 0;
-              }
-              return (
-                <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em", color: barColor }}>{bal}</span>
-                    <span style={{ fontSize: 15, color: "var(--text-muted)" }}>de {cap} créditos disponibles</span>
+          ) : (() => {
+            const plan = String(credits?.plan ?? "free");
+            const isFree = plan === "free" || plan === "trial";
+            const label = ({ estandar: "Estándar", pro: "Pro", firma: "Firma" } as Record<string, string>)[plan] || "Gratuito";
+            let trialDays: number | null = null;
+            if (credits?.trial_ends_at) {
+              const ms = new Date(credits.trial_ends_at).getTime() - Date.now();
+              trialDays = ms > 0 ? Math.ceil(ms / 86400000) : 0;
+            }
+            return (
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 650, marginBottom: 4 }}>Plan {label}</div>
+                {isFree && trialDays != null && (
+                  <div style={{ fontSize: 12.5, color: trialDays <= 1 ? "var(--warning)" : "var(--text-muted)", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Icon name="clock" size={13} />
+                    {trialDays > 0 ? `${trialDays} ${trialDays === 1 ? "día restante" : "días restantes"} de prueba` : "Tu prueba gratuita terminó"}
                   </div>
-                  {isFree && trialDays != null && (
-                    <div style={{ fontSize: 12.5, color: trialDays <= 1 ? "var(--warning)" : "var(--text-muted)", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                      <Icon name="clock" size={13} />
-                      {trialDays > 0 ? `Plan Free · ${trialDays} ${trialDays === 1 ? "día restante" : "días restantes"} de prueba` : "Tu prueba gratuita terminó"}
-                    </div>
-                  )}
-                  <div style={{ height: 10, borderRadius: 999, background: "var(--bg-elevated-2)", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 999, transition: "width .3s" }} />
-                  </div>
-                  <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 10 }}>
-                    {isFree
-                      ? "Cada consulta o documento del asistente consume créditos del plan Free."
-                      : "Cada consulta o documento del asistente consume créditos. Se renuevan automáticamente cada mes."}
-                    {bal <= 0 && " Te quedaste sin créditos: el asistente está bloqueado."}
-                    {isFree && trialDays === 0 && " Tu prueba gratuita terminó: el asistente está bloqueado."}
-                  </div>
-                </div>
-              );
-            })()
-          ) : (
-            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Cargando créditos…</div>
-          )}
+                )}
+                <button className="btn btn-primary btn-sm" onClick={() => setShowUpg(true)}><Icon name="sparkles" size={15} />Mejorar plan</button>
+              </div>
+            );
+          })()}
         </Section>
 
         <Section title="Auditoría de fuentes" icon="shieldCheck">
@@ -684,6 +827,36 @@ export function Settings({
               })}
             </div>
           )}
+        </Section>
+
+        <Section title="Soporte" icon="message">
+          <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.65 }}>
+            ¿Necesitas ayuda? Escríbenos a <a href="mailto:soporte@juroviapp.com" style={{ color: "var(--primary)", fontWeight: 600 }}>soporte@juroviapp.com</a> o visita el{" "}
+            <a href="/ayuda" target="_blank" rel="noopener" style={{ color: "var(--primary)", fontWeight: 600 }}>Centro de ayuda</a>. Respondemos entre 24 y 72 horas.{" "}
+            Consulta la <a href="/cancelacion" target="_blank" rel="noopener" style={{ color: "var(--primary)", fontWeight: 600 }}>Política de Cancelación y Reembolsos</a>.
+          </div>
+        </Section>
+
+        <Section title="Seguridad y datos" icon="lock">
+          <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.65 }}>
+            Tus conversaciones y documentos <b>no se usan para entrenar modelos de IA</b>. Ciframos tu
+            información en tránsito (TLS) y en reposo (AES-256), con aislamiento por organización. Más
+            detalles en la <a href="/privacidad" target="_blank" rel="noopener" style={{ color: "var(--primary)", fontWeight: 600 }}>Política de Privacidad</a>.
+          </div>
+        </Section>
+
+        <Section title="Mi cuenta y datos" icon="user">
+          <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 14 }}>
+            Descarga una copia de tus datos o elimina tu cuenta de forma permanente (Ley 1581).
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button className="btn btn-secondary btn-sm" onClick={exportMyData} disabled={expBusy}>
+              <Icon name="download" size={15} />{expBusy ? "Preparando…" : "Descargar mis datos"}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setDelOpen(true); setDelConfirm(""); }} style={{ color: "var(--danger, #DC2626)" }}>
+              Eliminar mi cuenta
+            </button>
+          </div>
         </Section>
 
         <div style={{ display: "flex", gap: 10, marginTop: 26 }}>

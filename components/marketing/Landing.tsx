@@ -6,10 +6,15 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon, Logo } from "../juridica/icons";
 import {
-  TrustBar, ProblemSection, PillarsSection, HowItWorks, DiffTable, Pricing, FAQ, FinalCTA, Footer,
+  TrustBar, CapabilitiesSection, ProblemSection, PillarsSection, HowItWorks, DiffTable, Pricing, FAQ, AppDisclaimer, FinalCTA, Footer, HeroPreview,
   type Plan,
 } from "./sections";
-import { GuestChat, RegisterModal } from "./GuestChat";
+import { GuestChat } from "./GuestChat";
+import { WaitlistModal } from "./WaitlistModal";
+import { DemoPlansModal } from "./DemoPlansModal";
+import { api } from "../juridica/mission/data";
+import { createClient } from "@/lib/supabase/client";
+import { initTracker, track } from "@/lib/tracker";
 
 const NAV_LINKS: [string, string][] = [
   ["Producto", "solucion"],
@@ -18,17 +23,19 @@ const NAV_LINKS: [string, string][] = [
   ["Preguntas", "preguntas"],
 ];
 
-const HERO_CHIPS = [
-  "¿Está vigente este artículo?",
-  "Resume esta sentencia con su fuente",
-  "Requisitos de una acción de tutela",
-  "¿Qué jurisprudencia aplica a un despido sin justa causa?",
-];
+// Deep-link del ad: /?demo=<key> auto-siembra esta consulta en el chat invitado (turno 0 = demo en vivo).
+// La cita debe estar warm en fuente_cache. Aditivo: sin `?demo=`, nada de esto se activa.
+const DEMO_SEEDS: Record<string, string> = {
+  citas:   "¿Sigue vigente la Ley 2101 de 2021?",                                   // warm (validada)
+  norma:   "¿Está vigente el artículo 90 del Código General del Proceso?",          // recalentar antes de usar
+  laboral: "¿Sigue vigente el artículo 65 del Código Sustantivo del Trabajo?",      // recalentar antes de usar
+};
 
 const FALLBACK_PLANS: Plan[] = [
-  { tier: "free", name: "Free", active: true, price_usd: 0, credits: 10, trial_days: 7, blurb: "Prueba Jurovia con 10 créditos durante 7 días." },
-  { tier: "pro", name: "Pro", active: false, price_usd: null, credits: null, trial_days: null, blurb: "Para el abogado independiente." },
-  { tier: "team", name: "Equipo / Firma", active: false, price_usd: null, credits: null, trial_days: null, blurb: "Para firmas y equipos." },
+  { tier: "free", name: "Free", active: true, price_usd: 0, credits: 10, trial_days: 7, blurb: "Prueba Jurovia con 10 usos durante 7 días." },
+  { tier: "estandar", name: "Estándar", active: false, price_usd: 9, credits: null, trial_days: null, blurb: "Para el abogado independiente." },
+  { tier: "pro", name: "Pro", active: false, price_usd: 18, credits: null, trial_days: null, blurb: "Para el abogado que no para." },
+  { tier: "firma", name: "Firma", active: false, price_usd: 45, credits: null, trial_days: null, blurb: "Toda tu firma, en sintonía." },
 ];
 
 function scrollToId(id: string) {
@@ -75,53 +82,56 @@ function LandingNav({ authed, onStart, onLogin, onNav, onPanel }: {
   );
 }
 
-/* ---------- Hero with central composer ---------- */
-function Hero({ onTry }: { onTry: (text: string) => void }) {
-  const [val, setVal] = useState("");
-  const taRef = useRef<HTMLTextAreaElement>(null);
-  const [focus, setFocus] = useState(false);
-  useEffect(() => { const el = taRef.current; if (el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 200) + "px"; } }, [val]);
-  const canSend = val.trim().length > 0;
-
+/* ---------- Hero (product-led, framing de software B2B — sin chat público) ---------- */
+function Hero({ onCreate, onNav, onBeta, inviteOnly }: {
+  onCreate: () => void; onNav: (id: string) => void; onBeta: () => void; inviteOnly: boolean;
+}) {
+  const createLabel = inviteOnly ? "Únete a la beta" : "Crea el espacio de tu firma";
   return (
     <header style={{ position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", inset: 0, background: "var(--grad-mesh)", opacity: 0.9 }} />
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(100% 70% at 50% 0%, transparent 50%, var(--bg-base) 92%)" }} />
+      <div className="hero-bg" style={{ position: "absolute", inset: 0, background: "var(--grad-mesh)", opacity: 0.9 }} />
+      <div className="hero-bg" style={{ position: "absolute", inset: 0, background: "radial-gradient(100% 70% at 50% 0%, transparent 50%, var(--bg-base) 92%)" }} />
 
       <div className="land-container" style={{ position: "relative", paddingTop: 76, paddingBottom: 64, textAlign: "center" }}>
-        <div className="eyebrow" style={{ justifyContent: "center" }}><span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--aurora)", display: "grid", placeItems: "center" }}><Icon name="sparkles" size={12} style={{ color: "#fff" }} /></span>Copiloto jurídico verificable</div>
+        {/* ---- Desktop / tablet ---- */}
+        <div className="land-hide-mobile">
+        <div className="eyebrow" style={{ justifyContent: "center" }}><span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--aurora)", display: "grid", placeItems: "center" }}><Icon name="sparkles" size={12} style={{ color: "#fff" }} /></span>Software para firmas y abogados de Colombia</div>
 
-        <h1 style={{ fontSize: "clamp(32px, 5.2vw, 54px)", lineHeight: 1.08, fontWeight: 700, letterSpacing: "-0.03em", margin: "20px auto 0", maxWidth: 880, textWrap: "balance" }}>
-          Pregúntale al derecho colombiano.<br />Con fuentes que <span className="gradient-text">puedes citar</span>.
+        <h1 style={{ fontSize: "clamp(32px, 5.2vw, 54px)", lineHeight: 1.08, fontWeight: 700, letterSpacing: "-0.03em", margin: "20px auto 0", maxWidth: 900, textWrap: "balance" }}>
+          El software que ayuda a tu firma a <span className="gradient-text">redactar y organizar</span> sus casos.
         </h1>
-        <p style={{ fontSize: 18, color: "var(--text-secondary)", margin: "18px auto 0", maxWidth: 580, lineHeight: 1.55 }}>
-          Escribe tu consulta y recibe una respuesta verificada contra las fuentes oficiales — con el enlace de cada norma. Pruébalo ahora, sin registrarte.
+        <p style={{ fontSize: 18, color: "var(--text-secondary)", margin: "18px auto 0", maxWidth: 640, lineHeight: 1.55 }}>
+          Herramienta de software para profesionales del derecho: genera borradores en Word, organiza tus expedientes y contrasta tus citas con las fuentes oficiales — para que el abogado revise y decida más rápido.
+        </p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "12px auto 0", maxWidth: 560, lineHeight: 1.5 }}>
+          Software para abogados con tarjeta profesional. No es un bufete y no presta asesoría legal.
         </p>
 
-        <div style={{ maxWidth: 720, margin: "36px auto 0" }}>
-          <div style={{ position: "relative", borderRadius: 26, padding: 1.5, background: focus ? "var(--aurora)" : "var(--border-strong)", transition: "background .2s", boxShadow: focus ? "0 18px 50px -16px rgba(123,61,245,0.45)" : "var(--sh-3)" }}>
-            <div style={{ background: "var(--bg-surface)", borderRadius: 24.5, padding: "8px 8px 8px 22px" }}>
-              <textarea ref={taRef} value={val} rows={1} className="land-composer"
-                onChange={(e) => setVal(e.target.value)}
-                onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (canSend) onTry(val); } }}
-                placeholder="Escribe tu consulta jurídica… (ej. ¿Sigue vigente el artículo 64 del CST?)"
-                style={{ width: "100%", resize: "none", border: "none", outline: "none", background: "transparent", fontSize: 16.5, lineHeight: 1.5, color: "var(--text)", fontFamily: "var(--font-ui)", padding: "14px 0 4px", display: "block", maxHeight: 200 }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 4 }}>
-                <span style={{ fontSize: 12.5, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}><Icon name="shieldCheck" size={14} style={{ color: "var(--gold)" }} />Respuesta con fuentes verificadas</span>
-                <span style={{ flex: 1 }} />
-                <button title="Dictado por voz" className="btn-ghost focus-ring" style={{ border: "none", width: 42, height: 42, borderRadius: 11, display: "grid", placeItems: "center", color: "var(--text-muted)" }}><Icon name="mic" size={20} /></button>
-                <button onClick={() => canSend && onTry(val)} disabled={!canSend} style={{ width: 44, height: 44, borderRadius: 13, border: "none", background: canSend ? "var(--aurora)" : "var(--bg-elevated-2)", color: canSend ? "#fff" : "var(--text-muted)", display: "grid", placeItems: "center", flexShrink: 0, boxShadow: canSend ? "var(--glow-primary)" : "none", transition: "all .15s" }}><Icon name="arrowUp" size={21} stroke={2.4} /></button>
-              </div>
-            </div>
-          </div>
-          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "14px 0 0" }}>Pruébalo sin registrarte · gratis.</p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 30, flexWrap: "wrap" }}>
+          <button className="btn btn-primary btn-lg" onClick={onCreate}>{createLabel}<Icon name="arrowRight" size={17} stroke={2.2} /></button>
+          <button className="btn btn-secondary btn-lg" onClick={() => onNav("como-funciona")}><Icon name="target" size={16} />Ver cómo funciona</button>
+        </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 9, justifyContent: "center", marginTop: 20 }}>
-            {HERO_CHIPS.map((c, i) => (
-              <button key={i} className="chip" onClick={() => onTry(c)}>{c}</button>
-            ))}
+        <HeroPreview />
+        </div>{/* /desktop */}
+
+        {/* ---- Móvil ---- */}
+        <div className="land-hide-desktop" style={{ minHeight: "calc(100svh - 280px)", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
+          <h1 style={{ fontSize: "clamp(28px, 8.5vw, 36px)", lineHeight: 1.1, fontWeight: 700, letterSpacing: "-0.02em", margin: 0, textWrap: "balance" }}>
+            El software de tu firma para redactar y gestionar casos.
+          </h1>
+          <p style={{ fontSize: 16, color: "var(--text-secondary)", margin: "14px 0 0", lineHeight: 1.5, maxWidth: 420 }}>
+            Genera borradores, verifica tus citas y organiza tus casos. <span className="gradient-text">Tú revisas y decides.</span>
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 30, width: "100%", maxWidth: 360 }}>
+            <button className="btn btn-lg cta-beta" style={{ width: "100%" }} onClick={onBeta}>
+              {createLabel}<Icon name="arrowRight" size={17} stroke={2.2} />
+            </button>
+            <button className="btn btn-lg cta-chat" style={{ width: "100%" }} onClick={() => onNav("como-funciona")}>
+              <Icon name="target" size={16} />Ver cómo funciona
+            </button>
           </div>
+          <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "18px 0 0" }}>Software para abogados · sin tarjeta.</p>
         </div>
       </div>
     </header>
@@ -134,45 +144,173 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS);
   const [view, setView] = useState<"landing" | "guest">("landing");
   const [seed, setSeed] = useState("");
-  const [register, setRegister] = useState(false);
+  const [register, setRegister] = useState<false | string>(false);
+  const [inviteOnly, setInviteOnly] = useState(false);
+  const [demoKey, setDemoKey] = useState<string | null>(null);                                   // ad deep-link demo
+  const [regCtx, setRegCtx] = useState<Record<string, unknown> | undefined>(undefined);          // "qué probó" → waitlist
+  const [forceWaitlist, setForceWaitlist] = useState(false);   // "continuar gratis" desde la modal de planes
+  const [initialEmail, setInitialEmail] = useState("");        // email traído de la modal de planes
+  const [directPlans, setDirectPlans] = useState<{ tier?: string; email?: string } | null>(null);   // deep-link BOFU: ?checkout/?planes → modal de planes directo
 
   useEffect(() => {
     if (!backendUrl) return;
+    initTracker(backendUrl);  // analytics first-party (autocapture landing + guest)
     fetch(`${backendUrl}/api/plans`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d?.plans?.length) setPlans(d.plans); })
       .catch(() => { /* usa fallback */ });
+    // Modo invitación: si está activo, los CTA de "empezar" abren la waitlist en vez del registro.
+    api.checkAccess(backendUrl, "").then((a) => setInviteOnly(!!a.invite_only)).catch(() => {});
   }, [backendUrl]);
 
   useEffect(() => { document.body.style.overflow = view === "guest" ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [view]);
 
+  // Ad deep-link: /?demo=<key> (solo invitado) → abre el chat con la consulta de la demo auto-sembrada.
+  // Una sola vez. Si no hay `?demo=` válido o hay sesión, no hace nada → comportamiento idéntico al de hoy.
+  useEffect(() => {
+    if (authed) return;
+    try {
+      const k = new URLSearchParams(window.location.search).get("demo");
+      if (k && DEMO_SEEDS[k]) { setDemoKey(k); setSeed(DEMO_SEEDS[k]); setView("guest"); track("demo_opened", { key: k }); }
+    } catch { /* noop */ }
+  }, [authed]);
+
+  // Deep-link BOFU: /?checkout=<tier> o /?planes (+ opcional &e=<email>) → abre la modal de planes DIRECTO
+  // (salta el demo). Registrados: si ya hay sesión, deja el plan pendiente y entra a la app → UpgradeModal.
+  // Una sola vez. Sin params, nada cambia. Aditivo, fail-open.
+  const checkoutDoneRef = useRef(false);
+  useEffect(() => {
+    if (checkoutDoneRef.current) return;
+    let tier = "", planes = false, em = "";
+    try {
+      const q = new URLSearchParams(window.location.search);
+      tier = q.get("checkout") || ""; planes = q.has("planes"); em = q.get("e") || "";
+    } catch { return; }
+    if (!tier && !planes) return;
+    checkoutDoneRef.current = true;
+    const VALID = ["estandar", "pro", "firma"];
+    const validTier = VALID.includes(tier) ? tier : undefined;
+    track("checkout_link_opened", { tier: validTier ?? null, via: "ad", has_email: !!em });
+    if (authed) {   // ya logueado → entra a la app y abre el upgrade in-app (pieza App.tsx)
+      // Con tier → pre-selecciona; sin tier (?planes) → "select" = abre el modal en la selección de planes.
+      try { localStorage.setItem("jurovia_pending_upgrade", validTier || "select"); } catch { /* noop */ }
+      router.push("/chat"); return;
+    }
+    setDirectPlans({ tier: validTier, email: em || undefined });
+  }, [authed, router]);
+
+  // Deep-link de campaña por correo: /?ask=<pregunta>&e=<email>&t=<firma>. El backend decide el destino:
+  //  - guest  → abre el chat invitado con la pregunta sembrada (flujo actual, sin login).
+  //  - login  → auto-login (magic-link firmado) y aterriza en su cuenta con la pregunta pendiente.
+  // Una sola vez. Sin `?ask=`, no se activa nada → comportamiento idéntico al de hoy. Fail-open.
+  const askDoneRef = useRef(false);
+  useEffect(() => {
+    if (askDoneRef.current) return;
+    let ask = "", em = "", sig = "";
+    try {
+      const q = new URLSearchParams(window.location.search);
+      ask = q.get("ask") || ""; em = q.get("e") || ""; sig = q.get("t") || "";
+    } catch { return; }
+    if (!ask.trim()) return;
+    askDoneRef.current = true;
+    track("email_ask_opened", { has_email: !!em });
+    // Ya con sesión → directo a su cuenta con la pregunta pendiente.
+    if (authed) {
+      try { localStorage.setItem("jurovia_pending_ask", ask); } catch { /* noop */ }
+      router.push("/chat"); return;
+    }
+    if (!em) { setSeed(ask); setView("guest"); return; }   // sin email firmado → guest con prefill
+    (async () => {
+      try {
+        const r = await api.resolveIdea(backendUrl, { email: em, sig, ask });
+        if (r.mode === "login" && r.token_hash) {
+          try { localStorage.setItem("jurovia_pending_ask", ask); } catch { /* noop */ }
+          const { error } = await createClient().auth.verifyOtp({ token_hash: r.token_hash, type: "magiclink" });
+          if (!error) { track("email_ask_login", {}); router.push("/chat"); return; }
+        }
+      } catch { /* fail-open → guest */ }
+      setSeed(ask); setView("guest");   // cualquier otro caso → flujo invitado con la pregunta
+    })();
+  }, [authed, backendUrl, router]);
+
   const goLogin = () => router.push("/login");
   const goPanel = () => router.push("/chat");
-  // Cero fricción: escribir en el hero abre el chat de invitado (sin login) con el seed.
-  // Si ya hay sesión, va directo al panel.
-  const onTry = (text: string) => {
-    if (authed) { goPanel(); return; }
-    setSeed(text); setView("guest"); window.scrollTo(0, 0);
-  };
+  // Abre el registro conservando el contexto de "qué probó" (para el waitlist). Los CTAs normales no lo pasan.
+  const openRegister = (source: string, context?: Record<string, unknown>) => { setRegCtx(context); setRegister(source); };
+  const readGuestId = (): string | undefined => { try { return localStorage.getItem("juridica_guest_id") || undefined; } catch { return undefined; } };
+  // En modo invitación abre la waitlist; si no, va al registro normal. `source` alimenta el embudo.
+  const startWaitlist = (source: string) => setRegister(source);       // TODOS los CTA → muro de planes (trial 7 días)
+  const onStart = () => startWaitlist("register_cta");
+  // Nota: el home ya NO expone un chat público (blindaje para revisión de MoR). El demo en vivo sigue
+  // disponible solo por deep-link de campaña: /?demo=<key> y /?ask=<pregunta> (más abajo).
+
+  // Embudo: registra cuándo se abre la waitlist (CTA / límite guest).
+  useEffect(() => { if (register) track("waitlist_opened", { source: register }); }, [register]);
 
   return (
     <>
-      <div style={{ minHeight: "100%", background: "var(--bg-base)" }}>
-        <LandingNav authed={authed} onStart={goLogin} onLogin={goLogin} onNav={scrollToId} onPanel={goPanel} />
-        <Hero onTry={onTry} />
+      <div className="land-root-pad" style={{ minHeight: "100%", background: "var(--bg-base)" }}>
+        <LandingNav authed={authed} onStart={onStart} onLogin={goLogin} onNav={scrollToId} onPanel={goPanel} />
+        <Hero onCreate={() => startWaitlist("hero")} onNav={scrollToId} onBeta={() => startWaitlist("hero_mobile")} inviteOnly={inviteOnly} />
         <TrustBar />
+        <CapabilitiesSection />
         <ProblemSection />
         <PillarsSection />
         <HowItWorks />
         <DiffTable />
-        <Pricing plans={plans} onStart={goLogin} />
+        <Pricing plans={plans} onStart={onStart} />
         <FAQ />
-        <FinalCTA onStart={goLogin} />
-        <Footer onStart={goLogin} onNav={scrollToId} />
+        <AppDisclaimer />
+        <FinalCTA onStart={onStart} />
+        <Footer onStart={onStart} onNav={scrollToId} />
       </div>
 
-      {view === "guest" && <GuestChat seed={seed} backendUrl={backendUrl} onBack={() => setView("landing")} onRegister={() => setRegister(true)} />}
-      {register && <RegisterModal onClose={() => setRegister(false)} onGo={goLogin} />}
+      {/* Sticky CTA móvil — solo landing (no guest), no sobre el modal, oculto en desktop */}
+      {!authed && inviteOnly && view === "landing" && !register && (
+        <div className="land-hide-desktop land-sticky-cta">
+          <button className="btn btn-lg cta-beta" style={{ width: "100%" }} onClick={() => startWaitlist("sticky_mobile")}>
+            Únete a la beta<Icon name="arrowRight" size={17} stroke={2.2} />
+          </button>
+        </div>
+      )}
+
+      {view === "guest" && (
+        <GuestChat
+          seed={seed}
+          demoKey={demoKey ?? undefined}
+          backendUrl={backendUrl}
+          onBack={() => { setView("landing"); setDemoKey(null); }}
+          onRegister={(ctx) => openRegister(demoKey ? `demo_${demoKey}` : "guest_limit", ctx?.context)}
+        />
+      )}
+      {register && (
+        (!forceWaitlist) ? (   // muro de planes (trial) para TODOS los orígenes; el escape "continuar gratis" → WaitlistModal
+          <DemoPlansModal
+            backendUrl={backendUrl}
+            context={regCtx}
+            onClose={() => { setRegister(false); setRegCtx(undefined); setForceWaitlist(false); }}
+            onFree={(em) => { if (em) setInitialEmail(em); setForceWaitlist(true); }}
+          />
+        ) : (
+          <WaitlistModal
+            backendUrl={backendUrl}
+            source={typeof register === "string" ? register : "register_cta"}
+            guestId={readGuestId()}
+            context={regCtx}
+            initialEmail={initialEmail}
+            onClose={() => { setRegister(false); setRegCtx(undefined); setForceWaitlist(false); setInitialEmail(""); }}
+          />
+        )
+      )}
+      {directPlans && !register && (
+        <DemoPlansModal
+          backendUrl={backendUrl}
+          initialTier={directPlans.tier}
+          initialEmail={directPlans.email}
+          onClose={() => setDirectPlans(null)}
+          onFree={(em) => { setDirectPlans(null); if (em) setInitialEmail(em); setRegister("register_cta"); }}
+        />
+      )}
     </>
   );
 }

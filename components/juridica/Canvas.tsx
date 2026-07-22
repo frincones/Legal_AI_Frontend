@@ -3,8 +3,11 @@
 import { useRef, useState, useEffect, type ReactNode } from "react";
 import { Icon } from "./icons";
 import { ChatMessage } from "./shell";
+import { useIsMobile } from "./useResponsive";
 import { AgentAvatar, StepChip, Reasoning, ArtifactCard, VerifiedChip, STATUS_META } from "./atoms";
 import type { Citation } from "./data";
+import { api } from "./mission/data";
+import { AI_DOC_NOTE } from "../company";
 
 /* ============================================================
    Types — the real artifact model from the SSE `artifact` event
@@ -197,14 +200,14 @@ export function DocumentView({
       )}
 
       {/* The "paper" */}
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "44px 0 80px" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "clamp(16px,4vw,44px) clamp(10px,3vw,0px) 80px" }}>
         <div
           style={{
             background: "#fff",
             border: "1px solid var(--border)",
             borderRadius: 6,
             boxShadow: "var(--sh-3)",
-            padding: "64px 68px",
+            padding: "clamp(24px,6vw,64px) clamp(16px,5vw,68px)",
             fontFamily: "var(--font-doc)",
             color: "#15110B",
             fontSize: 16,
@@ -427,6 +430,9 @@ export function Canvas({
   narrow?: boolean;
   pushToast?: (text: string, kind?: string) => void;
 }) {
+  // F3 — En teléfono forzamos el modo pestañas (Chat/Documento) aunque el padre no pase `narrow`.
+  const isMobile = useIsMobile();
+  const tabsMode = narrow || isMobile;
   const [messages, setMessages] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
   const [reveal, setReveal] = useState(999);
@@ -454,6 +460,7 @@ export function Canvas({
   const editArtifactId = useRef<string | null>(null);
   const reuseConsumed = useRef(false);   // F4: reuse_patron_id se aplica solo en el primer mensaje
   const [pdfBusy, setPdfBusy] = useState(false);   // F5: export PDF on-demand
+  const [docxBusy, setDocxBusy] = useState(false); // descarga DOCX fresca (evita signed URL caducada)
 
   const versions = Object.keys(versionStore)
     .map(Number)
@@ -591,7 +598,12 @@ export function Canvas({
         } else if (event === "error") patchTurn((t) => (t.text += `\n\n⚠️ ${data.message}`));
       }
     } catch (err: any) {
-      patchTurn((t) => (t.text += `\n\n⚠️ Error: ${err.message}`));
+      // Corte de red (SSE): mensaje claro y accionable en vez del críptico "Load failed".
+      const em = String(err?.message || "");
+      const friendly = /load failed|failed to fetch|networkerror|interrump|conexi/i.test(em)
+        ? "⚠️ Se perdió la conexión. Vuelve a enviar tu mensaje para reintentar."
+        : `⚠️ Error: ${em}`;
+      patchTurn((t) => (t.text += `\n\n${friendly}`));
     } finally {
       setBusy(false);
     }
@@ -667,6 +679,32 @@ export function Canvas({
     }
   }
 
+  // Descarga el DOCX FRESCO del backend (re-firmado al momento del clic) → nunca caduca.
+  async function downloadDocx() {
+    if (!activeArtifact || docxBusy) return;
+    setDocxBusy(true);
+    try {
+      const res = await fetch(`${backendUrl}/api/artifacts/${activeArtifact.id}/docx?version=${activeArtifact.version}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(activeArtifact.title || "documento").replace(/[^\w.-]+/g, "_")}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err: any) {
+      if (activeArtifact?.uri) window.open(activeArtifact.uri, "_blank");
+      else if (pushToast) pushToast(`No se pudo descargar el DOCX: ${err.message}`, "info");
+    } finally {
+      setDocxBusy(false);
+    }
+  }
+
   function runEdit() {
     if (!followup.trim() || busy) return;
     const instruction = followup.trim();
@@ -682,7 +720,7 @@ export function Canvas({
   // ===== chat pane =====
   const chatPane = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-surface)", minWidth: 0 }}>
-      <div ref={chatRef} style={{ flex: 1, overflow: "auto", padding: "22px 22px 8px" }}>
+      <div ref={chatRef} style={{ flex: 1, overflow: "auto", padding: "clamp(14px,4vw,22px) clamp(14px,4vw,22px) 8px" }}>
         {/* F4 — Banner de reutilización: indica con qué plantilla se trabaja en el chat vacío. */}
         {reusePatronId && messages.length === 0 && (
           <div className="fade-up" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", textAlign: "center", gap: 16, padding: "0 24px" }}>
@@ -749,7 +787,7 @@ export function Canvas({
                 )}
                 {t.artifact && (
                   <div className="fade-up" style={{ marginTop: 14 }}>
-                    <ArtifactCard doc={{ title: t.artifact.title, version: t.artifact.version, uri: t.artifact.uri }} sources={Object.keys(t.artifact.citations).length} onOpen={() => setTab("doc")} backendUrl={backendUrl} accessToken={accessToken} artifactId={t.artifact.id} version={t.artifact.version} />
+                    <ArtifactCard doc={{ title: t.artifact.title, version: t.artifact.version, uri: t.artifact.uri }} sources={Object.keys(t.artifact.citations).length} onOpen={() => setTab("doc")} backendUrl={backendUrl} accessToken={accessToken} artifactId={t.artifact.id} version={t.artifact.version} onDocFeedback={(verdict, comment) => api.submitFeedback(backendUrl, accessToken, { kind: "document", verdict, comment, artifact_id: t.artifact!.id, session_id: sessionId.current })} />
                     {t.kind === "gen" && (
                       <>
                         <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
@@ -809,7 +847,7 @@ export function Canvas({
               }
             }}
             placeholder={selContext ? "Describe el cambio para la selección…" : hasDoc ? "Pide un cambio o una nueva sección…" : "Escribe tu mensaje…"}
-            style={{ flex: 1, resize: "none", border: "none", outline: "none", background: "transparent", fontSize: 14, lineHeight: 1.5, color: "var(--text)", fontFamily: "var(--font-ui)", padding: "8px 0", maxHeight: 120 }}
+            style={{ flex: 1, resize: "none", border: "none", outline: "none", background: "transparent", fontSize: isMobile ? 16 : 14, lineHeight: 1.5, color: "var(--text)", fontFamily: "var(--font-ui)", padding: "8px 0", maxHeight: 120 }}
           />
           <button
             onClick={runEdit}
@@ -846,18 +884,11 @@ export function Canvas({
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--grad-gold)" }} /> Verificado · v{currentVersion || 1} · DOCX
           </div>
         </div>
-        {activeArtifact?.uri ? (
-          <a className="btn btn-secondary btn-sm" href={activeArtifact.uri} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-            <Icon name="download" size={15} />
-            DOCX
-          </a>
-        ) : (
-          <button className="btn btn-secondary btn-sm" disabled={!hasDoc}>
-            <Icon name="download" size={15} />
-            DOCX
-          </button>
-        )}
-        <button className="btn btn-ghost btn-sm" onClick={downloadPdf} disabled={!hasDoc || pdfBusy} style={{ display: narrow ? "none" : undefined }}>
+        <button className="btn btn-secondary btn-sm" onClick={downloadDocx} disabled={!hasDoc || docxBusy}>
+          <Icon name={docxBusy ? "sparkles" : "download"} size={15} style={docxBusy ? { animation: "spin 2s linear infinite" } : undefined} />
+          {docxBusy ? "Descargando…" : "DOCX"}
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={downloadPdf} disabled={!hasDoc || pdfBusy} style={{ display: tabsMode ? "none" : undefined }}>
           <Icon name={pdfBusy ? "sparkles" : "download"} size={15} style={pdfBusy ? { animation: "spin 2s linear infinite" } : undefined} />
           {pdfBusy ? "Generando…" : "PDF"}
         </button>
@@ -870,6 +901,10 @@ export function Canvas({
           <Icon name="shieldCheck" size={17} />
         </button>
       </div>
+
+      {hasDoc && (
+        <div style={{ padding: "7px 18px", background: "var(--bg-elevated-2)", borderBottom: "1px solid var(--border)", fontSize: 11.5, color: "var(--text-muted)", lineHeight: 1.4 }}>{AI_DOC_NOTE}</div>
+      )}
 
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -884,7 +919,19 @@ export function Canvas({
             </div>
           )}
         </div>
-        {sourcesOpen && <SourcesPanel citations={docCitations} onClose={() => setSourcesOpen(false)} />}
+        {sourcesOpen && (
+          tabsMode ? (
+            // En móvil/angosto: el panel de fuentes se vuelve overlay (no roba ancho al documento).
+            <div className="fade-in" style={{ position: "absolute", inset: 0, zIndex: 20, display: "flex", justifyContent: "flex-end" }}>
+              <div onClick={() => setSourcesOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(13,19,32,0.42)" }} />
+              <div style={{ position: "relative", maxWidth: "86%" }}>
+                <SourcesPanel citations={docCitations} onClose={() => setSourcesOpen(false)} />
+              </div>
+            </div>
+          ) : (
+            <SourcesPanel citations={docCitations} onClose={() => setSourcesOpen(false)} />
+          )
+        )}
       </div>
 
       {versions.length > 0 && (
@@ -928,7 +975,7 @@ export function Canvas({
     );
   }
 
-  if (narrow) {
+  if (tabsMode) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", gap: 4, padding: "8px 12px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>

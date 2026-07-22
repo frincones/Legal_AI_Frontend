@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { api, type AttentionData, type AutopilotSummary, type Mission } from "./data";
 import { ProgressBar, SectionLabel, SEVERITY } from "./atoms";
+import { Coachmark, useFirstVisit } from "../Coachmark";
+import { EmptyState } from "../atoms";
 
 type Card = { severity: "critico" | "pronto" | "ok"; gold?: boolean; icon: string; eyebrow: string; title: string; sub: string; suggestion: string; action: string; onAction: () => void };
 
@@ -54,7 +56,6 @@ export function MissionControl({
   const [missions, setMissions] = useState<Mission[]>([]);
   const [att, setAtt] = useState<AttentionData>({ criticos: 0, terminos: 0, actuaciones: 0, items: [] });
   const [ap, setAp] = useState<AutopilotSummary | null>(null);
-  const [credits, setCredits] = useState<{ balance: number | null; cap: number | null }>({ balance: null, cap: null });
   const [dateStr, setDateStr] = useState("");
 
   useEffect(() => {
@@ -62,14 +63,22 @@ export function MissionControl({
     api.missions(backendUrl, accessToken).then(setMissions);
     api.attention(backendUrl, accessToken).then(setAtt);
     api.autopilot(backendUrl, accessToken).then(setAp);
-    api.credits(backendUrl, accessToken).then((c) => setCredits({ balance: c.balance, cap: c.cap }));
     try {
       setDateStr(new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "short" }));
     } catch { /* ignore */ }
   }, [backendUrl, accessToken]);
 
+  const [coachShow, coachDismiss] = useFirstVisit("missioncontrol");
   const name = (email || "").split("@")[0] || "abogado";
   const allClear = att.criticos === 0 && att.terminos === 0 && att.actuaciones === 0;
+  const daysLeftOf = (d?: string | null): number | null => {
+    if (!d) return null;
+    const due = new Date(d + "T00:00:00");
+    if (isNaN(due.getTime())) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return Math.round((due.getTime() - today.getTime()) / 86400000);
+  };
+  const pend = att.pendientesItems || [];
 
   // Deriva las 3 tarjetas (Urgente / Preparado / Faltante) de la data real.
   const urg = att.items.find((i) => i.severity === "critico") || att.items.find((i) => i.kind === "deadline");
@@ -85,11 +94,17 @@ export function MissionControl({
 
   return (
     <div style={{ height: "100%", overflow: "auto" }}>
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "34px 36px 56px" }}>
+      <div className="app-pad" style={{ maxWidth: 1080, margin: "0 auto" }}>
+        <Coachmark
+          show={coachShow}
+          onDismiss={coachDismiss}
+          title="Bienvenido a Mission Control"
+          body="Aquí gestionas cada caso: cronología, documentos y avance en un solo lugar."
+        />
         {/* Saludo operativo + fecha */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 26 }}>
           <div>
-            <h1 style={{ fontSize: 30, fontWeight: 650, letterSpacing: "-0.025em", margin: 0, textTransform: "capitalize" }}>Hola, {name}.</h1>
+            <h1 className="h1-fluid" style={{ fontWeight: 650, letterSpacing: "-0.025em", margin: 0, textTransform: "capitalize" }}>Hola, {name}.</h1>
             <p style={{ fontSize: 15.5, color: "var(--text-secondary)", margin: "8px 0 0" }}>
               {allClear ? (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Icon name="circleCheck" size={17} style={{ color: "var(--success)" }} />Nada urgente hoy. Tu oficina está al día.</span>
@@ -99,13 +114,7 @@ export function MissionControl({
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            {credits.balance != null && (
-              <div title="Créditos disponibles" style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 14px", borderRadius: "var(--r-pill)", background: "var(--bg-surface)", border: "1px solid var(--border)", boxShadow: "var(--sh-1)" }}>
-                <Icon name="sparkles" size={15} style={{ color: "var(--gold)" }} />
-                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{credits.balance}{credits.cap ? ` / ${credits.cap}` : ""}</span>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>créditos</span>
-              </div>
-            )}
+            {/* Badge de créditos oculto: el uso es 100% interno (no visible para el usuario). */}
             {dateStr && (
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 14px", borderRadius: "var(--r-pill)", background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-secondary)", fontSize: 13.5, fontWeight: 500, textTransform: "capitalize", boxShadow: "var(--sh-1)" }}>
                 <Icon name="sun" size={16} style={{ color: "var(--gold)" }} />{dateStr}
@@ -117,7 +126,7 @@ export function MissionControl({
         {/* Esto es lo importante — 3 tarjetas */}
         <SectionLabel icon="alert" tone="danger">Esto es lo importante</SectionLabel>
         {cards.length > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(cards.length, 3)}, 1fr)`, gap: 16, marginBottom: 30 }}>
+          <div className="grid-resp-3" style={{ gridTemplateColumns: `repeat(${Math.min(cards.length, 3)}, 1fr)`, marginBottom: 30 }}>
             {cards.map((c, i) => <HomeCard key={i} card={c} />)}
           </div>
         ) : (
@@ -127,8 +136,30 @@ export function MissionControl({
           </div>
         )}
 
+        {/* Tus pendientes (QW1) — tareas/recordatorios abiertos */}
+        {pend.length > 0 && (
+          <div style={{ marginBottom: 30 }}>
+            <SectionLabel icon="check">Tus pendientes ({att.pendientes ?? pend.length})</SectionLabel>
+            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+              {pend.slice(0, 8).map((p, i) => {
+                const dl = daysLeftOf(p.due_date);
+                const tone = dl == null ? "var(--text-muted)" : dl < 0 ? "var(--danger)" : dl <= 3 ? "var(--gold-text)" : "var(--text-secondary)";
+                const when = p.due_date == null ? "sin fecha" : dl! < 0 ? `vencido hace ${Math.abs(dl!)}d` : dl === 0 ? "vence hoy" : dl === 1 ? "vence mañana" : `en ${dl} días`;
+                return (
+                  <div key={p.id} onClick={() => p.matter_id && onOpenMission(p.matter_id)}
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderTop: i ? "1px solid var(--border)" : "none", cursor: p.matter_id ? "pointer" : "default" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: tone, flexShrink: 0 }} />
+                    <div style={{ flex: 1, fontSize: 14, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: tone, whiteSpace: "nowrap" }}>{when}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Autopilot + Misiones */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, marginBottom: 30 }}>
+        <div className="grid-resp-2" style={{ gap: 22, marginBottom: 30 }}>
           <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
               <span style={{ width: 30, height: 30, borderRadius: 9, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center" }}><Icon name="radar" size={17} style={{ color: "var(--primary)" }} /></span>
@@ -154,11 +185,24 @@ export function MissionControl({
               <span style={{ fontWeight: 650, fontSize: 14.5, flex: 1 }}>Misiones activas</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-elevated-2)", borderRadius: 999, padding: "2px 9px" }}>{missions.length}</span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {missions.slice(0, 4).map((e) => <MissionRow key={e.id} exp={e} onClick={() => onOpenMission(e.id)} />)}
-              {missions.length === 0 && <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "6px 10px" }}>Aún no tienes misiones. Crea la primera.</div>}
-            </div>
-            <button className="btn btn-ghost btn-sm" style={{ marginTop: 10, alignSelf: "flex-start", color: "var(--primary)" }} onClick={() => onNavigate("expedientes")}>Ver todas<Icon name="arrowRight" size={15} /></button>
+            {missions.length === 0 ? (
+              <div style={{ minHeight: 200 }}>
+                <EmptyState
+                  icon="folder"
+                  title="Aún no tienes casos"
+                  desc="Crea tu primer caso y Jurovia arma el expediente con cronología, documentos y plazos."
+                  cta="Crea tu primer caso"
+                  onCta={onNewMission}
+                />
+              </div>
+            ) : (
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {missions.slice(0, 4).map((e) => <MissionRow key={e.id} exp={e} onClick={() => onOpenMission(e.id)} />)}
+                </div>
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: 10, alignSelf: "flex-start", color: "var(--primary)" }} onClick={() => onNavigate("expedientes")}>Ver todas<Icon name="arrowRight" size={15} /></button>
+              </>
+            )}
           </div>
         </div>
 
