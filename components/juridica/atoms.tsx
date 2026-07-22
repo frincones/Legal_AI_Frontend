@@ -676,7 +676,7 @@ export function OutOfCreditsPopup({ backendUrl, accessToken, onInvite, onClose, 
           <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 750, color: "var(--text)" }}>{isTrial ? "Alcanzaste tus usos de hoy" : "Alcanzaste el límite de tu plan"}</h2>
           <p style={{ margin: "0 0 18px", fontSize: 14.5, lineHeight: 1.6, color: "var(--text-secondary)" }}>
             {isTrial
-              ? <>Suscríbete a un plan para usar Jurovia con <b style={{ color: "var(--text)" }}>mayor capacidad</b>, sin el límite diario. Tus usos de prueba se renuevan mañana.</>
+              ? <>Suscríbete a un plan para usar Jurovia con <b style={{ color: "var(--text)" }}>mayor capacidad</b>. Tus usos de prueba se renuevan mañana.</>
               : <>Mejora tu plan para seguir usando Jurovia sin toparte con límites — o invita a un colega y ambos ganan <b style={{ color: "var(--text)" }}>más uso</b>.</>}
           </p>
           {billingOn && (
@@ -758,6 +758,8 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
   const tierRef = useRef<string | null>(null);        // para el eventCallback (evita closures stale)
   const priceRef = useRef<number | null>(null);
   const completedRef = useRef(false);
+  const paddleRef = useRef<PaddleNS | null>(null);    // Paddle YA inicializado (desacoplado del open)
+  const [paddleReady, setPaddleReady] = useState(false);
 
   // Carga config + planes al abrir. Inicializa Paddle en modo INLINE (checkout embebido).
   useEffect(() => {
@@ -775,47 +777,57 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
     return () => window.removeEventListener("keydown", onKey);
   }, [open, backendUrl, accessToken, onClose, initialTier]);
 
-  // Al elegir plan: crea la transacción (org_id server-side) y monta el checkout inline en nuestra columna.
+  // #1 PRECARGA: al abrir la modal (con config lista) carga el SDK e Initialize UNA vez → cuando el
+  // usuario elige plan, el checkout abre sin condiciones de carrera (patrón del DemoPlansModal que sí sirve).
   useEffect(() => {
-    if (!open || !tier || !cfg?.enabled || !cfg.client_token) return;
+    if (!open || !cfg?.enabled || !cfg.client_token || initedRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const P = (await loadPaddle()) as PaddleNS;
+        if (cancelled || initedRef.current) return;
+        try { P.Environment?.set(cfg.environment === "sandbox" ? "sandbox" : "production"); } catch { /* noop */ }
+        P.Initialize?.({
+          token: cfg.client_token,
+          checkout: { settings: {
+            displayMode: "inline",
+            frameTarget: "jv-paddle-frame",
+            frameInitialHeight: 450,
+            frameStyle: "width:100%; min-width:312px; background-color: transparent; border: none;",
+          } },
+          eventCallback: (ev: { name?: string }) => {
+            const n = ev?.name;
+            if (n === "checkout.loaded") {
+              track("checkout_started", { tier: tierRef.current });
+              metaEvent("InitiateCheckout", backendUrl, { value: priceRef.current ?? undefined, currency: "USD" });
+            } else if (n === "checkout.completed") {
+              completedRef.current = true; setDone(true);
+              track("purchase_completed", { tier: tierRef.current });
+              // Compra directa (Opción B): el Purchase (Meta) lo dispara el webhook de Paddle al cobrar.
+            } else if (n === "checkout.closed") {
+              if (!completedRef.current) track("checkout_abandoned", { tier: tierRef.current });
+            }
+          },
+        });
+        initedRef.current = true; paddleRef.current = P; setPaddleReady(true);
+      } catch { /* fail-open: si Paddle no carga, se muestra el error al elegir plan */ }
+    })();
+    return () => { cancelled = true; };
+  }, [open, cfg, backendUrl]);
+
+  // #2 ABRIR checkout: al elegir plan (con Paddle YA inicializado) crea la transacción y monta el frame inline.
+  useEffect(() => {
+    if (!open || !tier || !paddleReady || !paddleRef.current) return;
     let cancelled = false;
     (async () => {
       setLoading(true); setErr(null);
       try {
-        const P = (await loadPaddle()) as PaddleNS;
-        if (!initedRef.current) {
-          try { P.Environment?.set(cfg.environment === "sandbox" ? "sandbox" : "production"); } catch { /* noop */ }
-          P.Initialize?.({
-            token: cfg.client_token,
-            checkout: { settings: {
-              displayMode: "inline",
-              frameTarget: "jv-paddle-frame",
-              frameInitialHeight: 450,
-              frameStyle: "width:100%; min-width:312px; background-color: transparent; border: none;",
-            } },
-            eventCallback: (ev: { name?: string }) => {
-              const n = ev?.name;
-              if (n === "checkout.loaded") {
-                track("checkout_started", { tier: tierRef.current });
-                metaEvent("InitiateCheckout", backendUrl, { value: priceRef.current ?? undefined, currency: "USD" });
-              } else if (n === "checkout.completed") {
-                completedRef.current = true; setDone(true);
-                track("purchase_completed", { tier: tierRef.current });
-                // Muro de SUSCRIPCIÓN (Opción B): compra directa (sin trial). El Purchase (Meta) lo
-                // dispara el webhook de Paddle al cobrar (fuente única con gross>0, dedup por txn).
-              } else if (n === "checkout.closed") {
-                if (!completedRef.current) track("checkout_abandoned", { tier: tierRef.current });
-              }
-            },
-          });
-          initedRef.current = true;
-        }
         completedRef.current = false; tierRef.current = tier;
         priceRef.current = plans.find((p) => p.tier === tier)?.price_usd ?? null;
         const r = await api.billingCheckout(backendUrl, accessToken, tier, fbCookies(), false);   // Opción B: suscripción directa (sin trial)
         if (!r?.transaction_id) throw new Error("no txn");
         if (cancelled) return;
-        P.Checkout?.open({
+        paddleRef.current!.Checkout?.open({
           transactionId: r.transaction_id,
           settings: { theme: "light", locale: "es", showAddDiscounts: false, showAddTaxId: false, allowLogout: false, successUrl: (typeof window !== "undefined" ? window.location.origin : "https://juroviapp.com") + "/chat?purchased=1" },
         });
@@ -823,7 +835,7 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
       finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [open, tier, cfg, backendUrl, accessToken]);
+  }, [open, tier, paddleReady, backendUrl, accessToken, plans]);
 
   if (!open) return null;
   const enabled = !!(cfg?.enabled && cfg?.client_token);
@@ -937,9 +949,6 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 24, fontSize: 12, color: "var(--text-muted)" }}>
                 <Icon name="lock" size={13} /> Pago cifrado · procesado por Paddle
-              </div>
-              <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
-                {COMPANY.legalName} · NIT {COMPANY.nit}<br />{COMPANY.address} · {COMPANY.email}
               </div>
             </div>
             {/* Formulario de pago (Paddle inline) */}
