@@ -26,7 +26,7 @@ export function Inbox({
   backendUrl, accessToken, onOpenMission, onOpenAudiencia, pushToast,
 }: {
   backendUrl: string; accessToken: string; onOpenMission: (id: string) => void;
-  onOpenAudiencia?: (documentId: string, matterId: string | null, title: string) => void;
+  onOpenAudiencia?: (a: AudienciaJob) => void;
   pushToast: (t: string, k?: string) => void;
 }) {
   const [items, setItems] = useState<Notif[]>([]);
@@ -80,8 +80,8 @@ export function Inbox({
                   <span style={{ fontSize: 11.5, color: "var(--text-muted)", flexShrink: 0 }}>{(n.created_at || "").slice(5, 10)}</span>
                   {n.campaign_type === "audiencia_lista" ? (() => {
                     const a = audienciaDe(n);
-                    return a?.transcript_document_id && onOpenAudiencia
-                      ? <button className="btn btn-primary btn-sm" onClick={() => onOpenAudiencia(a.transcript_document_id!, a.matter_id ?? null, a.title || tituloDe(n))}><Icon name="sparkles" size={14} />Ver acta</button>
+                    return a && (a.acta_session_id || a.transcript_document_id) && onOpenAudiencia
+                      ? <button className="btn btn-primary btn-sm" onClick={() => onOpenAudiencia(a)}><Icon name="sparkles" size={14} />Ver acta</button>
                       : (n.related_matter_id ? <button className="btn btn-secondary btn-sm" onClick={() => onOpenMission(n.related_matter_id!)}>Ver<Icon name="arrowRight" size={14} /></button> : null);
                   })() : (
                     n.related_matter_id && <button className="btn btn-secondary btn-sm" onClick={() => onOpenMission(n.related_matter_id!)}>Ver<Icon name="arrowRight" size={14} /></button>

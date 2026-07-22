@@ -92,6 +92,7 @@ export type AudienciaJob = {
   segments_done?: number | null;
   transcript_document_id?: string | null;
   acta_artifact_id?: string | null;
+  acta_session_id?: string | null;
   matter_id?: string | null;
   error?: string | null;
   created_at?: string;

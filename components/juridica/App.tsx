@@ -20,7 +20,7 @@ import { Autopilot } from "./mission/Autopilot";
 import { Inbox } from "./mission/Inbox";
 import { ApprovalModal } from "./mission/ApprovalModal";
 import { AdminPanel } from "./mission/AdminPanel";
-import { api as missionApi } from "./mission/data";
+import { api as missionApi, type AudienciaJob } from "./mission/data";
 
 // Admins con créditos ilimitados (debe coincidir con ADMIN_EMAILS del backend).
 const ADMIN_EMAILS = ["freddy.rincones@gmail.com", "freddyrincones@gmail.com"];
@@ -422,14 +422,20 @@ export default function JuridicaApp({
     setRoute("chat");
   }
 
-  // Abre el acta de una audiencia: chat con la transcripción pineada + genera el Acta Inteligente.
-  // Sirve para la Bandeja ("Ver acta"): funciona con o sin misión asociada.
-  function openAudienciaActa(documentId: string, matterId: string | null, title: string) {
-    const seed = `Genera el Acta Inteligente completa de la audiencia${title ? ` «${title}»` : ""}: datos del proceso, participantes, línea de tiempo con los minutos exactos, decisiones y órdenes del juez, términos con sus fechas calculadas, verificación de las fuentes citadas y análisis estratégico.`;
-    setCurrentMissionId(matterId || undefined);
-    setChatMatterId(matterId || undefined);
+  // "Ver acta" desde la Bandeja: si el acta ya se generó (conversación persistida), abre ESA conversación
+  // (muestra el acta como documento → Canvas, y queda en el historial). Si no, la genera al vuelo con la
+  // transcripción pineada. Funciona con o sin misión.
+  function openAudienciaActa(a: AudienciaJob) {
+    if (a.acta_session_id) {
+      openConversation(a.acta_session_id);   // conversación real con el acta ya lista
+      return;
+    }
+    const title = a.title || "";
+    const seed = `Genera el Acta Inteligente completa de la audiencia${title ? ` «${title}»` : ""} como documento: datos del proceso, participantes, línea de tiempo con los minutos exactos, decisiones y órdenes del juez, términos con sus fechas calculadas, verificación de las fuentes citadas y análisis estratégico.`;
+    setCurrentMissionId(a.matter_id || undefined);
+    setChatMatterId(a.matter_id || undefined);
     setChatSeed(seed);
-    setChatSeedDocs(documentId ? [documentId] : undefined);
+    setChatSeedDocs(a.transcript_document_id ? [a.transcript_document_id] : undefined);
     setOpenSessionId(undefined);
     setReusePatronId(undefined);
     setOpenArtifact(undefined);
