@@ -572,7 +572,7 @@ export default function JuridicaApp({
         onCta={() => pushToast("Función de Casos próximamente", "info")}
       />
     );
-  else if (route === "settings") main = <Settings pushToast={pushToast} onLogout={logout} backendUrl={backendUrl} accessToken={accessToken} email={email} credits={credits} isAdmin={isAdmin} />;
+  else if (route === "settings") main = <Settings pushToast={pushToast} onLogout={logout} backendUrl={backendUrl} accessToken={accessToken} email={email} credits={credits} isAdmin={isAdmin} accessModel={accessModel} />;
 
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden" }}>
@@ -735,6 +735,7 @@ export default function JuridicaApp({
         <OutOfCreditsPopup
           backendUrl={backendUrl}
           accessToken={accessToken}
+          accessModel={accessModel}
           onInvite={() => { setCreditsPopup(false); setReferralOpen(true); }}
           onClose={() => setCreditsPopup(false)}
         />

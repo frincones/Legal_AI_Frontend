@@ -34,14 +34,14 @@ const VALUE_STACK: [string, string][] = [
 ];
 // FAQ del muro — derriba TODAS las objeciones (incl. el precio en pesos y la tarjeta).
 const FAQ_MURO: [string, string][] = [
-  ["¿Se me cobra algo hoy?", "No. Hoy pagas $0. Tienes 7 días completos gratis y solo se cobra al día 7 si decides continuar — y te avisamos antes."],
+  ["¿Se me cobra algo hoy?", "No. Empiezas gratis: 3 usos por día durante 7 días, sin tarjeta. Solo pagas si decides suscribirte a un plan."],
   ["¿Por qué el precio en pesos?", "Para que veas claro lo que pagas en tu moneda. El cobro lo hace el procesador en USD; el valor en COP es referencial a la tasa del día."],
-  ["¿Por qué me piden la tarjeta si es gratis?", "Para activar tu acceso al instante y que no pierdas ni un minuto de tus 7 días. Hoy no se cobra nada; puedes cancelar cuando quieras."],
-  ["¿Puedo cancelar cuando quiera?", "Sí, en 1 clic desde tu cuenta. Sin llamadas ni correos. Si cancelas antes del día 7 no pagas nada."],
-  ["¿Es seguro dejar mi tarjeta?", "Totalmente. El pago lo procesa Paddle, procesador global certificado (PCI-DSS nivel 1). Jurovia nunca ve ni almacena el número de tu tarjeta."],
+  ["¿Necesito tarjeta para probar?", "No. La prueba no pide tarjeta: solo la ingresas cuando decidas suscribirte a un plan de pago."],
+  ["¿Puedo cancelar cuando quiera?", "Sí. La prueba no tiene compromiso. Y si te suscribes, cancelas en 1 clic desde tu cuenta, cuando quieras."],
+  ["¿Es seguro pagar aquí?", "Totalmente. El pago lo procesa Paddle, procesador global certificado (PCI-DSS nivel 1). Jurovia nunca ve ni almacena el número de tu tarjeta."],
   ["¿Sirve de verdad para el derecho colombiano?", "Sí. Verifica contra Corte Constitucional, Corte Suprema, Consejo de Estado y la normativa vigente, y te avisa si una norma fue derogada. Todo con la fuente citada."],
   ["¿Mis datos y los de mis clientes están protegidos?", "Sí. Tus consultas y documentos son privados y cifrados, con aislamiento por despacho. No se comparten ni se usan para entrenar modelos de terceros."],
-  ["¿Y si no lo uso o no me convence?", "Cancelas antes del día 7 y no pagas absolutamente nada. Sin preguntas ni letra pequeña."],
+  ["¿Y si no me convence?", "Sin problema. Empiezas gratis y sin tarjeta; solo pagas si decides suscribirte a un plan."],
   ["¿Es difícil de usar?", "Para nada. Le escribes como en un chat, en lenguaje natural. Nada que instalar y resultados en minutos."],
   ["¿Puedo cambiar de plan después?", "Sí, subes o bajas de plan cuando quieras desde tu cuenta, sin penalidad."],
 ];
@@ -381,7 +381,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
           <div className="dp-up" style={{ animationDelay: "200ms", marginTop: 18, padding: "16px 16px 15px", borderRadius: 18, position: "relative", background: "linear-gradient(150deg, rgba(124,58,237,.10), rgba(236,72,153,.10) 55%, rgba(47,107,255,.08))", border: "1px solid var(--border)", boxShadow: "0 10px 30px -18px rgba(124,58,237,.5)" }}>
             <div style={{ display: "flex", justifyContent: "center" }}>
               <div style={{ position: "relative", overflow: "hidden", display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 15px", borderRadius: 999, background: JV_AURORA, color: "#fff", fontSize: 12, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", boxShadow: "0 6px 16px -8px rgba(236,72,153,.6)" }}>
-                <span style={{ position: "relative", zIndex: 1 }}>⚡ Todo esto, gratis 7 días</span>
+                <span style={{ position: "relative", zIndex: 1 }}>{isSubscribe ? "⚡ Desbloquéalo todo" : "⚡ Todo esto, gratis 7 días"}</span>
                 <span className="dp-shimmer" style={{ position: "absolute", inset: 0 }} />
               </div>
             </div>
@@ -418,12 +418,12 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
                   {pro && <span style={{ position: "absolute", top: -11, left: 18, fontSize: 10.5, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", background: JV_AURORA, color: "#fff", borderRadius: 999, padding: "4px 12px", boxShadow: "0 4px 12px -4px rgba(236,72,153,.6)" }}>🚀 Más popular</span>}
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                     <span style={{ fontSize: pro ? 19 : 16, fontWeight: 800 }}>{c.icon} {p.name}</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: "var(--success)" }}>7 días gratis</span>
+                    {!isSubscribe && <span style={{ fontSize: 13, fontWeight: 800, color: "var(--success)" }}>7 días gratis</span>}
                   </div>
                   <div style={{ marginTop: 4 }}>
                     {cop
                       ? <span style={{ fontSize: pro ? 22 : 17, fontWeight: 800, letterSpacing: "-.02em", color: "var(--text)" }}>{cop}<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", marginLeft: 6 }}>COP/mes · ≈ ${p.price_usd} USD{cd ? ` · ${cd} COP/día` : ""}</span></span>
-                      : <span style={{ fontSize: 13, color: "var(--text-muted)" }}>luego <b style={{ color: "var(--text)" }}>${p.price_usd} USD/mes</b> · = ${daily(p.price_usd)}/día</span>}
+                      : <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{isSubscribe ? "" : "luego "}<b style={{ color: "var(--text)" }}>${p.price_usd} USD/mes</b> · = ${daily(p.price_usd)}/día</span>}
                     {p.tier === "firma" && <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}> · hasta 5 abogados</span>}
                   </div>
                   {reg && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Precio normal <s style={{ opacity: .75 }}>{regCop || `$${reg} USD`}</s> · <span style={{ color: GOLD, fontWeight: 800 }}>lanzamiento</span></div>}
@@ -450,8 +450,8 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
             {done ? (
               <div style={{ textAlign: "center", padding: "22px 6px" }}>
                 <div style={{ fontSize: 44, marginBottom: 8 }}>✅</div>
-                <div style={{ fontSize: 18, fontWeight: 750 }}>¡Prueba activada!</div>
-                <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.55 }}>Tu plan <b>{sel?.name}</b> está listo. Entra y empieza tus 7 días gratis.</div>
+                <div style={{ fontSize: 18, fontWeight: 750 }}>{isSubscribe ? "¡Suscripción activada!" : "¡Prueba activada!"}</div>
+                <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.55 }}>Tu plan <b>{sel?.name}</b> está listo. {isSubscribe ? "Ya puedes seguir usando Jurovia sin límites." : "Entra y empieza a usar Jurovia."}</div>
                 <button className="btn btn-primary dp-btn" style={{ marginTop: 18, fontWeight: 700 }} onClick={() => router.push("/chat")}>Entrar a Jurovia</button>
               </div>
             ) : accountReady ? (
@@ -466,9 +466,9 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
             ) : (
               <>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--primary)" }}>Plan {sel?.name} · prueba de 7 días</div>
-                  <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-.02em", margin: "6px 0 3px" }}>Casi listo — activa tu prueba</h2>
-                  <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 14px" }}>Creamos tu cuenta al instante y activamos tus 7 días gratis.</p>
+                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", color: "var(--primary)" }}>Plan {sel?.name} · {isSubscribe ? "suscripción mensual" : "prueba gratis de 7 días"}</div>
+                  <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-.02em", margin: "6px 0 3px" }}>{isSubscribe ? "Casi listo — suscríbete" : "Casi listo — activa tu prueba"}</h2>
+                  <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 14px" }}>{isSubscribe ? "Creamos tu cuenta y activas tu plan al instante." : "Creamos tu cuenta al instante y empiezas gratis — 3 usos por día durante 7 días, sin tarjeta."}</p>
                 </div>
                 <input ref={emailRef} style={field} type="email" placeholder="tu@correo.com" value={email} inputMode="email"
                   onChange={(e) => { setEmail(e.target.value); if (!emailStarted.current && e.target.value.length > 2) { emailStarted.current = true; track("email_started", {}); } if (loginPlan) setLoginPlan(null); prewarmRef.current = false; if (err) setErr(null); }}
@@ -488,7 +488,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
                   </div>
                 ) : (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 16, fontSize: 12.5, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.4 }}>
-                    <Icon name="lock" size={13} style={{ flexShrink: 0 }} /> Marca tu correo y el consentimiento — el pago seguro se activa al instante
+                    <Icon name="lock" size={13} style={{ flexShrink: 0 }} /> {isSubscribe ? "Marca tu correo y el consentimiento — el pago seguro se activa al instante" : "Marca tu correo y el consentimiento — entras gratis al instante, sin tarjeta"}
                   </div>
                 )}
               </>
@@ -509,7 +509,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
             <FaqList items={FAQ_MURO} title="Resolvemos todas tus dudas" />
           </div>
           <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", marginTop: 14, lineHeight: 1.5 }}>
-            Pago cifrado procesado por Paddle · $0 hoy · cancela cuando quieras
+            {isSubscribe ? "Pago cifrado procesado por Paddle · cancela cuando quieras" : "Empieza gratis, sin tarjeta · suscríbete solo cuando lo decidas"}
           </p>
           </>)}
           </>)}

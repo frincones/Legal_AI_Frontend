@@ -263,7 +263,7 @@ export function GuestChat({ seed, demoKey, backendUrl, onBack, onRegister }: {
                   {m.turn.blocked && (
                     <div className="fade-up" style={{ marginTop: 4, padding: "14px 16px", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--grad-aurora-soft)" }}>
                       <div style={{ fontWeight: 650, marginBottom: 6 }}>Regístrate gratis para continuar</div>
-                      <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginBottom: 12 }}>Conservas el plan Free y desbloqueas documentos, misiones y vigilancia. Sin tarjeta.</div>
+                      <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginBottom: 12 }}>Empiezas gratis (3 usos por día) y desbloqueas documentos, misiones y vigilancia. Sin tarjeta.</div>
                       <button className="btn btn-primary" onClick={() => goRegister()}>Empieza gratis<Icon name="arrowRight" size={16} /></button>
                     </div>
                   )}
@@ -368,7 +368,7 @@ export function RegisterModal({ onClose, onGo }: { onClose: () => void; onGo: ()
           <button onClick={onClose} className="focus-ring" style={{ position: "absolute", top: 16, right: 16, border: "none", width: 32, height: 32, borderRadius: 8, display: "grid", placeItems: "center", color: "var(--text-muted)", background: "rgba(255,255,255,0.5)" }}><Icon name="x" size={17} /></button>
           <Logo size={36} />
           <h2 style={{ fontSize: 21, fontWeight: 680, letterSpacing: "-0.02em", margin: "16px 0 6px" }}>Regístrate gratis para continuar</h2>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>Empiezas con el plan Free. Sin tarjeta.</p>
+          <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>Empiezas gratis — 3 usos por día. Sin tarjeta.</p>
         </div>
         <div style={{ padding: 24 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 11, marginBottom: 20 }}>

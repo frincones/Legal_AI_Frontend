@@ -392,10 +392,11 @@ const PLAN_DIFF: Record<string, string> = {
   firma: "Hasta 5 abogados · plantillas y membrete de la firma.",
 };
 
-export function Pricing({ plans, onStart }: { plans: Plan[]; onStart: () => void }) {
+export function Pricing({ plans, onStart, trial }: { plans: Plan[]; onStart: () => void; trial?: { daily_turns: number; days: number } }) {
   const free = plans.find((p) => p.tier === "free");
-  const freeCredits = free?.credits ?? 10;
-  const freeDays = free?.trial_days ?? 7;
+  const dailyTurns = trial?.daily_turns ?? 3;
+  const freeDays = trial?.days ?? free?.trial_days ?? 7;
+  const trialCopy = `${dailyTurns} usos por día durante ${freeDays} días · sin tarjeta.`;
   return (
     <section id="precios" className="land-section anchor">
       <div className="land-container">
@@ -411,7 +412,7 @@ export function Pricing({ plans, onStart }: { plans: Plan[]; onStart: () => void
             <div className="card" style={{ padding: 26, height: "100%", display: "flex", flexDirection: "column" }}>
               <div style={{ fontSize: 15, fontWeight: 650 }}>Free</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 5, margin: "12px 0 2px" }}><span style={{ fontSize: 36, fontWeight: 700, letterSpacing: "-0.03em" }}>$0</span><span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>USD</span></div>
-              <div style={{ fontSize: 13.5, color: "var(--text-secondary)", minHeight: 40 }}>{freeCredits} usos durante {freeDays} días · sin tarjeta.</div>
+              <div style={{ fontSize: 13.5, color: "var(--text-secondary)", minHeight: 40 }}>{trialCopy}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "16px 0" }}>
                 {["Verificación de fuentes con enlace oficial", "Documentos en Word (.docx)", "Alertas básicas de cambios", "Expedientes y cálculos"].map((t, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13.5 }}><Icon name="check" size={15} stroke={2.4} style={{ color: "var(--success)", flexShrink: 0, marginTop: 2 }} />{t}</div>
@@ -452,7 +453,7 @@ export function Pricing({ plans, onStart }: { plans: Plan[]; onStart: () => void
         {/* Transparencia de precios (requisito de Paddle) */}
         <Reveal style={{ maxWidth: 760, margin: "26px auto 0", textAlign: "center" }}>
           <p style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.65 }}>
-            Precios en dólares estadounidenses (USD) por mes. <strong>Los impuestos aplicables (p. ej. IVA) se calculan y se muestran en el checkout.</strong> El plan Free incluye {freeCredits} usos durante {freeDays} días, sin tarjeta ni cobro; al finalizar puedes elegir un plan de pago. Las suscripciones son mensuales, se renuevan automáticamente y puedes cancelarlas cuando quieras. Pagos procesados por Paddle.
+            Precios en dólares estadounidenses (USD) por mes. <strong>Los impuestos aplicables (p. ej. IVA) se calculan y se muestran en el checkout.</strong> El plan Free incluye {dailyTurns} usos por día durante {freeDays} días, sin tarjeta ni cobro; al finalizar puedes elegir un plan de pago. Las suscripciones son mensuales, se renuevan automáticamente y puedes cancelarlas cuando quieras. Pagos procesados por Paddle.
           </p>
         </Reveal>
       </div>

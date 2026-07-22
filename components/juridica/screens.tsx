@@ -443,6 +443,7 @@ export function Settings({
   email,
   credits,
   isAdmin = false,
+  accessModel = "credits",
 }: {
   pushToast?: (t: string, k?: string) => void;
   onLogout?: () => void;
@@ -451,6 +452,7 @@ export function Settings({
   email?: string | null;
   credits?: { balance: number | null; cap: number | null; plan?: string | null; trial_ends_at?: string | null };
   isAdmin?: boolean;
+  accessModel?: string;   // 'trial_daily' → en prueba (aunque el plan sea estandar-trialing, ej. Constantino)
 }) {
   const [tone, setTone] = useState("Formal jurídico");
   const [theme, setTheme] = useState("Claro");
@@ -776,7 +778,7 @@ export function Settings({
             </div>
           ) : (() => {
             const plan = String(credits?.plan ?? "free");
-            const isFree = plan === "free" || plan === "trial";
+            const inTrial = accessModel === "trial_daily";   // cubre free-trial y Paddle-trialing (Constantino)
             const label = ({ estandar: "Estándar", pro: "Pro", firma: "Firma" } as Record<string, string>)[plan] || "Gratuito";
             let trialDays: number | null = null;
             if (credits?.trial_ends_at) {
@@ -785,14 +787,16 @@ export function Settings({
             }
             return (
               <div>
-                <div style={{ fontSize: 16, fontWeight: 650, marginBottom: 4 }}>Plan {label}</div>
-                {isFree && trialDays != null && (
-                  <div style={{ fontSize: 12.5, color: trialDays <= 1 ? "var(--warning)" : "var(--text-muted)", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontSize: 16, fontWeight: 650, marginBottom: 4 }}>{inTrial ? "En prueba gratuita" : `Plan ${label}`}</div>
+                {inTrial && (
+                  <div style={{ fontSize: 12.5, color: trialDays != null && trialDays <= 1 ? "var(--warning)" : "var(--text-muted)", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
                     <Icon name="clock" size={13} />
-                    {trialDays > 0 ? `${trialDays} ${trialDays === 1 ? "día restante" : "días restantes"} de prueba` : "Tu prueba gratuita terminó"}
+                    {trialDays != null && trialDays <= 0
+                      ? "Tu prueba gratuita terminó"
+                      : `3 usos por día${trialDays != null ? ` · ${trialDays} ${trialDays === 1 ? "día restante" : "días restantes"}` : ""}`}
                   </div>
                 )}
-                <button className="btn btn-primary btn-sm" onClick={() => setShowUpg(true)}><Icon name="sparkles" size={15} />Mejorar plan</button>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowUpg(true)}><Icon name="sparkles" size={15} />{inTrial ? "Suscribirme" : "Mejorar plan"}</button>
               </div>
             );
           })()}

@@ -635,9 +635,12 @@ export function FeedbackPopup({ onSubmit, onDismiss }: {
    Aparece al agotar créditos con entrada animada (scale-in + SHAKE + glow). Convierte el momento de
    fricción en loop de crecimiento: CTA a referir (ambos ganan créditos). Cierra por ✕ / click fuera /
    Esc → el usuario puede seguir leyendo su historial y descargando documentos. Reusa el ReferralModal. */
-export function OutOfCreditsPopup({ backendUrl, accessToken, onInvite, onClose }: {
+export function OutOfCreditsPopup({ backendUrl, accessToken, onInvite, onClose, accessModel = "credits" }: {
   backendUrl: string; accessToken: string; onInvite: () => void; onClose: () => void;
+  accessModel?: string;   // 'trial_daily' → solo Suscribirme (los referidos dan créditos, no turnos del trial)
 }) {
+  // En el trial diario el gate es por TURNOS/día, no por saldo → "invitar y ganar créditos" no desbloquea.
+  const isTrial = accessModel === "trial_daily";
   const [billingOn, setBillingOn] = useState(false);
   const [showUpg, setShowUpg] = useState(false);
   useEffect(() => {
@@ -670,18 +673,23 @@ export function OutOfCreditsPopup({ backendUrl, accessToken, onInvite, onClose }
         </button>
         <div style={{ padding: "26px 24px 22px", textAlign: "center" }}>
           <div className="jv-ooc-gift" style={{ fontSize: 46, lineHeight: 1, marginBottom: 8 }}>🚀</div>
-          <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 750, color: "var(--text)" }}>Alcanzaste el límite de tu plan</h2>
+          <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 750, color: "var(--text)" }}>{isTrial ? "Alcanzaste tus usos de hoy" : "Alcanzaste el límite de tu plan"}</h2>
           <p style={{ margin: "0 0 18px", fontSize: 14.5, lineHeight: 1.6, color: "var(--text-secondary)" }}>
-            Mejora tu plan para seguir usando Jurovia sin toparte con límites — o invita a un colega y ambos ganan <b style={{ color: "var(--text)" }}>más uso</b>.
+            {isTrial
+              ? <>Suscríbete a un plan para usar Jurovia con <b style={{ color: "var(--text)" }}>mayor capacidad</b>, sin el límite diario. Tus usos de prueba se renuevan mañana.</>
+              : <>Mejora tu plan para seguir usando Jurovia sin toparte con límites — o invita a un colega y ambos ganan <b style={{ color: "var(--text)" }}>más uso</b>.</>}
           </p>
           {billingOn && (
             <button className="jv-ooc-cta btn btn-primary" onClick={() => setShowUpg(true)} style={{ width: "100%", fontSize: 15.5, fontWeight: 700, padding: "13px 20px" }}>
-              <Icon name="sparkles" size={18} stroke={2.2} /> Mejorar mi plan
+              <Icon name="sparkles" size={18} stroke={2.2} /> {isTrial ? "Suscribirme" : "Mejorar mi plan"}
             </button>
           )}
-          <button className={billingOn ? "btn btn-secondary" : "jv-ooc-cta btn btn-primary"} onClick={onInvite} style={{ width: "100%", marginTop: billingOn ? 10 : 0, fontWeight: 700, padding: "12px 20px" }}>
-            <Icon name="gift" size={18} stroke={2.2} /> Invitar y ganar más uso
-          </button>
+          {/* Referir da créditos (no turnos del trial) → solo se ofrece cuando el modelo es por créditos. */}
+          {!isTrial && (
+            <button className={billingOn ? "btn btn-secondary" : "jv-ooc-cta btn btn-primary"} onClick={onInvite} style={{ width: "100%", marginTop: billingOn ? 10 : 0, fontWeight: 700, padding: "12px 20px" }}>
+              <Icon name="gift" size={18} stroke={2.2} /> Invitar y ganar más uso
+            </button>
+          )}
           <p style={{ margin: "14px 0 0", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.55 }}>
             Mientras tanto puedes <b>seguir leyendo tus chats</b> y <b>descargando tus documentos</b>.
           </p>
@@ -885,9 +893,7 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
                     {featured && <span style={{ position: "absolute", top: -11, left: 22, fontSize: 10.5, fontWeight: 750, letterSpacing: ".04em", textTransform: "uppercase", background: JV_AURORA, color: "#fff", borderRadius: 999, padding: "4px 11px" }}>Más popular</span>}
                     <div style={{ fontSize: 22, lineHeight: 1 }}>{c.icon}</div>
                     <div style={{ fontSize: 18, fontWeight: 780, color: "var(--text)", marginTop: 8 }}>{p.name}</div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "var(--success)", marginTop: 8 }}>7 días gratis</div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 2 }}>
-                      <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>luego</span>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 10 }}>
                       <span style={{ fontSize: 26, fontWeight: 820, letterSpacing: "-.02em", color: "var(--text)" }}>${p.price_usd}</span>
                       <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>USD/mes</span>
                     </div>
@@ -900,7 +906,7 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
                         </div>
                       ))}
                     </div>
-                    <button className={`${featured ? "btn btn-primary jv-sub-btn-pro" : "btn btn-secondary"} jv-sub-btn`} onClick={() => { track("subscribe_click", { tier: p.tier }); metaEvent("AddToCart", backendUrl, { value: p.price_usd ?? undefined, currency: "USD" }); setTier(p.tier); }} style={{ width: "100%", fontWeight: 700 }}>Empezar 7 días gratis</button>
+                    <button className={`${featured ? "btn btn-primary jv-sub-btn-pro" : "btn btn-secondary"} jv-sub-btn`} onClick={() => { track("subscribe_click", { tier: p.tier }); metaEvent("AddToCart", backendUrl, { value: p.price_usd ?? undefined, currency: "USD" }); setTier(p.tier); }} style={{ width: "100%", fontWeight: 700 }}>Suscribirme</button>
                   </div>
                 );
               })}

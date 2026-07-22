@@ -141,6 +141,7 @@ function Hero({ onCreate, onNav, onBeta, inviteOnly }: {
 export default function Landing({ authed, backendUrl }: { authed: boolean; backendUrl: string }) {
   const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS);
+  const [trial, setTrial] = useState<{ daily_turns: number; days: number }>({ daily_turns: 3, days: 7 });
   const [view, setView] = useState<"landing" | "guest">("landing");
   const [seed, setSeed] = useState("");
   const [register, setRegister] = useState<false | string>(false);
@@ -155,7 +156,7 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
     initTracker(backendUrl);  // analytics first-party (autocapture landing + guest)
     fetch(`${backendUrl}/api/plans`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.plans?.length) setPlans(d.plans); })
+      .then((d) => { if (d?.plans?.length) setPlans(d.plans); if (d?.trial) setTrial({ daily_turns: d.trial.daily_turns ?? 3, days: d.trial.days ?? 7 }); })
       .catch(() => { /* usa fallback */ });
     // Modo invitación: si está activo, los CTA de "empezar" abren la waitlist en vez del registro.
     api.checkAccess(backendUrl, "").then((a) => setInviteOnly(!!a.invite_only)).catch(() => {});
@@ -256,7 +257,7 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
         <PillarsSection />
         <HowItWorks />
         <DiffTable />
-        <Pricing plans={plans} onStart={onStart} />
+        <Pricing plans={plans} trial={trial} onStart={onStart} />
         <FAQ />
         <AppDisclaimer />
         <FinalCTA onStart={onStart} />
