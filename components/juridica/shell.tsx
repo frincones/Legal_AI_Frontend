@@ -23,6 +23,7 @@ export function Sidebar({
   isAdmin = false,
   onFeedback,
   onInvite,
+  onUpgrade,
 }: {
   route: string;
   onNavigate: (r: string) => void;
@@ -39,6 +40,7 @@ export function Sidebar({
   isAdmin?: boolean;
   onFeedback?: () => void;
   onInvite?: () => void;
+  onUpgrade?: () => void;   // abre el muro de suscripción (UpgradeModal). Oculto para admins.
 }) {
   const recentList = recents || [];   // solo conversaciones reales del usuario (sin mock)
   // Nombre/iniciales reales derivados del correo (sin datos mock).
@@ -224,6 +226,29 @@ export function Sidebar({
 
       {/* Footer */}
       <div style={{ padding: "8px 12px 12px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 2 }}>
+        {onUpgrade && (collapsed ? (
+          <button
+            onClick={onUpgrade}
+            title="Mejora tu plan"
+            className="focus-ring"
+            style={{ width: 40, height: 40, margin: "2px auto", borderRadius: "50%", border: "1px solid var(--primary)", cursor: "pointer", background: "var(--primary-soft)", color: "var(--primary)", display: "grid", placeItems: "center" }}
+          >
+            <Icon name="sparkles" size={18} stroke={2.1} />
+          </button>
+        ) : (
+          <button
+            onClick={onUpgrade}
+            title="Mejora tu plan"
+            className="focus-ring"
+            style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", height: 42, padding: "0 12px", marginBottom: 4, borderRadius: "var(--r-md)", border: "1px solid var(--primary)", cursor: "pointer", textAlign: "left", background: "var(--primary-soft)", color: "var(--primary)", fontSize: 13.5, fontWeight: 700 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--primary)"; e.currentTarget.style.color = "#fff"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--primary-soft)"; e.currentTarget.style.color = "var(--primary)"; }}
+          >
+            <Icon name="sparkles" size={17} stroke={2.2} />
+            <span style={{ flex: 1 }}>Mejora tu plan</span>
+            <Icon name="arrowRight" size={15} stroke={2.4} />
+          </button>
+        ))}
         {isAdmin && <Item icon="shieldCheck" label="Admin" active={route === "admin"} onClick={() => onNavigate("admin")} />}
         {onFeedback && (collapsed ? (
           <button

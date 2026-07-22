@@ -576,7 +576,7 @@ export default function JuridicaApp({
 
   return (
     <div style={{ height: "100vh", display: "flex", overflow: "hidden" }}>
-      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={missionMode ? newMission : newDoc} onOpenCommand={() => setCmdOpen(true)} email={email} recents={recents} onOpenRecent={openConversation} missionMode={missionMode} credits={credits} creditsBlocked={creditsBlocked} isAdmin={isAdmin} onFeedback={() => setFeedbackOpen(true)} onInvite={() => setReferralOpen(true)} />}
+      {!mobile && <Sidebar route={route} onNavigate={go} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onNew={missionMode ? newMission : newDoc} onOpenCommand={() => setCmdOpen(true)} email={email} recents={recents} onOpenRecent={openConversation} missionMode={missionMode} credits={credits} creditsBlocked={creditsBlocked} isAdmin={isAdmin} onFeedback={() => setFeedbackOpen(true)} onInvite={() => setReferralOpen(true)} onUpgrade={isAdmin ? undefined : () => setUpgradeTier("")} />}
       <main style={{ flex: 1, minWidth: 0, height: "100dvh", position: "relative", display: "flex", flexDirection: "column" }}>
         {!betaDismissed && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 16px", background: "var(--primary-soft)", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
@@ -674,6 +674,7 @@ export default function JuridicaApp({
                         ["library", "Biblioteca", "book", () => go("library")],
                       ] as [string, string, string, () => void][])
                     : []),
+                  ...(isAdmin ? [] : ([["__upgrade", "Mejora tu plan", "sparkles", () => setUpgradeTier("")]] as [string, string, string, () => void][])),
                   ["settings", "Ajustes", "settings", () => go("settings")],
                   ...(isAdmin ? ([["admin", "Admin", "shieldCheck", () => go("admin")]] as [string, string, string, () => void][]) : []),
                   ["__feedback", "Enviar feedback", "message", () => setFeedbackOpen(true)],
