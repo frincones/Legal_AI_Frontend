@@ -498,6 +498,9 @@ export const api = {
   // Estado/progreso de un job (polling).
   audienciaEstado: (b: string, t: string, id: string) =>
     jget<AudienciaJob>(b, t, `/api/audiencias/${id}`, {} as AudienciaJob),
+  // Lista de audiencias del despacho (para abrir el acta desde la Bandeja).
+  audiencias: (b: string, t: string) =>
+    jget<{ audiencias: AudienciaJob[] }>(b, t, "/api/audiencias", { audiencias: [] }),
   // URL firmada para subir el archivo directo al bucket temporal (audios/videos grandes).
   audienciaUploadUrl: (b: string, t: string, filename: string) =>
     jpost<{ upload_url?: string; storage_path?: string; token?: string; error?: string }>(b, t, "/api/audiencias/upload-url", { filename }, {}),

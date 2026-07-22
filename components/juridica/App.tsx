@@ -422,6 +422,22 @@ export default function JuridicaApp({
     setRoute("chat");
   }
 
+  // Abre el acta de una audiencia: chat con la transcripción pineada + genera el Acta Inteligente.
+  // Sirve para la Bandeja ("Ver acta"): funciona con o sin misión asociada.
+  function openAudienciaActa(documentId: string, matterId: string | null, title: string) {
+    const seed = `Genera el Acta Inteligente completa de la audiencia${title ? ` «${title}»` : ""}: datos del proceso, participantes, línea de tiempo con los minutos exactos, decisiones y órdenes del juez, términos con sus fechas calculadas, verificación de las fuentes citadas y análisis estratégico.`;
+    setCurrentMissionId(matterId || undefined);
+    setChatMatterId(matterId || undefined);
+    setChatSeed(seed);
+    setChatSeedDocs(documentId ? [documentId] : undefined);
+    setOpenSessionId(undefined);
+    setReusePatronId(undefined);
+    setOpenArtifact(undefined);
+    setMode("Documento");
+    setChatKey((k) => k + 1);
+    setRoute("chat");
+  }
+
   async function logout() {
     try {
       const supabase = createClient();
@@ -448,7 +464,7 @@ export default function JuridicaApp({
   else if (missionMode && route === "autopilot")
     main = <Autopilot backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} onNavigate={go} pushToast={pushToast} />;
   else if (missionMode && route === "inbox")
-    main = <Inbox backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} pushToast={pushToast} />;
+    main = <Inbox backendUrl={backendUrl} accessToken={accessToken} onOpenMission={openMission} onOpenAudiencia={openAudienciaActa} pushToast={pushToast} />;
   else if (route === "home")
     main = (
       <Home

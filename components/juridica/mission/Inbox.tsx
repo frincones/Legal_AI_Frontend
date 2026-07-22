@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../icons";
-import { api } from "./data";
+import { api, type AudienciaJob } from "./data";
 import { EmptyState } from "../atoms";
 import { Coachmark, useFirstVisit } from "../Coachmark";
 
@@ -13,16 +13,37 @@ const META: Record<string, { icon: string; color: string; bg: string }> = {
   draft_ready: { icon: "fileText", color: "var(--primary)", bg: "var(--primary-soft)" },
   missing_doc: { icon: "paperclip", color: "var(--gold-text)", bg: "var(--gold-soft)" },
   deadline: { icon: "calendarClock", color: "var(--danger)", bg: "var(--danger-soft)" },
+  audiencia_lista: { icon: "play", color: "var(--primary)", bg: "var(--primary-soft)" },
 };
 
+// Extrae el título de la audiencia del cuerpo de la notificación («…»).
+function tituloDe(n: Notif): string {
+  const m = (n.body || "").match(/«([^»]+)»/);
+  return (m ? m[1] : "").trim();
+}
+
 export function Inbox({
-  backendUrl, accessToken, onOpenMission, pushToast,
+  backendUrl, accessToken, onOpenMission, onOpenAudiencia, pushToast,
 }: {
-  backendUrl: string; accessToken: string; onOpenMission: (id: string) => void; pushToast: (t: string, k?: string) => void;
+  backendUrl: string; accessToken: string; onOpenMission: (id: string) => void;
+  onOpenAudiencia?: (documentId: string, matterId: string | null, title: string) => void;
+  pushToast: (t: string, k?: string) => void;
 }) {
   const [items, setItems] = useState<Notif[]>([]);
-  const load = useCallback(() => { if (backendUrl && accessToken) api.notifications(backendUrl, accessToken).then(setItems); }, [backendUrl, accessToken]);
+  const [auds, setAuds] = useState<AudienciaJob[]>([]);
+  const load = useCallback(() => {
+    if (!backendUrl || !accessToken) return;
+    api.notifications(backendUrl, accessToken).then(setItems);
+    api.audiencias(backendUrl, accessToken).then((r) => setAuds(r.audiencias || []));
+  }, [backendUrl, accessToken]);
   useEffect(() => { load(); }, [load]);
+
+  // Empareja una notificación de audiencia con su audiencia (por título; si no, la más reciente lista).
+  function audienciaDe(n: Notif): AudienciaJob | undefined {
+    const t = tituloDe(n);
+    const done = auds.filter((a) => a.transcript_document_id);
+    return done.find((a) => (a.title || "").trim() === t) || done[0];
+  }
   const unread = items.filter((i) => !i.read_at).length;
   const [coachShow, coachDismiss] = useFirstVisit("inbox");
 
@@ -57,7 +78,14 @@ export function Inbox({
                     <div style={{ fontSize: 12.5, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.body}</div>
                   </div>
                   <span style={{ fontSize: 11.5, color: "var(--text-muted)", flexShrink: 0 }}>{(n.created_at || "").slice(5, 10)}</span>
-                  {n.related_matter_id && <button className="btn btn-secondary btn-sm" onClick={() => onOpenMission(n.related_matter_id!)}>Ver<Icon name="arrowRight" size={14} /></button>}
+                  {n.campaign_type === "audiencia_lista" ? (() => {
+                    const a = audienciaDe(n);
+                    return a?.transcript_document_id && onOpenAudiencia
+                      ? <button className="btn btn-primary btn-sm" onClick={() => onOpenAudiencia(a.transcript_document_id!, a.matter_id ?? null, a.title || tituloDe(n))}><Icon name="sparkles" size={14} />Ver acta</button>
+                      : (n.related_matter_id ? <button className="btn btn-secondary btn-sm" onClick={() => onOpenMission(n.related_matter_id!)}>Ver<Icon name="arrowRight" size={14} /></button> : null);
+                  })() : (
+                    n.related_matter_id && <button className="btn btn-secondary btn-sm" onClick={() => onOpenMission(n.related_matter_id!)}>Ver<Icon name="arrowRight" size={14} /></button>
+                  )}
                 </div>
               );
             })}
