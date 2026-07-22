@@ -341,7 +341,10 @@ export function AudienciaTracker({
 
       {isErr && (
         <div style={{ padding: "0 14px 14px", fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-          {job?.error ? "No se pudo procesar la grabación. Verifica que el enlace sea público o vuelve a intentar." : "No se pudo procesar la grabación. Intenta de nuevo."}
+          {/* Muestra el mensaje del backend si es accionable (p.ej. YouTube anti-bot → sube el archivo). */}
+          {job?.error && /bot|verificaci|archivo|login|p.blico|oficial/i.test(job.error)
+            ? job.error
+            : "No se pudo procesar la grabación. Verifica que el enlace sea público, o descarga el video y súbelo como archivo."}
         </div>
       )}
     </div>
