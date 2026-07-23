@@ -635,11 +635,11 @@ export function FeedbackPopup({ onSubmit, onDismiss }: {
    Aparece al agotar créditos con entrada animada (scale-in + SHAKE + glow). Convierte el momento de
    fricción en loop de crecimiento: CTA a referir (ambos ganan créditos). Cierra por ✕ / click fuera /
    Esc → el usuario puede seguir leyendo su historial y descargando documentos. Reusa el ReferralModal. */
-export function OutOfCreditsPopup({ backendUrl, accessToken, onInvite, onClose, accessModel = "credits" }: {
-  backendUrl: string; accessToken: string; onInvite: () => void; onClose: () => void;
-  accessModel?: string;   // 'trial_daily' → solo Suscribirme (los referidos dan créditos, no turnos del trial)
+export function OutOfCreditsPopup({ backendUrl, accessToken, onClose, accessModel = "credits" }: {
+  backendUrl: string; accessToken: string; onClose: () => void;
+  accessModel?: string;   // 'trial_daily' → "usos de hoy"; pago → "límite de tu plan"
 }) {
-  // En el trial diario el gate es por TURNOS/día, no por saldo → "invitar y ganar créditos" no desbloquea.
+  // Muro de conversión: SIEMPRE prioriza Suscribirme/Mejorar plan (sin CTA de invitar aquí).
   const isTrial = accessModel === "trial_daily";
   const [billingOn, setBillingOn] = useState(false);
   const [showUpg, setShowUpg] = useState(false);
@@ -677,17 +677,11 @@ export function OutOfCreditsPopup({ backendUrl, accessToken, onInvite, onClose, 
           <p style={{ margin: "0 0 18px", fontSize: 14.5, lineHeight: 1.6, color: "var(--text-secondary)" }}>
             {isTrial
               ? <>Suscríbete a un plan para usar Jurovia con <b style={{ color: "var(--text)" }}>mayor capacidad</b>. Tus usos de prueba se renuevan mañana.</>
-              : <>Mejora tu plan para seguir usando Jurovia sin toparte con límites — o invita a un colega y ambos ganan <b style={{ color: "var(--text)" }}>más uso</b>.</>}
+              : <>Mejora tu plan para seguir usando Jurovia sin toparte con <b style={{ color: "var(--text)" }}>límites</b>.</>}
           </p>
           {billingOn && (
             <button className="jv-ooc-cta btn btn-primary" onClick={() => setShowUpg(true)} style={{ width: "100%", fontSize: 15.5, fontWeight: 700, padding: "13px 20px" }}>
               <Icon name="sparkles" size={18} stroke={2.2} /> {isTrial ? "Suscribirme" : "Mejorar mi plan"}
-            </button>
-          )}
-          {/* Referir da créditos (no turnos del trial) → solo se ofrece cuando el modelo es por créditos. */}
-          {!isTrial && (
-            <button className={billingOn ? "btn btn-secondary" : "jv-ooc-cta btn btn-primary"} onClick={onInvite} style={{ width: "100%", marginTop: billingOn ? 10 : 0, fontWeight: 700, padding: "12px 20px" }}>
-              <Icon name="gift" size={18} stroke={2.2} /> Invitar y ganar más uso
             </button>
           )}
           <p style={{ margin: "14px 0 0", fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.55 }}>
@@ -1065,7 +1059,7 @@ export function ReferralModal({
   backendUrl: string;
   accessToken: string;
 }) {
-  const [data, setData] = useState<{ code: string | null; invited: number; rewarded: number; credits_earned: number; reward_referrer: number; reward_referee: number } | null>(null);
+  const [data, setData] = useState<{ code: string | null; invited: number; rewarded: number; turns_earned: number; bonus_available: number; reward_referrer: number; reward_referee: number; reward_share: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [emails, setEmails] = useState("");
@@ -1079,7 +1073,11 @@ export function ReferralModal({
     setSentMsg(null);
     try {
       const r = await api.referralInvite(backendUrl, accessToken, list);
-      if (r?.sent > 0) { setSentMsg(`¡${r.sent} invitación(es) enviada(s)!`); setEmails(""); }
+      if (r?.sent > 0) {
+        setSentMsg(r.bonus_turns ? `¡${r.sent} enviada(s)! Ganaste ${r.bonus_turns} turnos al instante 🎉` : `¡${r.sent} invitación(es) enviada(s)!`);
+        setEmails("");
+        api.referralMe(backendUrl, accessToken).then((d) => setData(d)).catch(() => {});  // refresca turnos disponibles
+      }
       else setSentMsg("No se pudo enviar. Revisa los correos e inténtalo de nuevo.");
     } catch { setSentMsg("No se pudo enviar."); }
     finally { setSending(false); setTimeout(() => setSentMsg(null), 4000); }
@@ -1107,8 +1105,9 @@ export function ReferralModal({
 
   const code = data?.code ?? null;
   const link = code && typeof window !== "undefined" ? `${window.location.origin}/?ref=${code}` : null;
-  const rewardReferrer = data?.reward_referrer ?? 10;
-  const rewardReferee = data?.reward_referee ?? 10;
+  const rewardReferrer = data?.reward_referrer ?? 5;
+  const rewardReferee = data?.reward_referee ?? 3;
+  const rewardShare = data?.reward_share ?? 2;
 
   async function copy() {
     if (!link) return;
@@ -1126,7 +1125,7 @@ export function ReferralModal({
           <span style={{ width: 34, height: 34, borderRadius: 9, background: "var(--grad-gold)", display: "grid", placeItems: "center", color: "#1A1206", flexShrink: 0 }}>
             <Icon name="gift" size={18} stroke={2.2} />
           </span>
-          <div style={{ flex: 1, fontWeight: 650, fontSize: 15.5, color: "var(--text)" }}>Invita y gana créditos</div>
+          <div style={{ flex: 1, fontWeight: 650, fontSize: 15.5, color: "var(--text)" }}>Invita y gana turnos</div>
           <button onClick={onClose} title="Cerrar" style={{ border: "none", background: "transparent", color: "var(--text-muted)", display: "grid", placeItems: "center", cursor: "pointer" }}>
             <Icon name="x" size={18} />
           </button>
@@ -1134,7 +1133,7 @@ export function ReferralModal({
 
         <div style={{ padding: 18 }}>
           <p style={{ fontSize: 13.5, color: "var(--text-secondary)", margin: "0 0 16px", lineHeight: 1.55 }}>
-            Gana <strong style={{ color: "var(--gold-text, var(--gold))" }}>{rewardReferrer} créditos</strong> por cada amigo que se registre y complete su perfil. Ellos también reciben <strong style={{ color: "var(--gold-text, var(--gold))" }}>{rewardReferee}</strong>.
+            Gana <strong style={{ color: "var(--gold-text, var(--gold))" }}>{rewardReferrer} turnos</strong> por cada colega que se registre y complete su perfil (él recibe <strong style={{ color: "var(--gold-text, var(--gold))" }}>{rewardReferee}</strong> de bienvenida). Y <strong style={{ color: "var(--gold-text, var(--gold))" }}>{rewardShare} turnos al instante</strong> por tu primera invitación del día.
           </p>
 
           {/* Enlace de referido */}
@@ -1183,7 +1182,7 @@ export function ReferralModal({
             {([
               ["user", String(data?.invited ?? 0), "invitados"],
               ["circleCheck", String(data?.rewarded ?? 0), "premiados"],
-              ["coins", String(data?.credits_earned ?? 0), "créditos ganados"],
+              ["sparkles", String(data?.bonus_available ?? 0), "turnos disponibles"],
             ] as [string, string, string][]).map(([ic, n, label]) => (
               <div key={label} style={{ flex: "1 1 120px", minWidth: 110, display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--bg-elevated-2)" }}>
                 <span style={{ width: 30, height: 30, borderRadius: 8, background: "var(--primary-soft)", display: "grid", placeItems: "center", color: "var(--primary)", flexShrink: 0 }}>

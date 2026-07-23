@@ -1221,7 +1221,7 @@ function ReferralsTab({ backendUrl, accessToken }: { backendUrl: string; accessT
         <Card label="Pendientes" value={s?.pending ?? 0} color="var(--text-muted)" />
         <Card label="Premiados" value={s?.rewarded ?? 0} color="var(--success)" />
         <Card label="Capped" value={s?.capped ?? 0} color="var(--warning)" />
-        <Card label="Créditos otorgados" value={s?.credits_granted ?? 0} color="var(--primary)" />
+        <Card label="Turnos otorgados" value={s?.turns_granted ?? 0} color="var(--primary)" />
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -1229,7 +1229,7 @@ function ReferralsTab({ backendUrl, accessToken }: { backendUrl: string; accessT
         <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--bg-elevated-2)" }}>
-              {["Fecha", "Código", "Referente", "Referido", "Estado", "Créditos"].map((h, i) => (
+              {["Fecha", "Código", "Referente", "Referido", "Estado", "Turnos"].map((h, i) => (
                 <th key={i} style={{ textAlign: i === 5 ? "right" : "left", padding: "10px 14px", fontWeight: 650, color: "var(--text-muted)", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>

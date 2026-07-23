@@ -740,7 +740,6 @@ export default function JuridicaApp({
           backendUrl={backendUrl}
           accessToken={accessToken}
           accessModel={accessModel}
-          onInvite={() => { setCreditsPopup(false); setReferralOpen(true); }}
           onClose={() => setCreditsPopup(false)}
         />
       )}

@@ -169,9 +169,11 @@ export interface ReferralMe {
   code: string | null;
   invited: number;
   rewarded: number;
-  credits_earned: number;
+  turns_earned: number;
+  bonus_available: number;
   reward_referrer: number;
   reward_referee: number;
+  reward_share: number;
 }
 
 export interface ReferralClaim {
@@ -192,7 +194,7 @@ export interface AdminReferralItem {
 
 export interface AdminReferrals {
   items: AdminReferralItem[];
-  summary: { total: number; pending: number; rewarded: number; capped: number; credits_granted: number };
+  summary: { total: number; pending: number; rewarded: number; capped: number; turns_granted: number };
 }
 
 function headers(token: string) {
@@ -372,10 +374,10 @@ export const api = {
   guestFeedback: (b: string, payload: { guest_id?: string; session?: string; kind?: string; verdict?: "up" | "down" | null; reason?: string; comment?: string; context?: Record<string, unknown> }) =>
     jpost<{ ok?: boolean }>(b, "", "/api/feedback/guest", payload, {}),
   adminFeedback: (b: string, t: string) => jget<AdminFeedback>(b, t, "/api/admin/feedback", { items: [], summary: { total: 0, up: 0, down: 0, by_reason: {}, by_kind: {} } }),
-  referralMe: (b: string, t: string) => jget<ReferralMe>(b, t, "/api/referral/me", { code: null, invited: 0, rewarded: 0, credits_earned: 0, reward_referrer: 10, reward_referee: 10 }),
+  referralMe: (b: string, t: string) => jget<ReferralMe>(b, t, "/api/referral/me", { code: null, invited: 0, rewarded: 0, turns_earned: 0, bonus_available: 0, reward_referrer: 5, reward_referee: 3, reward_share: 2 }),
   referralClaim: (b: string, t: string, code: string) => jpost<ReferralClaim>(b, t, "/api/referral/claim", { code }, { ok: false, status: "error" }),
-  referralInvite: (b: string, t: string, emails: string[]) => jpost<{ ok: boolean; sent: number; requested?: number; reason?: string }>(b, t, "/api/referral/invite", { emails }, { ok: false, sent: 0 }),
-  adminReferrals: (b: string, t: string) => jget<AdminReferrals>(b, t, "/api/admin/referrals", { items: [], summary: { total: 0, pending: 0, rewarded: 0, capped: 0, credits_granted: 0 } }),
+  referralInvite: (b: string, t: string, emails: string[]) => jpost<{ ok: boolean; sent: number; requested?: number; reason?: string; bonus_turns?: number }>(b, t, "/api/referral/invite", { emails }, { ok: false, sent: 0 }),
+  adminReferrals: (b: string, t: string) => jget<AdminReferrals>(b, t, "/api/admin/referrals", { items: [], summary: { total: 0, pending: 0, rewarded: 0, capped: 0, turns_granted: 0 } }),
   // Acceso por invitación (waitlist). join/checkAccess son PÚBLICOS (sin token).
   waitlistJoin: (b: string, payload: { email: string; name?: string; user_type?: string; practice_area?: string; city?: string; phone?: string; note?: string; source?: string; guest_id?: string; context?: Record<string, unknown>; final?: boolean; lead_event_id?: string; consent?: boolean; consent_version?: string }) =>
     jpost<{ ok: boolean; error?: string; authorized?: boolean }>(b, "", "/api/waitlist", payload, { ok: false }),
