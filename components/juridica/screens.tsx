@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode, type CSSProperties } from "react";
 import { Icon } from "./icons";
 import { Tooltip } from "./atoms";
 import { Composer } from "./shell";
@@ -429,11 +429,18 @@ function SelectBox({ value, options }: { value: string; options: string[] }) {
 type ProfileData = {
   firm?: { name?: string; plan?: string; members?: number };
   profile?: { entity_name?: string; primary_jurisdiction?: string };
+  user?: { full_name?: string | null; bar_number?: string | null };
   ui?: { theme?: string; tone?: string; lang?: string };
   usage?: { documentos?: number; verificaciones?: number; input_tokens?: number; output_tokens?: number; estimated_cost_usd?: number };
 };
 type VerifRow = { id: string; consulta?: string; tipo_fuente?: string; estado?: string; tier?: number; confianza?: number; created_at?: string };
 type IntegrationRow = { toolkit: string; label: string; icon: string; provider: string; connected: boolean; enabled: boolean; account_label?: string | null };
+
+// Input estándar de Ajustes (perfil editable).
+const settingsInput: CSSProperties = {
+  width: "100%", maxWidth: 420, height: 42, padding: "0 14px", borderRadius: "var(--r-md)",
+  border: "1px solid var(--border)", background: "var(--bg-base)", fontSize: 14, color: "var(--text)", outline: "none",
+};
 
 export function Settings({
   pushToast,
@@ -457,6 +464,10 @@ export function Settings({
   const [tone, setTone] = useState("Formal jurídico");
   const [theme, setTheme] = useState("Claro");
   const [lang, setLang] = useState("Español");
+  // Datos editables del perfil (punto 2). Prefill desde /api/profile.
+  const [firmNameInput, setFirmNameInput] = useState("");
+  const [fullNameInput, setFullNameInput] = useState("");
+  const [barNumberInput, setBarNumberInput] = useState("");
   const [showUpg, setShowUpg] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
   const isPaidPlan = ["estandar", "pro", "firma"].includes(String(credits?.plan || ""));
@@ -508,21 +519,29 @@ export function Settings({
   const [integrations, setIntegrations] = useState<IntegrationRow[]>([]);
   const [intBusy, setIntBusy] = useState<string | null>(null);
 
+  // Carga (y recarga) el perfil; prefila los campos editables. Reutilizable tras Guardar.
+  async function loadProfile() {
+    if (!backendUrl || !accessToken) return;
+    try {
+      const r = await fetch(`${backendUrl}/api/profile`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const d = r.ok ? await r.json() : null;
+      if (!d) return;
+      setData(d);
+      if (d.ui?.theme) setTheme(d.ui.theme);
+      if (d.ui?.tone) setTone(d.ui.tone);
+      if (d.ui?.lang) setLang(d.ui.lang);
+      setFirmNameInput(d.firm?.name || "");
+      setFullNameInput(d.user?.full_name || "");
+      setBarNumberInput(d.user?.bar_number || "");
+    } catch { /* fail-open: usa defaults */ }
+  }
+
   // F5 — perfil + uso reales (/api/profile) y auditoría (/api/verificaciones). Aditivo; si falla, usa defaults.
   useEffect(() => {
     if (!backendUrl || !accessToken) return;
     let cancel = false;
     const auth = { Authorization: `Bearer ${accessToken}` };
-    fetch(`${backendUrl}/api/profile`, { headers: auth })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancel || !d) return;
-        setData(d);
-        if (d.ui?.theme) setTheme(d.ui.theme);
-        if (d.ui?.tone) setTone(d.ui.tone);
-        if (d.ui?.lang) setLang(d.ui.lang);
-      })
-      .catch(() => {});
+    loadProfile();
     fetch(`${backendUrl}/api/verificaciones?limit=40`, { headers: auth })
       .then((r) => (r.ok ? r.json() : []))
       .then((rows) => {
@@ -602,8 +621,9 @@ export function Settings({
         await fetch(`${backendUrl}/api/profile`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-          body: JSON.stringify({ theme, tone, lang }),
+          body: JSON.stringify({ theme, tone, lang, name: firmNameInput.trim(), full_name: fullNameInput.trim(), bar_number: barNumberInput.trim() }),
         });
+        await loadProfile();   // refresca para que la tarjeta superior refleje el nombre nuevo
       } catch {
         /* ignore */
       }
@@ -664,65 +684,22 @@ export function Settings({
           </div>
         )}
 
-        <Section title="Jurisdicción y redacción" icon="scale">
-          <Field label="Jurisdicción principal" hint="Define las fuentes oficiales que se consultan por defecto.">
-            <SelectBox
-              value={data?.profile?.primary_jurisdiction || "Colombia · Nacional"}
-              options={Array.from(new Set([
-                data?.profile?.primary_jurisdiction || "Colombia · Nacional",
-                "Colombia · Nacional", "Colombia · Bogotá D.C.", "Antioquia", "Valle del Cauca",
-              ]))}
-            />
+        <Section title="Datos de la firma" icon="user">
+          <Field label="Nombre de la firma" hint="Cómo se muestra tu despacho en Jurovia.">
+            <input value={firmNameInput} onChange={(e) => setFirmNameInput(e.target.value)} placeholder="Mi firma"
+              style={settingsInput} />
           </Field>
-          <Field label="Tono de los documentos" hint="Estilo de redacción aplicado a los borradores.">
-            <Segmented value={tone} onChange={setTone} options={["Formal jurídico", "Claro y directo", "Conciliador"]} />
+          <Field label="Tu nombre completo">
+            <input value={fullNameInput} onChange={(e) => setFullNameInput(e.target.value)} placeholder="Nombre y apellidos"
+              style={settingsInput} />
           </Field>
-          <Field label="Membrete / plantilla base" hint="Documento de referencia (.docx) con el estilo de tu firma.">
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px", border: "1px dashed var(--border-strong)", borderRadius: "var(--r-md)", background: "var(--bg-base)" }}>
-              <div style={{ width: 34, height: 34, borderRadius: 8, background: "var(--bg-elevated-2)", display: "grid", placeItems: "center" }}>
-                <Icon name="fileText" size={17} style={{ color: "var(--text-muted)" }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>Aún no has subido un membrete</div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Sube un .docx con el estilo de tu firma para aplicarlo a tus borradores.</div>
-              </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => pushToast?.("Subida de membrete — próximamente", "info")}>
-                <Icon name="upload" size={15} />
-                Subir
-              </button>
-            </div>
+          <Field label="Tarjeta profesional" hint="N.º de tarjeta profesional (opcional).">
+            <input value={barNumberInput} onChange={(e) => setBarNumberInput(e.target.value)} placeholder="Ej. 123456"
+              style={settingsInput} />
           </Field>
-        </Section>
-
-        <Section title="Equipo" icon="user">
-          {/* Datos reales: el usuario actual (admin). Sin nombres mock. */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: members > 1 ? "1px solid var(--border)" : "none" }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--aurora)", color: "#fff", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 600 }}>
-              {(email || "T").slice(0, 2).toUpperCase()}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email || "Tu cuenta"}</div>
-              <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Administrador</div>
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", background: "var(--primary-soft)", padding: "3px 9px", borderRadius: 999 }}>TÚ</span>
-          </div>
-          {members > 1 && (
-            <div style={{ fontSize: 12.5, color: "var(--text-muted)", padding: "10px 0 0" }}>
-              y {members - 1} {members - 1 === 1 ? "miembro más" : "miembros más"} en tu organización.
-            </div>
-          )}
-          <button className="btn btn-secondary btn-sm" style={{ marginTop: 14 }} onClick={() => pushToast && pushToast("Invitaciones próximamente", "info")}>
-            <Icon name="plus" size={15} />
-            Invitar miembro
-          </button>
-        </Section>
-
-        <Section title="Apariencia e idioma" icon="settings">
-          <Field label="Tema" hint="El modo claro premium es el predeterminado.">
-            <Segmented value={theme} onChange={setTheme} options={["Claro", "Oscuro", "Sistema"]} />
-          </Field>
-          <Field label="Idioma">
-            <Segmented value={lang} onChange={setLang} options={["Español", "English"]} />
+          <Field label="Correo de acceso">
+            <input value={email || ""} readOnly disabled
+              style={{ ...settingsInput, color: "var(--text-muted)", background: "var(--bg-elevated-2)", cursor: "not-allowed" }} />
           </Field>
         </Section>
 
@@ -789,14 +766,14 @@ export function Settings({
               <div>
                 <div style={{ fontSize: 16, fontWeight: 650, marginBottom: 4 }}>{inTrial ? "En prueba gratuita" : `Plan ${label}`}</div>
                 {inTrial && (
-                  <div style={{ fontSize: 12.5, color: trialDays != null && trialDays <= 1 ? "var(--warning)" : "var(--text-muted)", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ fontSize: 12.5, color: trialDays != null && trialDays <= 1 ? "var(--warning)" : "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
                     <Icon name="clock" size={13} />
                     {trialDays != null && trialDays <= 0
                       ? "Tu prueba gratuita terminó"
                       : `3 usos por día${trialDays != null ? ` · ${trialDays} ${trialDays === 1 ? "día restante" : "días restantes"}` : ""}`}
                   </div>
                 )}
-                <button className="btn btn-primary btn-sm" onClick={() => setShowUpg(true)}><Icon name="sparkles" size={15} />{inTrial ? "Suscribirme" : "Mejorar plan"}</button>
+                <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 4 }}>Gestiona o mejora tu plan desde el botón <b>Mejorar plan</b> arriba.</div>
               </div>
             );
           })()}
