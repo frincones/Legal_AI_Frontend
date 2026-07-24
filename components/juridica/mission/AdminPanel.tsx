@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../icons";
-import { api, type AdminFeedback, type AdminReferrals, type WaitlistItem, type AnalyticsData, type AnalyticsEvent, type AnalyticsSession, type AnalyticsTop, type AnalyticsKN, type GuestMessage, type AuditOrg, type AuditSession, type AuditMessage, type AuditPart, type WAFeedbackItem, type WAConversation, type WAMessage, type EmailFeedbackItem, type RetentionData, type RetentionUser, type RetentionCohort, type RetentionGrowth, type CampaignKPI, type CampaignRecipient, type Tenant, type TenantDetail, type Subscription, type UsageCosts, type PlanCat, type SupportTicket, type Refund, type Payment } from "./data";
+import { api, type AdminFeedback, type AdminReferrals, type WaitlistItem, type AnalyticsData, type AnalyticsEvent, type AnalyticsSession, type AnalyticsTop, type AnalyticsKN, type GuestMessage, type AuditOrg, type AuditSession, type AuditMessage, type AuditPart, type WAFeedbackItem, type WAConversation, type WAMessage, type EmailFeedbackItem, type RetentionData, type RetentionUser, type RetentionCohort, type RetentionGrowth, type CampaignKPI, type CampaignRecipient, type Tenant, type TenantDetail, type Subscription, type UsageCosts, type CostsDashboard, type PlanCat, type SupportTicket, type Refund, type Payment } from "./data";
 import { PlansFunnelTab } from "./PlansFunnelTab";
 import { VSLTab } from "./VSLTab";
 import { AttributionTab } from "./AttributionTab";
@@ -15,7 +15,7 @@ type Org = { id: string; name: string | null; balance: number | null; cap: numbe
 const ADMIN_GROUPS: { key: string; label: string; subs: [string, string][] }[] = [
   { key: "resumen", label: "Resumen", subs: [["dashboard", "Dashboard"]] },
   { key: "clientes", label: "Clientes", subs: [["tenants", "Tenants"], ["usuarios", "Usuarios"], ["creditos", "Créditos"]] },
-  { key: "ingresos", label: "Ingresos & Cobros", subs: [["suscripciones", "Suscripciones"], ["cartera", "Cartera"], ["devoluciones", "Devoluciones"]] },
+  { key: "ingresos", label: "Ingresos & Cobros", subs: [["costos", "Costos"], ["suscripciones", "Suscripciones"], ["cartera", "Cartera"], ["devoluciones", "Devoluciones"]] },
   { key: "planes", label: "Planes & Acceso", subs: [["planes", "Planes"], ["uso_costos", "Uso & Costos"]] },
   { key: "producto", label: "Producto", subs: [["analytics", "Analytics"], ["embudo_planes", "Embudo de Planes"], ["vsl", "VSL"], ["retencion", "Retención"], ["conversaciones", "Conversaciones"]] },
   { key: "crecimiento", label: "Crecimiento", subs: [["atribucion", "Atribución"], ["waitlist", "Waitlist"], ["referidos", "Referidos"], ["campanas", "Campañas"], ["instagram", "Instagram"]] },
@@ -23,6 +23,7 @@ const ADMIN_GROUPS: { key: string; label: string; subs: [string, string][] }[] =
   { key: "sistema", label: "Sistema", subs: [["auditoria", "Auditoría"], ["config", "Config"]] },
 ];
 const ADMIN_DESC: Record<string, string> = {
+  costos: "FinOps: gasto casi en línea por proveedor/modelo, proyección mensual, margen vs MRR y alertas.",
   creditos: "Consumo, costo estimado y gestión de saldo de cada org.",
   feedback: "Feedback de usuarios (BETA).",
   waitlist: "Lista de espera: autoriza el acceso individual o masivo.",
@@ -157,6 +158,8 @@ export function AdminPanel({
           <TenantsTab backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />
         ) : tab === "suscripciones" ? (
           <SubscriptionsTab backendUrl={backendUrl} accessToken={accessToken} />
+        ) : tab === "costos" ? (
+          <CostsTab backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />
         ) : tab === "uso_costos" ? (
           <UsageCostsTab backendUrl={backendUrl} accessToken={accessToken} />
         ) : tab === "planes" ? (
@@ -478,6 +481,143 @@ function UsageCostsTab({ backendUrl, accessToken }: { backendUrl: string; access
             <div key={o.org_id} style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border)" }}><span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>{o.name || o.org_id.slice(0, 8)}</span><span><b>${o.cost_usd.toFixed(3)}</b></span></div>
           ))}
           {(!data || data.top_orgs.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin datos.</div>}
+        </div>
+      </div>
+      {loading && <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 12 }}>Cargando…</div>}
+    </div>
+  );
+}
+
+/* ---------- Pestaña Costos (FinOps — observabilidad casi en línea) ---------- */
+const PROVIDER_COLOR: Record<string, string> = {
+  anthropic: "#7B3DF5", openai: "#10A37F", railway: "#8A63D2", vercel: "#111827",
+  supabase: "#3ECF8E", groq: "#F55036", e2b: "#FF8A00", firecrawl: "#E8590C",
+  brave: "#FB542B", resend: "#5B6EF5", whatsapp: "#25D366", supadata: "#0EA5E9", composio: "#6366F1",
+};
+
+function CostsTab({ backendUrl, accessToken, pushToast }: { backendUrl: string; accessToken: string; pushToast: (t: string, k?: string) => void }) {
+  const [data, setData] = useState<CostsDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(30);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => { setLoading(true); api.adminCosts(backendUrl, accessToken, days).then((d) => { setData(d); setLoading(false); }); }, [backendUrl, accessToken, days]);
+  useEffect(() => { load(); }, [load]);
+
+  async function collectNow() {
+    setBusy(true);
+    const r = await api.adminCostCollect(backendUrl, accessToken);
+    setBusy(false);
+    if (r.error) pushToast(`Error al recolectar: ${r.error}`, "warning");
+    else { pushToast(`Rollup listo · hoy $${(r.total_usd ?? 0).toFixed(2)}`, "success"); load(); }
+  }
+  async function toggleAlert(id: string, enabled: boolean) {
+    await api.adminSetCostAlert(backendUrl, accessToken, id, { enabled });
+    load();
+  }
+
+  const maxDay = data ? Math.max(1, ...data.trend.map((x) => x.usd)) : 1;
+  const maxProv = data ? Math.max(1, ...data.by_provider.map((x) => x.usd)) : 1;
+  const firing = (data?.alerts || []).filter((a) => a.state === "firing");
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+          Metering interno casi en línea · fuente: <b>{data?.source_note === "api" ? "factura real (API)" : "estimado"}</b>
+        </div>
+        <span style={{ flex: 1 }} />
+        <select value={days} onChange={(e) => setDays(parseInt(e.target.value, 10))} className="input" style={{ width: "auto", padding: "6px 10px", fontSize: 13 }}>
+          {[7, 30, 90].map((d) => <option key={d} value={d}>Últimos {d} días</option>)}
+        </select>
+        <button className="btn btn-secondary btn-sm" onClick={collectNow} disabled={busy}><Icon name={busy ? "refresh" : "sparkles"} size={15} style={busy ? { animation: "spin 1s linear infinite" } : {}} />Recolectar ahora</button>
+        <button className="btn btn-secondary btn-sm" onClick={load}><Icon name="refresh" size={15} />Actualizar</button>
+      </div>
+
+      {firing.length > 0 && (
+        <div className="card" style={{ padding: "12px 16px", marginBottom: 14, border: "1px solid var(--danger, #DC2626)", background: "rgba(220,38,38,.06)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--danger, #DC2626)", display: "flex", alignItems: "center", gap: 8 }}>
+            <Icon name="alert" size={15} />{firing.length} alerta{firing.length > 1 ? "s" : ""} activa{firing.length > 1 ? "s" : ""}: {firing.map((a) => a.name).join(" · ")}
+          </div>
+        </div>
+      )}
+
+      {/* KPIs principales */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+        <Kpi label="Gasto hoy" value={`$${(data?.today_usd ?? 0).toFixed(2)}`} color="var(--primary)" />
+        <Kpi label="Mes a la fecha" value={`$${(data?.mtd_usd ?? 0).toFixed(2)}`} />
+        <Kpi label="Proyección mes" value={`$${(data?.projection_usd ?? 0).toFixed(0)}`} color="var(--danger, #DC2626)" />
+        <Kpi label="MRR neto" value={`$${(data?.mrr_net_usd ?? 0).toFixed(0)}`} color="var(--success)" />
+        <Kpi label="Margen ≈" value={`$${(data?.margin_usd ?? 0).toFixed(0)}`} color={(data?.margin_usd ?? 0) >= 0 ? "var(--success)" : "var(--danger, #DC2626)"} />
+        <Kpi label="Margen %" value={`${(data?.margin_pct ?? 0).toFixed(0)}%`} color={(data?.margin_pct ?? 0) >= 0 ? "var(--success)" : "var(--danger, #DC2626)"} />
+      </div>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>Margen ≈ MRR neto − proyección del costo mensual de infraestructura. El worker actualiza esto cada minuto.</div>
+
+      {/* Gasto por día */}
+      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-muted)", marginBottom: 12 }}>GASTO POR DÍA (USD)</div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 90 }}>
+          {(data?.trend || []).map((x) => (
+            <div key={x.day} title={`${x.day}: $${x.usd.toFixed(3)}`} style={{ flex: 1, minWidth: 3, height: `${Math.max(2, (x.usd / maxDay) * 100)}%`, background: "var(--primary)", borderRadius: "3px 3px 0 0", opacity: 0.8 }} />
+          ))}
+          {(!data || data.trend.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin datos aún (el worker está llenando el histórico).</div>}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
+        {/* Por proveedor */}
+        <div className="card" style={{ flex: "1 1 340px", padding: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-muted)", marginBottom: 12 }}>COSTO POR PROVEEDOR (mes)</div>
+          {(data?.by_provider || []).map((p) => (
+            <div key={p.provider} style={{ marginBottom: 9 }}>
+              <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                <span style={{ color: "var(--text-secondary)", textTransform: "capitalize" }}>{p.provider} {p.source === "api" && <span style={{ fontSize: 10, color: "var(--success)" }}>· real</span>}</span>
+                <span><b>${p.usd.toFixed(2)}</b></span>
+              </div>
+              <div style={{ height: 6, borderRadius: 3, background: "var(--bg-elevated-2)" }}>
+                <div style={{ height: "100%", width: `${(p.usd / maxProv) * 100}%`, background: PROVIDER_COLOR[p.provider] || "var(--primary)", borderRadius: 3 }} />
+              </div>
+            </div>
+          ))}
+          {(!data || data.by_provider.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin datos.</div>}
+        </div>
+        {/* Por modelo Claude */}
+        <div className="card" style={{ flex: "1 1 300px", padding: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-muted)", marginBottom: 12 }}>ANTHROPIC — POR MODELO (mes)</div>
+          {(data?.by_model || []).map((m) => (
+            <div key={m.model} style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 190 }}>{m.model}</span>
+              <span><b>${m.usd.toFixed(2)}</b></span>
+            </div>
+          ))}
+          {(!data || data.by_model.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin datos.</div>}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        {/* Top tenants por costo */}
+        <div className="card" style={{ flex: "1 1 340px", padding: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-muted)", marginBottom: 12 }}>TOP CLIENTES POR COSTO (30d)</div>
+          {(data?.top_tenants || []).map((o) => (
+            <div key={o.org_id} style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 210 }}>{o.name} {o.plan && <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>· {o.plan}</span>}</span>
+              <span><b>${o.cost_usd.toFixed(2)}</b></span>
+            </div>
+          ))}
+          {(!data || data.top_tenants.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin datos.</div>}
+        </div>
+        {/* Alertas */}
+        <div className="card" style={{ flex: "1 1 340px", padding: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-muted)", marginBottom: 12 }}>ALERTAS DE GASTO</div>
+          {(data?.alerts || []).map((a) => (
+            <div key={a.id} style={{ fontSize: 13, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name} {a.state === "firing" && <span style={{ color: "var(--danger, #DC2626)", fontWeight: 700 }}>· activa</span>}</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{a.provider || "total"} · {a.metric} · umbral ${a.threshold_usd}</div>
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={() => toggleAlert(a.id, !a.enabled)} style={{ color: a.enabled ? "var(--success)" : "var(--text-muted)" }}>{a.enabled ? "Activa" : "Off"}</button>
+            </div>
+          ))}
+          {(!data || data.alerts.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin alertas.</div>}
         </div>
       </div>
       {loading && <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 12 }}>Cargando…</div>}

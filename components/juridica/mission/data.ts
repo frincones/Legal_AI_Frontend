@@ -320,6 +320,16 @@ export type UsageCosts = {
   by_day: { day: string; cost_usd: number }[]; top_orgs: { org_id: string; name: string | null; cost_usd: number }[];
   mrr_usd: number; mrr_gross_usd: number; cogs_month_usd: number; gross_margin_usd: number; usd_cop: number;
 };
+export type CostsDashboard = {
+  today_usd: number; mtd_usd: number; projection_usd: number;
+  mrr_net_usd: number; margin_usd: number; margin_pct: number;
+  by_provider: { provider: string; usd: number; source: string }[];
+  by_model: { model: string; usd: number; quantity: number }[];
+  trend: { day: string; usd: number }[];
+  top_tenants: { org_id: string; name: string; plan: string | null; cost_usd: number }[];
+  alerts: { id: string; name: string; provider: string | null; metric: string; threshold_usd: number; enabled: boolean; state: string; last_fired_at: string | null }[];
+  source_note: string; updated_for: string;
+};
 export type PlanCat = { tier: string; name: string; active: boolean; price_usd: number | null; regular_usd?: number | null; credits: number | null; trial_days: number | null; blurb: string; entitlements: Record<string, unknown> };
 export type PlansFunnelStep = { demo_opened: number; demo_opened_sess: number; plans_opened: number; plans_opened_sess: number; plan_selected: number; plan_selected_sess: number; checkout_started: number; checkout_started_sess: number; checkout_abandoned: number; checkout_abandoned_sess: number; purchased: number; purchased_sess: number };
 export type PlansFunnelLead = { email: string; name: string | null; city: string | null; user_type: string | null; practice_area: string | null; phone: string | null; source: string | null; status: string | null; created_at: string; purchased: boolean; gross_usd: number | null; purchased_at: string | null; reached_checkout: boolean; abandoned: boolean };
@@ -446,6 +456,10 @@ export const api = {
   adminSetTenantPlan: (b: string, t: string, orgId: string, plan: string) => jpost<{ ok?: boolean; plan?: string }>(b, t, `/api/admin/tenants/${orgId}/plan`, { plan }, {}),
   adminSubscriptions: (b: string, t: string) => jget<SubscriptionsResp>(b, t, "/api/admin/subscriptions", { subscriptions: [], by_status: {} }),
   adminUsageCosts: (b: string, t: string, days = 30) => jget<UsageCosts>(b, t, `/api/admin/usage-costs?days=${days}`, { total_cost_usd: 0, by_model: {}, by_day: [], top_orgs: [], mrr_usd: 0, mrr_gross_usd: 0, cogs_month_usd: 0, gross_margin_usd: 0, usd_cop: 4000 }),
+  // FinOps — observabilidad de costos (metering interno casi en línea)
+  adminCosts: (b: string, t: string, days = 30) => jget<CostsDashboard>(b, t, `/api/admin/costs?days=${days}`, { today_usd: 0, mtd_usd: 0, projection_usd: 0, mrr_net_usd: 0, margin_usd: 0, margin_pct: 0, by_provider: [], by_model: [], trend: [], top_tenants: [], alerts: [], source_note: "estimate", updated_for: "" }),
+  adminCostCollect: (b: string, t: string) => jpost<{ day?: string; total_usd?: number; error?: string }>(b, t, "/api/admin/costs/collect", {}, {}),
+  adminSetCostAlert: (b: string, t: string, id: string, body: { enabled?: boolean; threshold_usd?: number }) => jpost<{ ok?: boolean }>(b, t, `/api/admin/costs/alerts/${id}`, body, {}),
   adminPlansFunnel: (b: string, t: string) => jget<PlansFunnel>(b, t, "/api/admin/plans-funnel", { funnel: {}, leads: [], purchases: [] }),
   adminIgQueue: (b: string, t: string, status?: string) => jget<IgQueueResp>(b, t, `/api/admin/ig/queue${status ? `?status=${status}` : ""}`, { items: [], counts: {}, total: 0 }),
   adminIgAdd: (b: string, t: string, item: Record<string, unknown>) => jpost<{ ok?: boolean; item?: IgQueueItem }>(b, t, "/api/admin/ig/queue", item, { ok: false }),
