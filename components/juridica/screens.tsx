@@ -8,6 +8,7 @@ import { SUGGESTIONS, TASKS, type LibraryItem } from "./data";
 import { ToolLogo } from "./Wizard";
 import { Checklist } from "./Checklist";
 import { EmptyState, UpgradeModal } from "./atoms";
+import { estadoLabel } from "./Activity";
 import { api } from "./mission/data";
 
 /* ============================ HOME ============================ */
@@ -802,7 +803,7 @@ export function Settings({
                         {(v.tipo_fuente || "fuente")} {v.tier != null ? `· tier ${v.tier}` : ""} {v.created_at ? `· ${new Date(v.created_at).toLocaleDateString("es-CO")}` : ""}
                       </div>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.03em", flexShrink: 0 }}>{v.estado || "—"}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: "0.03em", flexShrink: 0 }}>{estadoLabel(v.estado)}</span>
                   </div>
                 );
               })}

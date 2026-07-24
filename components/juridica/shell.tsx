@@ -347,6 +347,7 @@ export function Composer({
   blocked,
   sessionId,
   onQuickSend,
+  onOpenActa,
   audiencias,
 }: {
   value: string;
@@ -368,6 +369,7 @@ export function Composer({
   blocked?: boolean;        // sin créditos → input deshabilitado + banner
   sessionId?: string;       // liga la audiencia a la conversación actual (opcional)
   onQuickSend?: (text: string, documentIds?: string[]) => void; // chips de audiencia → dispara al agente
+  onOpenActa?: (sessionId: string) => void;  // "Ver el acta" idempotente → reabre la conversación del acta
   audiencias?: boolean;     // muestra el botón "Analizar audiencia" (default: true si hay backend+token)
 }) {
   const dict = useDictation(backendUrl, accessToken);
@@ -560,6 +562,7 @@ export function Composer({
           jobId={audJob.id}
           title={audJob.title}
           onQuickSend={onQuickSend}
+          onOpenActa={onOpenActa}
           onClose={() => setAudJob(null)}
         />
       )}

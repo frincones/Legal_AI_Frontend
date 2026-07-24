@@ -516,6 +516,7 @@ export default function JuridicaApp({
         onCredits={onCredits}
         onBlocked={onBlocked}
         onOpenArtifact={openArtifactInCanvas}
+        onOpenActa={openConversation}
       />
     );
   else if (route === "canvas")

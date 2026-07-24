@@ -21,6 +21,21 @@ function estadoColor(estado?: string): string {
   return "var(--success)";
 }
 
+// Etiqueta legible del estado de vigencia (evita labels técnicos con guion_bajo al abogado).
+export function estadoLabel(estado?: string): string {
+  if (!estado) return "—";
+  const e = estado.toLowerCase().replace(/_/g, " ").trim();
+  const map: Record<string, string> = {
+    "vigente": "Vigente",
+    "vigente con modificaciones": "Vigente · con modificaciones",
+    "derogada": "Derogada", "derogado": "Derogado",
+    "exequible": "Exequible", "inexequible": "Inexequible",
+    "exequible condicionada": "Exequible · condicionada",
+    "suspendida": "Suspendida", "no encontrada": "No encontrada",
+  };
+  return map[e] || e.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Badge clicable a la página OFICIAL donde se verificó. Etiqueta = la CITA (norma/sentencia) para que
 // el usuario sepa a qué corresponde el link; luego estado y la entidad/portal que lo respalda.
 export function SourceBadge({ s }: { s: SourceLink }) {
@@ -39,7 +54,7 @@ export function SourceBadge({ s }: { s: SourceLink }) {
       style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 500, textDecoration: "none", maxWidth: "100%" }}>
       <Icon name="shieldCheck" size={12} style={{ color: estadoColor(s.estado), flexShrink: 0 }} />
       <span style={{ fontWeight: 650, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 220 }}>{s.consulta || s.entidad || "Fuente"}</span>
-      {s.estado && <span style={{ color: estadoColor(s.estado), fontWeight: 600, flexShrink: 0 }}>· {s.estado}</span>}
+      {s.estado && <span style={{ color: estadoColor(s.estado), fontWeight: 600, flexShrink: 0 }}>· {estadoLabel(s.estado)}</span>}
       {s.entidad && <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>· {s.entidad}</span>}
       <Icon name="link" size={11} style={{ color: "var(--primary)", flexShrink: 0 }} />
     </a>

@@ -9,9 +9,14 @@
  * Si algo falla, degradan suave (fail-open) y no rompen el chat.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Icon } from "./icons";
 import { api, type AudienciaJob } from "./mission/data";
+
+const chipStyle: CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: "var(--r-pill)",
+  border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text)", fontSize: 12.5, fontWeight: 550, cursor: "pointer",
+};
 
 const MAX_HOURS = 15;
 
@@ -249,6 +254,7 @@ export function AudienciaTracker({
   jobId,
   title,
   onQuickSend,
+  onOpenActa,
   onClose,
 }: {
   backendUrl: string;
@@ -256,13 +262,21 @@ export function AudienciaTracker({
   jobId: string;
   title: string;
   onQuickSend?: (text: string, docIds?: string[]) => void;
+  onOpenActa?: (sessionId: string) => void;   // "Ver el acta" idempotente: reabre la conversación del acta ya generada
   onClose: () => void;
 }) {
   const [job, setJob] = useState<AudienciaJob | null>(null);
+  const [busy, setBusy] = useState(false);          // deshabilita "Ver el acta" on-demand tras el clic (anti-duplicado)
+  const [nowMs, setNowMs] = useState(Date.now());   // ticker para ETA/elapsed en vivo
   const doneRef = useRef(false);
   const docId = job?.transcript_document_id || undefined;
   const status = job?.status || "pending";
   const pct = Math.max(3, Math.min(100, job?.progress_pct || (status === "pending" ? 3 : 5)));
+  // ETA client-side: elapsed × (100−%)/% (heurística honesta, etiqueta "≈"). Cero columnas nuevas.
+  const startMs = job?.created_at ? new Date(job.created_at).getTime() : null;
+  const elapsedS = startMs ? Math.max(0, (nowMs - startMs) / 1000) : 0;
+  const etaS = (pct > 5 && pct < 99 && elapsedS > 8) ? Math.round((elapsedS * (100 - pct)) / pct) : null;
+  const etaLabel = etaS == null ? null : etaS >= 60 ? `≈ ${Math.round(etaS / 60)} min` : `≈ ${etaS}s`;
 
   useEffect(() => {
     let alive = true;
@@ -285,6 +299,13 @@ export function AudienciaTracker({
 
   const isDone = status === "done";
   const isErr = status === "error";
+
+  // Ticker de 1s para que el ETA/elapsed avance suave (se detiene al terminar).
+  useEffect(() => {
+    if (isDone || isErr) return;
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [isDone, isErr]);
 
   function chip(text: string, docs?: string[]) {
     onQuickSend?.(text, docs);
@@ -315,8 +336,19 @@ export function AudienciaTracker({
       </div>
 
       {!isDone && !isErr && (
-        <div style={{ height: 4, background: "var(--bg-elevated-2)", margin: "0 14px 12px", borderRadius: 3, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${pct}%`, background: "var(--aurora)", borderRadius: 3, transition: "width .5s ease" }} />
+        <div style={{ padding: "0 14px 12px" }}>
+          <div style={{ height: 4, background: "var(--bg-elevated-2)", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: "var(--aurora)", borderRadius: 3, transition: "width .5s ease" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11.5, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+            <span>{pct}%</span>
+            {etaLabel && <span>{etaLabel} restantes</span>}
+          </div>
+          {(status === "analyzing" || status === "transcribing") && (
+            <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.45 }}>
+              Puedes cerrar y seguir trabajando — te avisamos en la <b>Bandeja</b> cuando esté lista.
+            </div>
+          )}
         </div>
       )}
 
@@ -326,13 +358,24 @@ export function AudienciaTracker({
             Transcripción lista y adjunta al caso. ¿Qué hacemos?
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-            {(onQuickSend ? CHIPS : []).map((c) => (
-              <button key={c.label} onClick={() => { chip(c.prompt, docId ? [docId] : undefined); onClose(); }} className="focus-ring"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text)", fontSize: 12.5, fontWeight: 550, cursor: "pointer" }}>
+            {/* "Ver el acta" IDEMPOTENTE: si el worker ya la generó, REABRE la conversación (no regenera). */}
+            {(onOpenActa && job?.acta_session_id) ? (
+              <button onClick={() => { onOpenActa(job.acta_session_id as string); onClose(); }} className="focus-ring" style={chipStyle}>
+                <Icon name="sparkles" size={13} style={{ color: "var(--primary)" }} /> Ver el acta
+              </button>
+            ) : onQuickSend ? (
+              <button disabled={busy} onClick={() => { if (busy) return; setBusy(true); chip(CHIPS[0].prompt, docId ? [docId] : undefined); onClose(); }}
+                className="focus-ring" style={{ ...chipStyle, opacity: busy ? 0.6 : 1, cursor: busy ? "default" : "pointer" }}>
+                <Icon name="sparkles" size={13} style={{ color: "var(--primary)" }} /> {busy ? "Generando…" : "Ver el acta"}
+              </button>
+            ) : null}
+            {/* Resto de acciones (siempre disparan al agente en vivo). */}
+            {onQuickSend && CHIPS.slice(1).map((c) => (
+              <button key={c.label} onClick={() => { chip(c.prompt, docId ? [docId] : undefined); onClose(); }} className="focus-ring" style={chipStyle}>
                 <Icon name={c.icon} size={13} style={{ color: "var(--primary)" }} /> {c.label}
               </button>
             ))}
-            {!onQuickSend && (
+            {!onQuickSend && !onOpenActa && (
               <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Abre la misión y pregúntale al agente sobre la audiencia.</div>
             )}
           </div>

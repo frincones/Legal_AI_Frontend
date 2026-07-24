@@ -124,6 +124,7 @@ export function ChatView({
   onCredits,
   onBlocked,
   onOpenArtifact,
+  onOpenActa,
 }: {
   backendUrl: string;
   accessToken: string;
@@ -140,6 +141,7 @@ export function ChatView({
   onCredits?: (info: { balance?: number | null; cap?: number | null; low?: boolean }) => void;
   onBlocked?: () => void;
   onOpenArtifact?: (a: Artifact) => void;   // abrir un documento generado en el Canvas editable
+  onOpenActa?: (sessionId: string) => void;  // "Ver el acta" idempotente → reabre la conversación del acta
 }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -500,6 +502,7 @@ export function ChatView({
             blocked={blocked}
             sessionId={sessionId.current}
             onQuickSend={(text, docs) => runMessage(text, docs)}
+            onOpenActa={onOpenActa}
             placeholder={compact ? "Pregúntale a esta misión…" : "Escribe un mensaje de seguimiento…"}
           />
           <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.45 }}>{AI_DISCLAIMER}</p>
