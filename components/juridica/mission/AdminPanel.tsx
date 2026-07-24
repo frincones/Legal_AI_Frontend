@@ -572,6 +572,41 @@ function CostsTab({ backendUrl, accessToken, pushToast }: { backendUrl: string; 
         <span style={{ color: "var(--text-muted)" }}>Margen ≈ MRR neto − proyección del costo. Actualiza cada minuto.</span>
       </div>
 
+      {/* Economía unitaria & Break-even */}
+      {data?.unit_economics && (() => {
+        const ue = data.unit_economics!;
+        const be = ue.breakeven_paying;
+        const pct = be ? Math.min(100, (ue.paying_users / be) * 100) : 0;
+        return (
+          <div className="card" style={{ padding: 18, marginBottom: 16, border: "1px solid var(--primary)", background: "var(--primary-soft)" }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--primary)", marginBottom: 12 }}>ECONOMÍA UNITARIA & PUNTO DE EQUILIBRIO</div>
+            {be ? (
+              <>
+                <div style={{ fontSize: 15, marginBottom: 4 }}>
+                  Necesitas <b style={{ fontSize: 22, color: "var(--primary)" }}>{be}</b> usuarios pagos para el equilibrio · hoy <b>{ue.paying_users}</b> · faltan <b>{ue.gap}</b>
+                </div>
+                <div style={{ height: 10, borderRadius: 6, background: "var(--bg-elevated-2)", margin: "8px 0 4px", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: "var(--grad-aurora, var(--primary))", borderRadius: 6 }} />
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 14 }}>{ue.paying_users} de {be} pagos ({pct.toFixed(0)}%) · piso solo-membresías: {ue.breakeven_fixed_only} pagos</div>
+              </>
+            ) : (
+              <div style={{ fontSize: 14, color: "var(--danger, #DC2626)", fontWeight: 600, marginBottom: 12 }}>Margen de contribución ≤ 0 — sin equilibrio posible sin subir precio o bajar costo por usuario.</div>
+            )}
+            <div style={{ display: "flex", gap: 20, flexWrap: "wrap", fontSize: 12.5 }}>
+              <div><div style={{ color: "var(--text-muted)" }}>Ingreso neto / pago</div><b style={{ fontSize: 15, color: "var(--success)" }}>${ue.net_per_paid.toFixed(2)}</b></div>
+              <div><div style={{ color: "var(--text-muted)" }}>Costo servir / pago</div><b style={{ fontSize: 15 }}>${ue.cost_per_paid.toFixed(2)}</b></div>
+              <div><div style={{ color: "var(--text-muted)" }}>Margen contrib. / pago</div><b style={{ fontSize: 15, color: ue.contribution_margin >= 0 ? "var(--success)" : "var(--danger, #DC2626)" }}>${ue.contribution_margin.toFixed(2)}</b></div>
+              <div><div style={{ color: "var(--text-muted)" }}>Costo / usuario free</div><b style={{ fontSize: 15 }}>${ue.cost_per_free.toFixed(2)}</b></div>
+              <div><div style={{ color: "var(--text-muted)" }}>Overhead a cubrir</div><b style={{ fontSize: 15 }}>${ue.overhead_usd.toFixed(0)}/mes</b></div>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+              ⚠️ <b>{ue.free_share_pct}% del costo variable</b> lo generan los <b>{ue.free_users} usuarios free/trial</b> (${ue.variable_free_usd.toFixed(0)}/mes), no los {ue.paying_users} pagos (${ue.variable_paid_usd.toFixed(0)}/mes). El equilibrio asume que ese funnel free se mantiene ~estable; si crece proporcional al pago, hay que mejorar conversión o bajar el costo por usuario free.
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Gasto por día */}
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-muted)", marginBottom: 12 }}>GASTO POR DÍA (USD)</div>

@@ -325,6 +325,14 @@ export type CostsDashboard = {
   mrr_net_usd: number; margin_usd: number; margin_pct: number;
   breakdown: { usage: number; membership: number; free: number; api: number };
   free_providers: string[];
+  unit_economics?: {
+    active_users: number; paying_users: number; free_users: number;
+    fixed_usd: number; variable_usd: number; variable_paid_usd: number; variable_free_usd: number;
+    total_cost_usd: number; net_mrr_usd: number;
+    cost_per_active: number; cost_per_paid: number; cost_per_free: number; net_per_paid: number;
+    contribution_margin: number; overhead_usd: number;
+    breakeven_paying: number | null; breakeven_fixed_only: number | null; gap: number | null; free_share_pct: number;
+  };
   by_provider: { provider: string; usd: number; source: string; qty?: number; unit?: string; allowance?: number; allowance_unit?: string; util_pct?: number | null }[];
   by_model: { model: string; usd: number; quantity: number }[];
   trend: { day: string; usd: number }[];
