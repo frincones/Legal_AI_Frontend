@@ -516,14 +516,17 @@ function CostsTab({ backendUrl, accessToken, pushToast }: { backendUrl: string; 
   }
 
   const maxDay = data ? Math.max(1, ...data.trend.map((x) => x.usd)) : 1;
-  const maxProv = data ? Math.max(1, ...data.by_provider.map((x) => x.usd)) : 1;
+  const paidProviders = (data?.by_provider || []).filter((p) => p.source !== "free" && p.usd > 0);
+  const freeProviders = data?.free_providers || [];
+  const maxProv = Math.max(1, ...paidProviders.map((x) => x.usd));
   const firing = (data?.alerts || []).filter((a) => a.state === "firing");
+  const marginNeg = (data?.margin_usd ?? 0) < 0;
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-          Metering interno casi en línea · fuente: <b>{data?.source_note === "api" ? "factura real (API)" : "estimado"}</b>
+          Uso real (Anthropic/OpenAI) + membresías validadas por API (Firecrawl/Railway) · cada minuto
         </div>
         <span style={{ flex: 1 }} />
         <select value={days} onChange={(e) => setDays(parseInt(e.target.value, 10))} className="input" style={{ width: "auto", padding: "6px 10px", fontSize: 13 }}>
@@ -541,6 +544,17 @@ function CostsTab({ backendUrl, accessToken, pushToast }: { backendUrl: string; 
         </div>
       )}
 
+      {marginNeg && (
+        <div className="card" style={{ padding: "12px 16px", marginBottom: 14, border: "1px solid var(--danger, #DC2626)", background: "rgba(220,38,38,.06)" }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--danger, #DC2626)", display: "flex", alignItems: "center", gap: 8 }}>
+            <Icon name="alert" size={16} />Estás gastando más de lo que ingresas
+          </div>
+          <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginTop: 4 }}>
+            Proyección de costo <b>${(data?.projection_usd ?? 0).toFixed(0)}/mes</b> vs MRR neto <b>${(data?.mrr_net_usd ?? 0).toFixed(0)}/mes</b> → pérdida de <b>${Math.abs(data?.margin_usd ?? 0).toFixed(0)}/mes</b>.
+          </div>
+        </div>
+      )}
+
       {/* KPIs principales */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
         <Kpi label="Gasto hoy" value={`$${(data?.today_usd ?? 0).toFixed(2)}`} color="var(--primary)" />
@@ -550,7 +564,13 @@ function CostsTab({ backendUrl, accessToken, pushToast }: { backendUrl: string; 
         <Kpi label="Margen ≈" value={`$${(data?.margin_usd ?? 0).toFixed(0)}`} color={(data?.margin_usd ?? 0) >= 0 ? "var(--success)" : "var(--danger, #DC2626)"} />
         <Kpi label="Margen %" value={`${(data?.margin_pct ?? 0).toFixed(0)}%`} color={(data?.margin_pct ?? 0) >= 0 ? "var(--success)" : "var(--danger, #DC2626)"} />
       </div>
-      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>Margen ≈ MRR neto − proyección del costo mensual de infraestructura. El worker actualiza esto cada minuto.</div>
+      {/* Desglose por tipo de costo */}
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12.5, color: "var(--text-secondary)", margin: "8px 0 16px" }}>
+        <span>💠 <b>Uso</b> (Anthropic/OpenAI): <b>${(data?.breakdown?.usage ?? 0).toFixed(2)}</b></span>
+        <span>📦 <b>Membresías</b> (Railway/Firecrawl/Resend): <b>${(data?.breakdown?.membership ?? 0).toFixed(2)}</b></span>
+        <span>🆓 <b>Free tier</b>: $0</span>
+        <span style={{ color: "var(--text-muted)" }}>Margen ≈ MRR neto − proyección del costo. Actualiza cada minuto.</span>
+      </div>
 
       {/* Gasto por día */}
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
@@ -567,18 +587,32 @@ function CostsTab({ backendUrl, accessToken, pushToast }: { backendUrl: string; 
         {/* Por proveedor */}
         <div className="card" style={{ flex: "1 1 340px", padding: 16 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-muted)", marginBottom: 12 }}>COSTO POR PROVEEDOR (mes)</div>
-          {(data?.by_provider || []).map((p) => (
-            <div key={p.provider} style={{ marginBottom: 9 }}>
-              <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                <span style={{ color: "var(--text-secondary)", textTransform: "capitalize" }}>{p.provider} <span style={{ fontSize: 10, color: p.source === "api" ? "var(--success)" : p.source === "free" ? "var(--text-muted)" : p.source === "membership" ? "var(--primary)" : "var(--text-secondary)" }}>· {p.source === "api" ? "real" : p.source === "free" ? "gratis" : p.source === "membership" ? "membresía" : "uso"}</span></span>
-                <span><b>${p.usd.toFixed(2)}</b></span>
+          {paidProviders.map((p) => {
+            const overprov = p.util_pct != null && p.util_pct < 20;
+            return (
+              <div key={p.provider} style={{ marginBottom: 11 }}>
+                <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ color: "var(--text-secondary)", textTransform: "capitalize" }}>{p.provider} <span style={{ fontSize: 10, color: p.source === "api" ? "var(--success)" : p.source === "membership" ? "var(--primary)" : "var(--text-secondary)" }}>· {p.source === "api" ? "real" : p.source === "membership" ? "membresía" : "uso"}</span></span>
+                  <span><b>${p.usd.toFixed(2)}</b></span>
+                </div>
+                <div style={{ height: 6, borderRadius: 3, background: "var(--bg-elevated-2)" }}>
+                  <div style={{ height: "100%", width: `${(p.usd / maxProv) * 100}%`, background: PROVIDER_COLOR[p.provider] || "var(--primary)", borderRadius: 3 }} />
+                </div>
+                {p.util_pct != null && p.allowance != null && (
+                  <div style={{ fontSize: 11, color: overprov ? "var(--warning)" : "var(--text-muted)", marginTop: 3 }}>
+                    {p.util_pct}% usado · {(p.qty ?? 0).toLocaleString()}/{p.allowance.toLocaleString()} {p.allowance_unit || ""}{overprov ? " · sobredimensionado" : ""}
+                  </div>
+                )}
               </div>
-              <div style={{ height: 6, borderRadius: 3, background: "var(--bg-elevated-2)" }}>
-                <div style={{ height: "100%", width: `${(p.usd / maxProv) * 100}%`, background: PROVIDER_COLOR[p.provider] || "var(--primary)", borderRadius: 3 }} />
-              </div>
+            );
+          })}
+          {freeProviders.length > 0 && (
+            <div title={freeProviders.join(", ")} style={{ fontSize: 12.5, display: "flex", justifyContent: "space-between", padding: "7px 0 0", borderTop: "1px solid var(--border)", marginTop: 4 }}>
+              <span style={{ color: "var(--text-muted)" }}>🆓 Free tier · {freeProviders.length} servicios</span>
+              <span style={{ color: "var(--text-muted)" }}><b>$0.00</b></span>
             </div>
-          ))}
-          {(!data || data.by_provider.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin datos.</div>}
+          )}
+          {paidProviders.length === 0 && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin datos.</div>}
         </div>
         {/* Por modelo Claude */}
         <div className="card" style={{ flex: "1 1 300px", padding: 16 }}>

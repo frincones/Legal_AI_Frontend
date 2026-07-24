@@ -323,7 +323,9 @@ export type UsageCosts = {
 export type CostsDashboard = {
   today_usd: number; mtd_usd: number; projection_usd: number;
   mrr_net_usd: number; margin_usd: number; margin_pct: number;
-  by_provider: { provider: string; usd: number; source: string }[];
+  breakdown: { usage: number; membership: number; free: number; api: number };
+  free_providers: string[];
+  by_provider: { provider: string; usd: number; source: string; qty?: number; unit?: string; allowance?: number; allowance_unit?: string; util_pct?: number | null }[];
   by_model: { model: string; usd: number; quantity: number }[];
   trend: { day: string; usd: number }[];
   top_tenants: { org_id: string; name: string; plan: string | null; cost_usd: number }[];
@@ -457,7 +459,7 @@ export const api = {
   adminSubscriptions: (b: string, t: string) => jget<SubscriptionsResp>(b, t, "/api/admin/subscriptions", { subscriptions: [], by_status: {} }),
   adminUsageCosts: (b: string, t: string, days = 30) => jget<UsageCosts>(b, t, `/api/admin/usage-costs?days=${days}`, { total_cost_usd: 0, by_model: {}, by_day: [], top_orgs: [], mrr_usd: 0, mrr_gross_usd: 0, cogs_month_usd: 0, gross_margin_usd: 0, usd_cop: 4000 }),
   // FinOps — observabilidad de costos (metering interno casi en línea)
-  adminCosts: (b: string, t: string, days = 30) => jget<CostsDashboard>(b, t, `/api/admin/costs?days=${days}`, { today_usd: 0, mtd_usd: 0, projection_usd: 0, mrr_net_usd: 0, margin_usd: 0, margin_pct: 0, by_provider: [], by_model: [], trend: [], top_tenants: [], alerts: [], source_note: "estimate", updated_for: "" }),
+  adminCosts: (b: string, t: string, days = 30) => jget<CostsDashboard>(b, t, `/api/admin/costs?days=${days}`, { today_usd: 0, mtd_usd: 0, projection_usd: 0, mrr_net_usd: 0, margin_usd: 0, margin_pct: 0, breakdown: { usage: 0, membership: 0, free: 0, api: 0 }, free_providers: [], by_provider: [], by_model: [], trend: [], top_tenants: [], alerts: [], source_note: "estimate", updated_for: "" }),
   adminCostCollect: (b: string, t: string) => jpost<{ day?: string; total_usd?: number; error?: string }>(b, t, "/api/admin/costs/collect", {}, {}),
   adminSetCostAlert: (b: string, t: string, id: string, body: { enabled?: boolean; threshold_usd?: number }) => jpost<{ ok?: boolean }>(b, t, `/api/admin/costs/alerts/${id}`, body, {}),
   adminPlansFunnel: (b: string, t: string) => jget<PlansFunnel>(b, t, "/api/admin/plans-funnel", { funnel: {}, leads: [], purchases: [] }),
