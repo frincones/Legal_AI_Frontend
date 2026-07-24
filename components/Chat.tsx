@@ -60,7 +60,7 @@ export default function Chat({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [docs, setDocs] = useState<{ id: string; title: string }[]>([]);
+  const [docs, setDocs] = useState<{ id: string; title: string; status?: string; err?: boolean }[]>([]);
   const sessionId = useRef<string>(crypto.randomUUID());
 
   function patchTurn(fn: (t: Turn) => void) {
@@ -88,10 +88,14 @@ export default function Chat({
         headers: { Authorization: `Bearer ${accessToken}` },
         body: fd,
       });
-      const data = await res.json();
-      if (data.document_id) setDocs((d) => [...d, { id: data.document_id, title: data.title }]);
+      const data = res.ok ? await res.json() : null;
+      if (data?.document_id) {
+        setDocs((d) => [...d, { id: data.document_id, title: data.title || file.name, status: data.ingest_status, err: data.ingest_status === "unreadable" }]);
+      } else {
+        setDocs((d) => [...d, { id: `err-${crypto.randomUUID()}`, title: file.name, err: true }]);
+      }
     } catch {
-      /* ignore */
+      setDocs((d) => [...d, { id: `err-${crypto.randomUUID()}`, title: file.name, err: true }]);
     }
     e.target.value = "";
   }
@@ -100,7 +104,7 @@ export default function Chat({
     e.preventDefault();
     if (!input.trim() || busy) return;
     const userMsg = input.trim();
-    const docIds = docs.map((d) => d.id);
+    const docIds = docs.filter((d) => !d.err && d.status !== "unreadable" && !d.id.startsWith("err-")).map((d) => d.id);
     setInput("");
     setDocs([]);
     setMessages((m) => [
@@ -191,16 +195,23 @@ export default function Chat({
 
       {docs.length > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingBottom: 6 }}>
-          {docs.map((d) => (
-            <span key={d.id} style={{ background: "var(--panel)", padding: "4px 8px", borderRadius: 6, fontSize: 12 }}>📎 {d.title}</span>
-          ))}
+          {docs.map((d) => {
+            const bad = d.err || d.status === "unreadable";
+            const busyDoc = d.status === "converting" || d.status === "ocr_processing";
+            return (
+              <span key={d.id} title={bad ? "No pude leer este archivo. Súbelo en PDF o DOCX." : busyDoc ? "Procesando el documento…" : undefined}
+                style={{ background: "var(--panel)", padding: "4px 8px", borderRadius: 6, fontSize: 12, border: bad ? "1px solid var(--danger, #DC2626)" : undefined, color: bad ? "var(--danger, #DC2626)" : undefined }}>
+                {bad ? "⚠️" : busyDoc ? "⏳" : "📎"} {d.title}
+              </span>
+            );
+          })}
         </div>
       )}
 
       <form onSubmit={send} style={{ display: "flex", gap: 8, paddingBottom: 12 }}>
         <label title="Adjuntar documento" style={{ display: "flex", alignItems: "center", padding: "0 12px", borderRadius: 10, border: "1px solid #2a2f3a", background: "var(--panel)", cursor: "pointer", fontSize: 18 }}>
           📎
-          <input type="file" onChange={uploadFile} style={{ display: "none" }} accept=".pdf,.docx,.txt" />
+          <input type="file" onChange={uploadFile} style={{ display: "none" }} accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt,.ppt,.pptx,.odp,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp,.gif,.mp3,.m4a,.wav,.ogg,.webm,.aac,.flac,.mp4,image/*,audio/*" />
         </label>
         <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Mensaje…" style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1px solid #2a2f3a", background: "var(--panel)", color: "var(--text)" }} />
         <button type="submit" disabled={busy} style={{ padding: "12px 18px", borderRadius: 10, border: "none", background: "var(--accent)", color: "#06101f", fontWeight: 600, cursor: "pointer" }}>

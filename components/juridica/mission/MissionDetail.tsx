@@ -48,11 +48,17 @@ export function MissionDetail({
     const r = await api.uploadDocument(backendUrl, accessToken, missionId, file);
     setUploading(false);
     if (e.target) e.target.value = "";
-    if (r.document_id) {
+    if (r.document_id && r.ingest_status === "unreadable") {
+      pushToast(`No pude leer «${file.name}». Súbelo en PDF o DOCX.`, "warning");
+      api.missionDocuments(backendUrl, accessToken, missionId).then(setDocs);
+    } else if (r.document_id && r.ingest_status === "converting") {
+      pushToast(`Convirtiendo «${file.name}»… en unos segundos podrás preguntarle a tu caso`, "primary");
+      api.missionDocuments(backendUrl, accessToken, missionId).then(setDocs);
+    } else if (r.document_id) {
       pushToast(`«${file.name}» indexado (${r.chunks || 0} fragmentos) · ya puedes preguntarle a tu caso`, "success");
       api.missionDocuments(backendUrl, accessToken, missionId).then(setDocs);
     } else {
-      pushToast("No se pudo subir el documento", "info");
+      pushToast(`No se pudo subir «${file.name}»${r.error ? ` (${r.error})` : ""}`, "warning");
     }
   }
 
@@ -207,7 +213,8 @@ export function MissionDetail({
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
               <SectionLabel icon="fileText">Documentos del expediente</SectionLabel>
               <span style={{ flex: 1 }} />
-              <input ref={fileRef} type="file" style={{ display: "none" }} onChange={onUpload} />
+              <input ref={fileRef} type="file" style={{ display: "none" }} onChange={onUpload}
+                accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt,.ppt,.pptx,.odp,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp,.gif,.mp3,.m4a,.wav,.ogg,.webm,.aac,.flac,.mp4,image/*,audio/*" />
               <button className="btn btn-primary btn-sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
                 <Icon name={uploading ? "refresh" : "upload"} size={14} style={uploading ? { animation: "spin 1s linear infinite" } : {}} />{uploading ? "Subiendo…" : "Subir documento"}
               </button>
@@ -218,9 +225,15 @@ export function MissionDetail({
                   <span style={{ width: 38, height: 38, borderRadius: 10, background: "var(--primary-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="fileText" size={18} style={{ color: "var(--primary)" }} /></span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{d.title}</div>
-                    <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{(d.created_at || "").slice(0, 10)} · indexado</div>
+                    <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{(d.created_at || "").slice(0, 10)} · {d.ingest_status === "unreadable" ? "no legible" : (d.ingest_status === "converting" || d.ingest_status === "ocr_processing") ? "procesando" : "indexado"}</div>
                   </div>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "var(--success)", background: "var(--success-soft)", borderRadius: 999, padding: "3px 9px" }}><Icon name="check" size={12} stroke={2.4} />En memoria</span>
+                  {d.ingest_status === "unreadable" ? (
+                    <span title="No pude leer este archivo. Súbelo en PDF o DOCX." style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "var(--danger, #DC2626)", background: "rgba(220,38,38,.10)", borderRadius: 999, padding: "3px 9px" }}><Icon name="alert" size={12} stroke={2.4} />No legible</span>
+                  ) : (d.ingest_status === "converting" || d.ingest_status === "ocr_processing") ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "var(--text-muted)", background: "var(--bg-elevated-2)", borderRadius: 999, padding: "3px 9px" }}><Icon name="refresh" size={12} stroke={2.4} style={{ animation: "spin 1s linear infinite" }} />Procesando</span>
+                  ) : (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "var(--success)", background: "var(--success-soft)", borderRadius: 999, padding: "3px 9px" }}><Icon name="check" size={12} stroke={2.4} />En memoria</span>
+                  )}
                 </div>
               ))}
               {docs.length === 0 && (

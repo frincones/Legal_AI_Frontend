@@ -475,7 +475,7 @@ export const api = {
   markAllRead: (b: string, t: string) => jpost(b, t, "/api/notifications/read-all", {}, {}),
   requestClient: (b: string, t: string, matterId: string, item: string) => jpost<{ ok?: boolean }>(b, t, "/api/missions/request-client", { matter_id: matterId, item }, {}),
   missionDocuments: (b: string, t: string, id: string) => jget<{ id: string; title: string; mime_type: string; ingest_status: string; created_at: string }[]>(b, t, `/api/missions/${id}/documents`, []),
-  async uploadDocument(b: string, t: string, matterId: string, file: File): Promise<{ document_id?: string; chunks?: number; error?: string }> {
+  async uploadDocument(b: string, t: string, matterId: string, file: File): Promise<{ document_id?: string; chunks?: number; ingest_status?: string; error?: string }> {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("matter_id", matterId);

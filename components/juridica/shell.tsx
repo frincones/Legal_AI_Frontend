@@ -453,7 +453,7 @@ export function Composer({
 
   function doSend() {
     if (!canSend) return;
-    const ids = atts.filter((a) => a.id).map((a) => a.id as string);
+    const ids = atts.filter((a) => a.id && a.status !== "unreadable").map((a) => a.id as string);
     onSend(ids.length ? ids : undefined);
     setAtts([]);
   }
@@ -593,8 +593,8 @@ export function Composer({
                   <Icon name={/\.(png|jpe?g|webp|gif)$/i.test(a.name) ? "image" : /\.(mp3|m4a|wav|ogg|webm|aac|flac|mp4|mpe?g|mpga)$/i.test(a.name) ? "music" : /\.(xlsx|csv)$/i.test(a.name) ? "sheet" : "fileText"} size={13} style={{ color: "var(--primary)", flexShrink: 0 }} />
                   <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.name}</span>
                   {a.loading ? <Icon name="refresh" size={12} style={{ animation: "spin 1s linear infinite" }} />
-                    : a.err ? <Icon name="alert" size={12} style={{ color: "var(--danger, #DC2626)" }} />
-                    : a.status === "ocr_processing" ? <Icon name="refresh" size={12} style={{ animation: "spin 1s linear infinite", color: "var(--text-muted)" }} />
+                    : (a.err || a.status === "unreadable") ? <span title="No pude leer este archivo. Súbelo en PDF o DOCX." style={{ display: "inline-grid", placeItems: "center" }}><Icon name="alert" size={12} style={{ color: "var(--danger, #DC2626)" }} /></span>
+                    : (a.status === "ocr_processing" || a.status === "converting") ? <span title="Procesando el documento…" style={{ display: "inline-grid", placeItems: "center" }}><Icon name="refresh" size={12} style={{ animation: "spin 1s linear infinite", color: "var(--text-muted)" }} /></span>
                     : <Icon name="check" size={12} style={{ color: "var(--success)" }} />}
                   <button onClick={() => setAtts((x) => x.filter((y) => y.key !== a.key))} title="Quitar" style={{ border: "none", background: "transparent", padding: 0, display: "grid", placeItems: "center", color: "var(--text-muted)", cursor: "pointer" }}>
                     <Icon name="x" size={13} />
@@ -604,7 +604,7 @@ export function Composer({
             </div>
           )}
           <input ref={fileRef} type="file" multiple onChange={handleFiles} style={{ display: "none" }}
-            accept=".pdf,.doc,.docx,.txt,.md,.rtf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.m4a,.wav,.ogg,.webm,.aac,.flac,.mp4,.xlsx,.csv,image/*,audio/*" />
+            accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt,.ppt,.pptx,.odp,.xls,.png,.jpg,.jpeg,.webp,.gif,.mp3,.m4a,.wav,.ogg,.webm,.aac,.flac,.mp4,.xlsx,.csv,image/*,audio/*" />
           <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, padding: compact ? "6px 8px 10px 10px" : "8px 12px 12px 14px", flexWrap: "nowrap", rowGap: 6 }}>
             {/* ⊕ menú de acciones: adjuntar · analizar audiencia · verificar · integraciones */}
             {(attachEnabled || audienciasEnabled) && (
