@@ -5,6 +5,7 @@ import { Icon, Logo } from "./icons";
 import { AgentAvatar } from "./atoms";
 import { useDictation } from "./Dictation";
 import { AudienciaModal, AudienciaTracker } from "./Audiencia";
+import { ToolLogo } from "./Wizard";
 
 /* ---------------- Sidebar ---------------- */
 export function Sidebar({
@@ -332,6 +333,24 @@ function fmtSec(s: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+// Fila del menú "⊕" (acción): ícono + título + descripción. Mismo estilo que el CommandPalette.
+function PlusItem({ icon, title, desc, onClick }: { icon: string; title: string; desc: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="focus-ring"
+      style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "9px 10px", border: "none", background: "transparent", borderRadius: "var(--r-md)", textAlign: "left", cursor: "pointer" }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-elevated-2)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+      <span style={{ width: 34, height: 34, borderRadius: 9, background: "var(--primary-soft)", color: "var(--primary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+        <Icon name={icon} size={17} />
+      </span>
+      <span style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)", lineHeight: 1.2 }}>{title}</div>
+        <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>{desc}</div>
+      </span>
+    </button>
+  );
+}
+
 export function Composer({
   value,
   onChange,
@@ -348,6 +367,9 @@ export function Composer({
   sessionId,
   onQuickSend,
   onOpenActa,
+  onOpenIntegrations,
+  mode,
+  onMode,
   audiencias,
 }: {
   value: string;
@@ -370,6 +392,7 @@ export function Composer({
   sessionId?: string;       // liga la audiencia a la conversación actual (opcional)
   onQuickSend?: (text: string, documentIds?: string[]) => void; // chips de audiencia → dispara al agente
   onOpenActa?: (sessionId: string) => void;  // "Ver el acta" idempotente → reabre la conversación del acta
+  onOpenIntegrations?: () => void;  // "Conectar herramientas" del menú ⊕ → abre Ajustes/Integraciones (solo Home)
   audiencias?: boolean;     // muestra el botón "Analizar audiencia" (default: true si hay backend+token)
 }) {
   const dict = useDictation(backendUrl, accessToken);
@@ -388,6 +411,25 @@ export function Composer({
   const keyRef = useRef(0);
   const [atts, setAtts] = useState<{ key: number; name: string; id?: string; loading: boolean; err?: boolean; status?: string }[]>([]);
   const attachEnabled = !!(backendUrl && accessToken);
+
+  // ── Menú "⊕" (acciones) + selector de modo + integraciones (Composio) ──
+  const [plusOpen, setPlusOpen] = useState(false);
+  const [modeOpen, setModeOpen] = useState(false);
+  const [integrations, setIntegrations] = useState<{ toolkit: string; label: string; connected?: boolean }[]>([]);
+  const intLoaded = useRef(false);
+  useEffect(() => {
+    if (!plusOpen || intLoaded.current || !backendUrl || !accessToken) return;
+    intLoaded.current = true;   // fetch una sola vez (lazy, al abrir el menú)
+    fetch(`${backendUrl}/api/integrations`, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && Array.isArray(d.available)) setIntegrations(d.available.filter((x: { connected?: boolean }) => x.connected)); })
+      .catch(() => { /* fail-open: sin integraciones el menú funciona igual */ });
+  }, [plusOpen, backendUrl, accessToken]);
+  // Siembra el textarea con una plantilla y enfoca (para "Verificar" e integraciones). El agente hace el resto.
+  function seed(text: string) { onChange(text); setPlusOpen(false); setTimeout(() => taRef.current?.focus(), 0); }
+  const INT_PROMPT: Record<string, string> = {
+    gmail: "Revisa mi correo: ", googlecalendar: "Agenda en mi calendario: ", googledrive: "Busca en mi Drive: ",
+  };
 
   async function handleFiles(e: ChangeEvent<HTMLInputElement>) {
     const list = Array.from(e.target.files || []);
@@ -437,7 +479,55 @@ export function Composer({
   const canSend = (value.trim().length > 0 || atts.some((a) => a.id)) && !disabled && !uploading && !blocked;
 
   return (
-    <div className="composer-shell" style={{ borderRadius: style === "pill" ? 28 : "var(--r-xl)", overflow: "hidden", transition: "box-shadow .2s, border-color .2s", position: "relative", ...shellStyle }}>
+    <div style={{ position: "relative" }}>
+      {/* ⊕ popover de acciones — fuera del shell (que es overflow:hidden) para no recortarse */}
+      {plusOpen && (
+        <>
+          <div onClick={() => setPlusOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }} />
+          <div className="fade-up" style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 6, width: 340, maxWidth: "calc(100vw - 40px)", background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", boxShadow: "var(--sh-pop)", padding: 7, zIndex: 40 }}>
+            {attachEnabled && <PlusItem icon="paperclip" title="Adjuntar documentos" desc="PDF, Word, Excel, audio, imágenes" onClick={() => { fileRef.current?.click(); setPlusOpen(false); }} />}
+            {audienciasEnabled && <PlusItem icon="play" title="Analizar audiencia" desc="Video/audio o enlace (YouTube, Rama Judicial)" onClick={() => { setAudModal(true); setPlusOpen(false); }} />}
+            <PlusItem icon="search" title="Verificar norma o sentencia" desc="Contra la fuente oficial" onClick={() => seed("Verifica si está vigente: ")} />
+            {(integrations.length > 0 || onOpenIntegrations) && <div style={{ height: 1, background: "var(--border)", margin: "6px 8px" }} />}
+            {integrations.length > 0 && (
+              <div style={{ display: "flex", gap: 7, padding: "6px 8px 3px", flexWrap: "wrap" }}>
+                {integrations.map((it) => (
+                  <button key={it.toolkit} onClick={() => seed(INT_PROMPT[it.toolkit] || `Usa ${it.label}: `)} className="focus-ring"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 10px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-base)", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", cursor: "pointer" }}>
+                    <ToolLogo slug={it.toolkit} size={16} /> {it.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {onOpenIntegrations && (
+              <button onClick={() => { onOpenIntegrations(); setPlusOpen(false); }} className="focus-ring"
+                style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "9px 10px", border: "none", background: "transparent", borderRadius: "var(--r-md)", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12.5, fontWeight: 600 }}>
+                <span style={{ width: 34, height: 34, borderRadius: 9, background: "var(--bg-elevated-2)", color: "var(--text-muted)", display: "grid", placeItems: "center" }}><Icon name="settings" size={17} /></span>
+                Conectar herramientas →
+              </button>
+            )}
+          </div>
+        </>
+      )}
+      {/* Selector de modo (Home) */}
+      {modeOpen && onMode && (
+        <>
+          <div onClick={() => setModeOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }} />
+          <div className="fade-up" style={{ position: "absolute", bottom: "calc(100% + 8px)", right: 56, width: 244, background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", boxShadow: "var(--sh-pop)", padding: 6, zIndex: 40 }}>
+            {([["Pregunta", "Respuesta rápida, verificada"], ["Documento", "Genera un escrito en el Canvas"]] as [string, string][]).map(([m, d]) => (
+              <button key={m} onClick={() => { onMode(m); setModeOpen(false); }} className="focus-ring"
+                style={{ display: "flex", gap: 10, alignItems: "flex-start", width: "100%", padding: "9px 10px", border: "none", background: mode === m ? "var(--primary-soft)" : "transparent", borderRadius: "var(--r-sm)", cursor: "pointer", textAlign: "left" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 650, color: "var(--text)" }}>{m === "Documento" ? "Redactar documento" : "Pregunta"}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{d}</div>
+                </div>
+                {mode === m && <Icon name="check" size={15} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 2 }} />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      <div className="composer-shell" style={{ borderRadius: style === "pill" ? 28 : "var(--r-xl)", overflow: "hidden", transition: "box-shadow .2s, border-color .2s", position: "relative", ...shellStyle }}>
       <div
         className="composer-accent"
         style={{ position: "absolute", inset: 0, borderRadius: "inherit", padding: 1.5, background: "var(--aurora)", WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)", WebkitMaskComposite: "xor", maskComposite: "exclude", opacity: 0, transition: "opacity .2s", pointerEvents: "none" }}
@@ -515,24 +605,32 @@ export function Composer({
           )}
           <input ref={fileRef} type="file" multiple onChange={handleFiles} style={{ display: "none" }}
             accept=".pdf,.doc,.docx,.txt,.md,.rtf,.png,.jpg,.jpeg,.webp,.gif,.mp3,.m4a,.wav,.ogg,.webm,.aac,.flac,.mp4,.xlsx,.csv,image/*,audio/*" />
-          <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, padding: compact ? "6px 8px 10px 10px" : "8px 12px 12px 14px", flexWrap: compact ? "wrap" : "nowrap", rowGap: 6 }}>
-            {attachEnabled && (
-              <button onClick={() => fileRef.current?.click()} className="btn-ghost focus-ring" title="Adjuntar documentos, imágenes o audio" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
-                <Icon name="paperclip" size={19} />
-              </button>
-            )}
-            {micEnabled && (
-              <button onClick={() => dict.start()} className="btn-ghost focus-ring" title="Dictar por voz" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
-                <Icon name="mic" size={19} />
-              </button>
-            )}
-            {audienciasEnabled && (
-              <button onClick={() => setAudModal(true)} className="btn-ghost focus-ring" title="Analizar audiencia (video o audio)" style={{ border: "none", width: 36, height: 36, borderRadius: 9, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
-                <Icon name="play" size={19} />
+          <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 8, padding: compact ? "6px 8px 10px 10px" : "8px 12px 12px 14px", flexWrap: "nowrap", rowGap: 6 }}>
+            {/* ⊕ menú de acciones: adjuntar · analizar audiencia · verificar · integraciones */}
+            {(attachEnabled || audienciasEnabled) && (
+              <button onClick={() => { setModeOpen(false); setPlusOpen((o) => !o); }} className="focus-ring" title="Añadir"
+                style={{ border: "none", width: 38, height: 38, borderRadius: 10, display: "grid", placeItems: "center", background: plusOpen ? "var(--primary-soft)" : "transparent", color: plusOpen ? "var(--primary)" : "var(--text-muted)", transition: "background .15s, color .15s", cursor: "pointer" }}>
+                <Icon name="plus" size={20} stroke={2.2} />
               </button>
             )}
 
             <span style={{ flex: 1 }} />
+
+            {/* Selector de modo — solo cuando el llamador lo cablea (Home); routing Pregunta→Chat / Documento→Canvas */}
+            {onMode && (
+              <button onClick={() => { setPlusOpen(false); setModeOpen((o) => !o); }} className="focus-ring"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 34, padding: "0 11px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--aurora)" }} />
+                {mode === "Documento" ? "Documento" : "Pregunta"}
+                <Icon name="chevronDown" size={15} style={{ color: "var(--text-muted)" }} />
+              </button>
+            )}
+
+            {micEnabled && (
+              <button onClick={() => dict.start()} className="btn-ghost focus-ring" title="Dictar por voz" style={{ border: "none", width: 38, height: 38, borderRadius: 10, display: "grid", placeItems: "center", color: "var(--text-muted)" }}>
+                <Icon name="mic" size={19} />
+              </button>
+            )}
             <button
               onClick={doSend}
               disabled={!canSend}
@@ -566,6 +664,7 @@ export function Composer({
           onClose={() => setAudJob(null)}
         />
       )}
+      </div>
     </div>
   );
 }

@@ -75,6 +75,7 @@ export function Home({
   onNavigate,
   draft,
   setDraft,
+  mode,
   setMode,
   backendUrl,
   accessToken,
@@ -144,6 +145,9 @@ export function Home({
             onChange={setDraft}
             onSend={(docIds) => onSubmit(draft, undefined, docIds)}
             onQuickSend={(text, docs) => onSubmit(text, undefined, docs)}
+            mode={mode}
+            onMode={setMode}
+            onOpenIntegrations={() => onNavigate("settings")}
             style={composerStyle}
             autoFocus
             backendUrl={backendUrl}
