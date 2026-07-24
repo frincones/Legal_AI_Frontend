@@ -570,7 +570,7 @@ function CostsTab({ backendUrl, accessToken, pushToast }: { backendUrl: string; 
           {(data?.by_provider || []).map((p) => (
             <div key={p.provider} style={{ marginBottom: 9 }}>
               <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                <span style={{ color: "var(--text-secondary)", textTransform: "capitalize" }}>{p.provider} {p.source === "api" && <span style={{ fontSize: 10, color: "var(--success)" }}>· real</span>}</span>
+                <span style={{ color: "var(--text-secondary)", textTransform: "capitalize" }}>{p.provider} <span style={{ fontSize: 10, color: p.source === "api" ? "var(--success)" : p.source === "free" ? "var(--text-muted)" : p.source === "membership" ? "var(--primary)" : "var(--text-secondary)" }}>· {p.source === "api" ? "real" : p.source === "free" ? "gratis" : p.source === "membership" ? "membresía" : "uso"}</span></span>
                 <span><b>${p.usd.toFixed(2)}</b></span>
               </div>
               <div style={{ height: 6, borderRadius: 3, background: "var(--bg-elevated-2)" }}>
