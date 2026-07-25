@@ -373,12 +373,35 @@ export type RefundsResp = { refunds: Refund[]; payments: Payment[] };
 
 export const api = {
   me: (b: string, t: string) => jget<{ features?: Record<string, boolean> }>(b, t, "/api/me", {}),
-  missions: (b: string, t: string) => jget<Mission[]>(b, t, "/api/missions", []),
+  missions: (b: string, t: string, opts?: { q?: string; materia?: string; estado?: string; vigilancia?: boolean; limit?: number; offset?: number }) => {
+    const p = new URLSearchParams();
+    if (opts?.q) p.set("q", opts.q);
+    if (opts?.materia) p.set("materia", opts.materia);
+    if (opts?.estado) p.set("estado", opts.estado);
+    if (opts?.vigilancia !== undefined) p.set("vigilancia", String(opts.vigilancia));
+    if (opts?.limit) p.set("limit", String(opts.limit));
+    if (opts?.offset) p.set("offset", String(opts.offset));
+    const qs = p.toString();
+    return jget<Mission[]>(b, t, `/api/missions${qs ? `?${qs}` : ""}`, []);
+  },
   mission: (b: string, t: string, id: string) => jget<Mission>(b, t, `/api/missions/${id}`, {} as Mission),
   timeline: (b: string, t: string, id: string) => jget<TimelineEvent[]>(b, t, `/api/missions/${id}/timeline`, []),
   attention: (b: string, t: string) => jget<AttentionData>(b, t, "/api/missions/attention", { criticos: 0, terminos: 0, actuaciones: 0, items: [] }),
   tasks: (b: string, t: string, matterId?: string) => jget<TaskItem[]>(b, t, `/api/tasks${matterId ? `?matter_id=${encodeURIComponent(matterId)}` : ""}`, []),
   createMission: (b: string, t: string, body: Record<string, unknown>) => jpost<Mission>(b, t, "/api/missions", body, {} as Mission),
+  // Importar procesos desde Excel/CSV → casos. preview (confirm=false) devuelve el mapeo detectado; commit crea.
+  importProcesosPreview: (b: string, t: string, documentId: string) =>
+    jpost<{ preview?: boolean; columns?: string[]; mapping?: Record<string, string | null>; detected?: number; sample?: Record<string, unknown>[]; total?: number; error?: string }>(b, t, "/api/missions/import", { document_id: documentId, confirm: false }, {}),
+  importProcesosCommit: (b: string, t: string, documentId: string, mapping: Record<string, string | null>) =>
+    jpost<{ committed?: boolean; created?: number; with_vigilance?: number; skipped?: number; error?: string }>(b, t, "/api/missions/import", { document_id: documentId, confirm: true, mapping }, {}),
+  async deleteMission(b: string, t: string, id: string): Promise<{ ok?: boolean; error?: string }> {
+    try {
+      const r = await fetch(`${b}/api/missions/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${t}` } });
+      return r.ok ? await r.json() : { ok: false, error: `del ${r.status}` };
+    } catch {
+      return { ok: false, error: "delete failed" };
+    }
+  },
   deadlines: (b: string, t: string) => jget<Deadline[]>(b, t, "/api/deadlines", []),
   autopilot: (b: string, t: string) => jget<AutopilotSummary>(b, t, "/api/autopilot", { status: "Activo", lastRun: null, reviewed: [], found: [] }),
   runAutopilot: (b: string, t: string) => jpost(b, t, "/api/autopilot/run-now", {}, {}),

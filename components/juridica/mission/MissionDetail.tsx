@@ -30,11 +30,17 @@ export function MissionDetail({
   const [docs, setDocs] = useState<DocItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [radicado, setRadicadoInput] = useState("");
+  const [form, setForm] = useState({ name: "", client: "", counterparty: "", jurisdiction: "", matter_type: "" });
+  const [savingDatos, setSavingDatos] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const clean = (v?: string) => (v && v !== "—" ? v : "");
 
   useEffect(() => {
     if (!backendUrl || !accessToken || !missionId) return;
-    api.mission(backendUrl, accessToken, missionId).then((mm) => { setM(mm); setRadicadoInput(mm?.radicado && mm.radicado !== "—" ? mm.radicado : ""); });
+    api.mission(backendUrl, accessToken, missionId).then((mm) => {
+      setM(mm); setRadicadoInput(mm?.radicado && mm.radicado !== "—" ? mm.radicado : "");
+      setForm({ name: clean(mm?.title), client: clean(mm?.demandante), counterparty: clean(mm?.demandado), jurisdiction: clean(mm?.juzgado), matter_type: clean(mm?.area) });
+    });
     api.timeline(backendUrl, accessToken, missionId).then(setTimeline);
     api.missionDocuments(backendUrl, accessToken, missionId).then(setDocs);
     api.tasks(backendUrl, accessToken, missionId).then((ts) => setTasks(ts.filter((t) => t.status !== "done" && t.status !== "cancelled")));
@@ -68,6 +74,23 @@ export function MissionDetail({
     await api.updateMission(backendUrl, accessToken, missionId, { radicado: v, autopilot_on: true });
     pushToast("Radicado guardado · Autopilot vigilará este proceso", "success");
     api.mission(backendUrl, accessToken, missionId).then(setM);
+  }
+
+  async function saveDatos() {
+    setSavingDatos(true);
+    await api.updateMission(backendUrl, accessToken, missionId, {
+      name: form.name, client: form.client, counterparty: form.counterparty,
+      jurisdiction: form.jurisdiction, matter_type: form.matter_type });
+    setSavingDatos(false);
+    pushToast("Datos del caso actualizados", "success");
+    api.mission(backendUrl, accessToken, missionId).then(setM);
+  }
+
+  async function doDelete() {
+    if (!window.confirm("¿Eliminar este caso y TODOS sus datos (documentos, términos, tareas)? No se puede deshacer.")) return;
+    const r = await api.deleteMission(backendUrl, accessToken, missionId);
+    if (r.ok) { pushToast("Caso eliminado", "success"); onBack(); }
+    else pushToast(`No se pudo eliminar${r.error ? ` (${r.error})` : ""}`, "warning");
   }
 
   if (!m || !m.id) return <div style={{ height: "100%", display: "grid", placeItems: "center", color: "var(--text-muted)" }}>Cargando misión…</div>;
@@ -258,7 +281,34 @@ export function MissionDetail({
               </div>
               {m.radicado && m.radicado !== "—" && <div style={{ fontSize: 12, color: "var(--success)", marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}><Icon name="circleCheck" size={13} />Vigilancia activa para {m.radicado}</div>}
             </div>
+
+            {/* Datos del caso (editable) */}
+            <div className="card" style={{ padding: 18, marginTop: 14 }}>
+              <div style={{ fontWeight: 650, fontSize: 14.5, marginBottom: 12 }}>Datos del caso</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {([["name", "Nombre / carátula"], ["matter_type", "Materia"], ["client", "Cliente / demandante"], ["counterparty", "Contraparte / demandado"], ["jurisdiction", "Juzgado / entidad"]] as [keyof typeof form, string][]).map(([k, label]) => (
+                  <label key={k} style={{ fontSize: 12.5, color: "var(--text-secondary)", gridColumn: k === "name" ? "1 / -1" : "auto" }}>
+                    {label}
+                    <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })}
+                      style={{ width: "100%", marginTop: 4, height: 38, padding: "0 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--bg-base)", fontSize: 13.5, color: "var(--text)", outline: "none" }} />
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                <button className="btn btn-primary btn-sm" onClick={saveDatos} disabled={savingDatos}>
+                  <Icon name={savingDatos ? "refresh" : "check"} size={14} style={savingDatos ? { animation: "spin 1s linear infinite" } : {}} />Guardar cambios
+                </button>
+              </div>
+            </div>
+
             <ConfirmNote icon="shieldCheck">Autopilot detecta y prepara. Nunca radica ni envía sin tu aprobación.</ConfirmNote>
+
+            {/* Zona de peligro: eliminar caso */}
+            <div className="card" style={{ padding: 18, marginTop: 14, border: "1px solid var(--danger, #DC2626)" }}>
+              <div style={{ fontWeight: 650, fontSize: 14.5, color: "var(--danger, #DC2626)", marginBottom: 4 }}>Eliminar caso</div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>Borra el expediente y todos sus datos (documentos, términos, tareas, historial). No se puede deshacer.</div>
+              <button className="btn btn-secondary btn-sm" onClick={doDelete} style={{ color: "var(--danger, #DC2626)", borderColor: "var(--danger, #DC2626)" }}><Icon name="x" size={14} />Eliminar este caso</button>
+            </div>
           </>}
 
           {tab !== "config" && <ConfirmNote icon="shieldCheck">Los borradores quedan pendientes hasta tu aprobación.</ConfirmNote>}
