@@ -882,11 +882,30 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
         {enabled && !wide && (
           <div style={{ padding: "20px 24px 24px", overflow: "auto" }}>
             <style>{`
-              @keyframes jvSubGlow { 0%,100% { box-shadow: 0 4px 10px -6px rgba(123,61,245,.2); } 50% { box-shadow: 0 10px 28px -6px rgba(123,61,245,.55); } }
+              @keyframes jvSubGlow { 0%,100% { box-shadow: 0 4px 10px -6px rgba(123,61,245,.25); } 50% { box-shadow: 0 12px 32px -6px rgba(211,59,224,.6); } }
               @keyframes jvSubShake { 0%,90%,100% { transform: translateX(0); } 92% { transform: translateX(-2px); } 94% { transform: translateX(2px); } 96% { transform: translateX(-2px); } 98% { transform: translateX(1px); } }
-              .jv-sub-btn { transition: transform .12s ease; }
-              .jv-sub-btn:hover { transform: translateY(-2px); }
-              .jv-sub-btn-pro { animation: jvSubGlow 2.2s ease-in-out infinite, jvSubShake 4.5s ease-in-out infinite; }
+              @keyframes jvBadgePulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+              @keyframes jvSaveShake { 0%,86%,100% { transform: rotate(0); } 89% { transform: rotate(-5deg); } 92% { transform: rotate(5deg); } 95% { transform: rotate(-3deg); } 98% { transform: rotate(2deg); } }
+              @keyframes jvShimmer { 0% { background-position: -140% 0; } 60%,100% { background-position: 240% 0; } }
+              @keyframes jvPriceIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+              @keyframes jvChipIn { from { opacity: 0; transform: translateY(-5px) scale(.92); } to { opacity: 1; transform: none; } }
+              @keyframes jvBorderFlow { 0% { background-position: 0% 50%; } 100% { background-position: 300% 50%; } }
+              .jv-sub-btn { transition: transform .14s ease, box-shadow .2s ease; }
+              .jv-sub-btn:hover { transform: translateY(-2px) scale(1.01); }
+              .jv-sub-btn-pro { animation: jvSubGlow 2.2s ease-in-out infinite, jvSubShake 4.2s ease-in-out infinite; }
+              .jv-plan-card { transition: transform .2s cubic-bezier(.34,1.4,.64,1), box-shadow .25s ease; }
+              .jv-plan-card:hover { transform: translateY(-5px); box-shadow: 0 22px 48px -20px rgba(123,61,245,.45); }
+              .jv-price-anim { animation: jvPriceIn .32s cubic-bezier(.22,1,.36,1); }
+              .jv-save { animation: jvSaveShake 3.6s ease-in-out infinite; transform-origin: center; }
+              .jv-chip-anim { animation: jvChipIn .3s cubic-bezier(.22,1,.36,1); }
+              .jv-badge-20 { animation: jvBadgePulse 1.8s ease-in-out infinite; }
+              .jv-pop-badge { background-size: 220% 100%; animation: jvShimmer 3s ease-in-out infinite; }
+              .jv-tg { position: relative; display: inline-flex; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; padding: 4px; box-shadow: 0 0 0 0 rgba(123,61,245,0); transition: box-shadow .35s ease; }
+              .jv-tg.on { box-shadow: 0 10px 30px -10px rgba(211,59,224,.5); }
+              .jv-tg-pill { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px; background: var(--bg-surface); box-shadow: 0 2px 9px -2px rgba(0,0,0,.28); transition: transform .38s cubic-bezier(.34,1.56,.64,1), background .3s ease; }
+              .jv-tg-pill.annual { transform: translateX(100%); background: ${JV_AURORA}; box-shadow: 0 6px 18px -4px rgba(211,59,224,.7); }
+              .jv-tg-opt { position: relative; z-index: 1; flex: 1 1 0; justify-content: center; border: none; background: transparent; cursor: pointer; border-radius: 999px; padding: 9px 18px; font-size: 13.5px; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; transition: color .25s ease; white-space: nowrap; }
+              @media (prefers-reduced-motion: reduce) { .jv-sub-btn-pro, .jv-badge-20, .jv-save, .jv-pop-badge, .jv-price-anim, .jv-chip-anim, .jv-tg-pill { animation: none !important; transition: none !important; } }
             `}</style>
             {/* Bloque compartido: todos incluyen */}
             <div style={{ borderRadius: 16, padding: "15px 18px", marginBottom: 20, background: "var(--primary-soft)", border: "1px solid var(--border)" }}>
@@ -900,17 +919,23 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
                 ))}
               </div>
             </div>
-            {/* Toggle Mensual / Anual (AOV) — solo si el backend confirma precios anuales */}
+            {/* Toggle Mensual / Anual (AOV) — deslizante, animado; refuerza el anual */}
             {annualOn && (
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 999, padding: 4 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 9, marginBottom: 18 }}>
+                <div className={`jv-tg${cycle === "annual" ? " on" : ""}`} style={{ minWidth: 264 }}>
+                  <span className={`jv-tg-pill${cycle === "annual" ? " annual" : ""}`} />
                   {(["monthly", "annual"] as const).map((cy) => (
-                    <button key={cy} onClick={() => setCycle(cy)} className="focus-ring" style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "8px 16px", fontSize: 13, fontWeight: 750, display: "inline-flex", alignItems: "center", gap: 7, background: cycle === cy ? "var(--bg-surface)" : "transparent", color: cycle === cy ? "var(--text)" : "var(--text-muted)", boxShadow: cycle === cy ? "0 1px 4px -1px rgba(0,0,0,.15)" : "none" }}>
+                    <button key={cy} onClick={() => setCycle(cy)} className="jv-tg-opt focus-ring" style={{ color: cycle === cy ? (cy === "annual" ? "#fff" : "var(--text)") : "var(--text-muted)" }}>
                       {cy === "monthly" ? "Mensual" : "Anual"}
-                      {cy === "annual" && <span style={{ fontSize: 10.5, fontWeight: 800, color: "#fff", background: JV_AURORA, borderRadius: 999, padding: "2px 7px" }}>−20%</span>}
+                      {cy === "annual" && <span className="jv-badge-20" style={{ fontSize: 10.5, fontWeight: 900, color: cycle === "annual" ? "var(--primary)" : "#fff", background: cycle === "annual" ? "#fff" : JV_AURORA, borderRadius: 999, padding: "2px 7px" }}>−20%</span>}
                     </button>
                   ))}
                 </div>
+                {cycle === "annual" && (
+                  <div className="jv-chip-anim" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 750, color: "var(--primary)" }}>
+                    🎉 Con el plan anual te llevas <b style={{ margin: "0 2px", background: JV_AURORA, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>2 meses gratis</b>
+                  </div>
+                )}
               </div>
             )}
             {/* Tarjetas */}
@@ -923,7 +948,7 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
                 const isLower = curIdx >= 0 && pIdx >= 0 && pIdx < curIdx;  // downgrade (no auto-servicio)
                 const locked = isCurrent || isLower;                       // no re-suscribible
                 return (
-                  <div key={p.tier} style={{
+                  <div key={p.tier} className={locked ? undefined : "jv-plan-card"} style={{
                     flex: "1 1 240px", minWidth: 236, borderRadius: 18, padding: 22, position: "relative",
                     display: "flex", flexDirection: "column",
                     border: isCurrent ? "1.5px solid var(--primary)" : featured ? "1.5px solid transparent" : "1px solid var(--border)",
@@ -933,25 +958,35 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
                     boxShadow: featured && !locked ? "0 16px 40px -16px rgba(123,61,245,.45)" : "none",
                     opacity: isLower ? 0.6 : 1,
                   }}>
+                    {/* Badge ahorro cuando es anual (refuerza el año en cada tarjeta) */}
+                    {effCycle === "annual" && p.annual && !locked && (
+                      <span className="jv-save" style={{ position: "absolute", top: -11, right: 16, fontSize: 10, fontWeight: 900, color: "#fff", background: "linear-gradient(135deg,#16A34A,#0EA5A0)", borderRadius: 999, padding: "4px 9px", boxShadow: "0 4px 12px -4px rgba(16,163,74,.6)" }}>2 MESES GRATIS</span>
+                    )}
                     {isCurrent
                       ? <span style={{ position: "absolute", top: -11, left: 22, fontSize: 10.5, fontWeight: 750, letterSpacing: ".04em", textTransform: "uppercase", background: "var(--primary)", color: "#fff", borderRadius: 999, padding: "4px 11px" }}>Plan actual</span>
-                      : featured && <span style={{ position: "absolute", top: -11, left: 22, fontSize: 10.5, fontWeight: 750, letterSpacing: ".04em", textTransform: "uppercase", background: JV_AURORA, color: "#fff", borderRadius: 999, padding: "4px 11px" }}>Más popular</span>}
+                      : featured && <span className="jv-pop-badge" style={{ position: "absolute", top: -11, left: 22, fontSize: 10.5, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", background: `${JV_AURORA}, linear-gradient(105deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%)`, backgroundBlendMode: "overlay", color: "#fff", borderRadius: 999, padding: "4px 11px", boxShadow: "0 6px 16px -6px rgba(211,59,224,.7)" }}>🚀 Más popular</span>}
                     <div style={{ fontSize: 22, lineHeight: 1 }}>{c.icon}</div>
                     <div style={{ fontSize: 18, fontWeight: 780, color: "var(--text)", marginTop: 8 }}>{p.name}</div>
                     {(() => {
                       const ann = effCycle === "annual" ? p.annual : null;
                       const shownMonthly = ann ? ann.month_usd : p.price_usd;   // precio/mes que se muestra grande
                       const copM = jvCop(shownMonthly, copRate);
+                      const bigStyle = featured
+                        ? { background: JV_AURORA, WebkitBackgroundClip: "text" as const, backgroundClip: "text" as const, color: "transparent" }
+                        : { color: "var(--text)" };
                       return (
-                        <div style={{ marginTop: 10 }}>
+                        <div className="jv-price-anim" key={effCycle} style={{ marginTop: 10 }}>
                           <div style={{ display: "flex", alignItems: "baseline", gap: 4, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 25, fontWeight: 820, letterSpacing: "-.02em", color: "var(--text)" }}>{copM || `$${shownMonthly}`}</span>
-                            <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>{copM ? "COP/mes" : "USD/mes"}</span>
+                            <span style={{ fontSize: 27, fontWeight: 850, letterSpacing: "-.02em", ...bigStyle }}>{copM || `$${shownMonthly}`}</span>
+                            <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 600 }}>{copM ? "COP/mes" : "USD/mes"}</span>
                           </div>
                           {ann ? (
-                            <div style={{ marginTop: 3, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
-                              antes <s style={{ opacity: .8 }}>{jvCop(p.price_usd, copRate) || `$${p.price_usd}`}/mes</s> · <span style={{ color: "var(--success, #16A34A)", fontWeight: 750 }}>ahorra {ann.save_pct}%</span><br />
-                              Facturado anual: <b style={{ color: "var(--text)" }}>{jvCop(ann.usd, copRate) || `$${ann.usd}`}</b> ≈ ${ann.usd} USD · ≈ 2 meses gratis
+                            <div style={{ marginTop: 5, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.7 }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                antes <s style={{ opacity: .75 }}>{jvCop(p.price_usd, copRate) || `$${p.price_usd}`}/mes</s>
+                                <span style={{ fontSize: 10.5, fontWeight: 850, color: "#fff", background: "linear-gradient(135deg,#16A34A,#0EA5A0)", borderRadius: 999, padding: "2px 8px" }}>ahorra {ann.save_pct}%</span>
+                              </span><br />
+                              Facturado anual: <b style={{ color: "var(--text)" }}>{jvCop(ann.usd, copRate) || `$${ann.usd}`}</b> ≈ ${ann.usd} USD
                             </div>
                           ) : (
                             copM && <div style={{ marginTop: 3, fontSize: 12, color: "var(--text-muted)" }}>≈ ${p.price_usd} USD/mes</div>
