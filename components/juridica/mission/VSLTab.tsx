@@ -19,12 +19,13 @@ export function VSLTab({ backendUrl, accessToken }: { backendUrl: string; access
   const [appliedTo, setAppliedTo] = useState("");
   const [pitch, setPitch] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
+  const [variant, setVariant] = useState<"" | "principal" | "audiencias">("");   // segmento: todo / principal / audiencias
 
   const load = useCallback(() => {
     setLoading(true);
-    api.adminVsl(backendUrl, accessToken, days, appliedFrom || undefined, appliedTo || undefined)
+    api.adminVsl(backendUrl, accessToken, days, appliedFrom || undefined, appliedTo || undefined, variant || undefined)
       .then((d) => { setData(d); setLoading(false); });
-  }, [backendUrl, accessToken, days, appliedFrom, appliedTo]);
+  }, [backendUrl, accessToken, days, appliedFrom, appliedTo, variant]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { api.vslConfig(backendUrl).then((c) => setPitch(c.pitch_seconds || 0)).catch(() => {}); }, [backendUrl]);
 
@@ -70,6 +71,13 @@ export function VSLTab({ backendUrl, accessToken }: { backendUrl: string; access
       {/* Controles: rango + actualizar */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 700 }}>VSL del muro</span>
+        {/* Segmento por landing de origen: todo / principal / audiencias */}
+        <div style={{ display: "inline-flex", gap: 2, background: "var(--bg-elevated)", borderRadius: 8, padding: 2 }}>
+          {([["", "Todo"], ["principal", "Principal"], ["audiencias", "Audiencias"]] as const).map(([v, label]) => (
+            <button key={v} onClick={() => setVariant(v)} className={variant === v ? "btn btn-primary" : "btn btn-secondary"}
+              style={{ padding: "5px 11px", fontSize: 12, border: "none", background: variant === v ? undefined : "transparent" }}>{label}</button>
+          ))}
+        </div>
         <span style={{ flex: 1 }} />
         {[7, 30, 90].map((d) => (
           <button key={d} onClick={() => pickDays(d)} className={!rangeActive && days === d ? "btn btn-primary" : "btn btn-secondary"} style={{ padding: "6px 12px", fontSize: 12.5 }}>{d}d</button>

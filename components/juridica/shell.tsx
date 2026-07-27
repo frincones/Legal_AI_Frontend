@@ -371,6 +371,8 @@ export function Composer({
   mode,
   onMode,
   audiencias,
+  audienciaOpen,
+  onAudienciaOpenChange,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -394,12 +396,21 @@ export function Composer({
   onOpenActa?: (sessionId: string) => void;  // "Ver el acta" idempotente → reabre la conversación del acta
   onOpenIntegrations?: () => void;  // "Conectar herramientas" del menú ⊕ → abre Ajustes/Integraciones (solo Home)
   audiencias?: boolean;     // muestra el botón "Analizar audiencia" (default: true si hay backend+token)
+  audienciaOpen?: boolean;  // apertura programática del modal ▶ (deep-link ?f=audiencias). Aditivo: el clic sigue igual.
+  onAudienciaOpenChange?: (open: boolean) => void;  // avisa al padre cuando el modal se cierra/encola (baja el flag)
 }) {
   const dict = useDictation(backendUrl, accessToken);
   // ── Audiencias (subir/pegar grabación → transcripción + acta) ──
   const [audModal, setAudModal] = useState(false);
   const [audJob, setAudJob] = useState<{ id: string; title: string } | null>(null);
   const audienciasEnabled = (audiencias ?? true) && !!(backendUrl && accessToken);
+  // Apertura programática (deep-link ?f=audiencias): solo FUERZA abrir si está habilitado. El clic del ⊕
+  // sigue intacto. Aditivo, fail-open: si no hay backend/token, se ignora.
+  const audOpenRef = useRef(false);
+  useEffect(() => {
+    if (audienciaOpen && audienciasEnabled && !audOpenRef.current) { audOpenRef.current = true; setAudModal(true); }
+    if (!audienciaOpen) audOpenRef.current = false;
+  }, [audienciaOpen, audienciasEnabled]);
   const micEnabled = !!(backendUrl && accessToken);
   async function confirmDictation() {
     const t = await dict.stop();
@@ -649,8 +660,8 @@ export function Composer({
           accessToken={accessToken}
           matterId={matterId}
           sessionId={sessionId}
-          onClose={() => setAudModal(false)}
-          onQueued={(j) => { setAudModal(false); setAudJob({ id: j.id, title: j.title }); }}
+          onClose={() => { setAudModal(false); onAudienciaOpenChange?.(false); }}
+          onQueued={(j) => { setAudModal(false); onAudienciaOpenChange?.(false); setAudJob({ id: j.id, title: j.title }); }}
         />
       )}
       {audJob && backendUrl && accessToken && (

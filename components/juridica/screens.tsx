@@ -80,6 +80,8 @@ export function Home({
   backendUrl,
   accessToken,
   blocked,
+  audienciaOpen,
+  onAudienciaOpenChange,
 }: {
   composerStyle?: "elevated" | "bordered" | "pill";
   onSubmit: (text: string, modeOverride?: string, documentIds?: string[]) => void;
@@ -93,6 +95,8 @@ export function Home({
   backendUrl?: string;
   accessToken?: string;
   blocked?: boolean;
+  audienciaOpen?: boolean;                          // deep-link ?f=audiencias (paid) → abre el ▶ al montar
+  onAudienciaOpenChange?: (open: boolean) => void;  // el Composer avisa cuando el modal se cierra/encola
 }) {
   return (
     <div style={{ height: "100%", overflow: "auto" }}>
@@ -153,6 +157,8 @@ export function Home({
             backendUrl={backendUrl}
             accessToken={accessToken}
             blocked={blocked}
+            audienciaOpen={audienciaOpen}
+            onAudienciaOpenChange={onAudienciaOpenChange}
             placeholder="Ej. Redacta una demanda ejecutiva por un pagaré de $50.000.000…"
           />
 

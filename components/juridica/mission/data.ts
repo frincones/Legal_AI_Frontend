@@ -447,9 +447,9 @@ export const api = {
     jget<RetentionData>(b, t,
       `/api/admin/retention?days=${days}${from && to ? `&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`,
       { overview: {}, growth: [], cohorts: [], users: [], intents: [], hooks: {} }),
-  adminVsl: (b: string, t: string, days = 30, from?: string, to?: string) =>
+  adminVsl: (b: string, t: string, days = 30, from?: string, to?: string, variant?: string) =>
     jget<VslStats>(b, t,
-      `/api/admin/analytics/vsl?days=${days}${from && to ? `&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`, {}),
+      `/api/admin/analytics/vsl?days=${days}${from && to ? `&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}${variant ? `&variant=${variant}` : ""}`, {}),
   adminAttribution: (b: string, t: string, days = 30, model = "first", from?: string, to?: string) =>
     jget<AttribData>(b, t,
       `/api/admin/attribution?days=${days}&model=${model}${from && to ? `&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`, {}),

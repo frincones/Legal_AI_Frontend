@@ -11,6 +11,7 @@ import {
 } from "./sections";
 import { GuestChat } from "./GuestChat";
 import { DemoPlansModal } from "./DemoPlansModal";
+import { VSLPlayer } from "./VSLPlayer";
 import { api } from "../juridica/mission/data";
 import { createClient } from "@/lib/supabase/client";
 import { initTracker, track } from "@/lib/tracker";
@@ -137,6 +138,55 @@ function Hero({ onCreate, onNav, onBeta, inviteOnly }: {
   );
 }
 
+/* ---------- Hero VARIANTE AUDIENCIAS (deep-link ?f=audiencias, solo guest) ----------
+   Mismo design system + misma maquinaria de conversión (CTA → muro/trial). Solo cambia el copy y el video
+   (VSL de audiencias). Reusa VSLPlayer tal cual (seek-lock + eventos vsl_* → analítica). Aditivo: solo
+   se renderiza cuando la landing detecta ?f=audiencias sin sesión. Sin el parámetro, no existe. */
+function AudienciasHero({ backendUrl, onCta }: { backendUrl: string; onCta: () => void }) {
+  const secRef = useRef(0);
+  const [src, setSrc] = useState("");
+  const [pitch, setPitch] = useState<number | undefined>(undefined);
+  // URL del VSL de audiencias por env (R2, egress $0). Fail-open: si no está, cae al VSL global (full_url).
+  useEffect(() => {
+    const envUrl = (process.env.NEXT_PUBLIC_VSL_AUDIENCIAS_URL || "").trim();
+    if (envUrl) { setSrc(envUrl); }
+    api.vslConfig(backendUrl).then((c) => {
+      if (!envUrl && c.full_url) setSrc(c.full_url);
+      if (c.pitch_seconds) setPitch(c.pitch_seconds);
+    }).catch(() => {});
+  }, [backendUrl]);
+  const poster = src ? src.replace(/\.mp4$/, "_poster.jpg") : undefined;
+  return (
+    <header style={{ position: "relative", overflow: "hidden" }}>
+      <div className="hero-bg" style={{ position: "absolute", inset: 0, background: "var(--grad-mesh)", opacity: 0.9 }} />
+      <div className="hero-bg" style={{ position: "absolute", inset: 0, background: "radial-gradient(100% 70% at 50% 0%, transparent 50%, var(--bg-base) 92%)" }} />
+      <div className="land-container" style={{ position: "relative", paddingTop: 84, paddingBottom: 56, textAlign: "center" }}>
+        <div className="eyebrow" style={{ justifyContent: "center" }}>
+          <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--aurora)", display: "grid", placeItems: "center" }}><Icon name="play" size={11} style={{ color: "#fff" }} /></span>
+          Análisis de audiencias con IA
+        </div>
+        <h1 style={{ fontSize: "clamp(30px, 5vw, 50px)", lineHeight: 1.09, fontWeight: 700, letterSpacing: "-0.03em", margin: "18px auto 0", maxWidth: 860, textWrap: "balance" }}>
+          Convierte tus audiencias en un <span className="gradient-text">acta lista para revisar</span>, en minutos.
+        </h1>
+        <p style={{ fontSize: 17.5, color: "var(--text-secondary)", margin: "16px auto 0", maxWidth: 600, lineHeight: 1.55 }}>
+          Sube la grabación o pega el enlace (YouTube, Rama Judicial). Jurovia transcribe, identifica lo decidido y te entrega un acta estructurada — tú revisas y decides.
+        </p>
+        {src && (
+          <div style={{ margin: "28px auto 0", maxWidth: 340 }}>
+            <VSLPlayer src={src} poster={poster} pitchSeconds={pitch} secRef={secRef} onEvent={(n, p) => track(n, p)} />
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 28, flexWrap: "wrap" }}>
+          <button className="btn btn-primary btn-lg" onClick={onCta}>Probar Análisis de Audiencias<Icon name="arrowRight" size={17} stroke={2.2} /></button>
+        </div>
+        <p style={{ fontSize: 12.5, color: "var(--text-muted)", margin: "16px auto 0", maxWidth: 520 }}>
+          Software para abogados con tarjeta profesional. No es un bufete y no presta asesoría legal.
+        </p>
+      </div>
+    </header>
+  );
+}
+
 /* ---------- Landing root ---------- */
 export default function Landing({ authed, backendUrl }: { authed: boolean; backendUrl: string }) {
   const router = useRouter();
@@ -150,6 +200,7 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
   const [regCtx, setRegCtx] = useState<Record<string, unknown> | undefined>(undefined);          // "qué probó" → waitlist
   const [initialEmail, setInitialEmail] = useState("");        // email traído de la modal de planes
   const [directPlans, setDirectPlans] = useState<{ tier?: string; email?: string } | null>(null);   // deep-link BOFU: ?checkout/?planes → modal de planes directo
+  const [audienciasVariant, setAudienciasVariant] = useState(false);   // deep-link ?f=audiencias (guest) → hero variante audiencias
 
   useEffect(() => {
     if (!backendUrl) return;
@@ -232,6 +283,25 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
     })();
   }, [authed, backendUrl, router]);
 
+  // Deep-link de campaña de AUDIENCIAS: /?f=audiencias. Un solo link, comportamiento por estado de sesión:
+  //  - guest    → variante audiencias del hero (VSL de audiencias + muro/planes por CTA). Marca la sesión.
+  //  - logueado → entra a la app con la intención pendiente; la app decide paid (abre ▶) vs trial (UpgradeModal).
+  // Una sola vez. Sin `?f=audiencias`, no se activa nada → landing idéntica a hoy. Aditivo, fail-open.
+  const audDoneRef = useRef(false);
+  useEffect(() => {
+    if (audDoneRef.current) return;
+    let f = "";
+    try { f = new URLSearchParams(window.location.search).get("f") || ""; } catch { return; }
+    if (f !== "audiencias") return;
+    audDoneRef.current = true;
+    if (authed) {   // ya logueado → la ramificación paid/trial se hace en App.tsx
+      try { localStorage.setItem("jurovia_intent", "audiencias"); } catch { /* noop */ }
+      router.push("/chat"); return;
+    }
+    setAudienciasVariant(true);
+    track("audiencias_landing_view", {});   // marca la sesión para segmentar la analítica del VSL
+  }, [authed, router]);
+
   const goLogin = () => router.push("/login");
   const goPanel = () => router.push("/chat");
   // Abre el registro conservando el contexto de "qué probó" (para el waitlist). Los CTAs normales no lo pasan.
@@ -240,6 +310,8 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
   // En modo invitación abre la waitlist; si no, va al registro normal. `source` alimenta el embudo.
   const startWaitlist = (source: string) => setRegister(source);       // TODOS los CTA → muro de planes (trial 7 días)
   const onStart = () => startWaitlist("register_cta");
+  // CTA de la variante audiencias: abre el muro (mismo trial) + deja la intención para retomarla logueado.
+  const startAudiencias = () => { try { localStorage.setItem("jurovia_intent", "audiencias"); } catch { /* noop */ } startWaitlist("audiencias"); };
   // Nota: el home ya NO expone un chat público (blindaje para revisión de MoR). El demo en vivo sigue
   // disponible solo por deep-link de campaña: /?demo=<key> y /?ask=<pregunta> (más abajo).
 
@@ -249,8 +321,10 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
   return (
     <>
       <div className="land-root-pad" style={{ minHeight: "100%", background: "var(--bg-base)" }}>
-        <LandingNav authed={authed} onStart={onStart} onLogin={goLogin} onNav={scrollToId} onPanel={goPanel} />
-        <Hero onCreate={() => startWaitlist("hero")} onNav={scrollToId} onBeta={() => startWaitlist("hero_mobile")} inviteOnly={inviteOnly} />
+        <LandingNav authed={authed} onStart={audienciasVariant ? startAudiencias : onStart} onLogin={goLogin} onNav={scrollToId} onPanel={goPanel} />
+        {audienciasVariant
+          ? <AudienciasHero backendUrl={backendUrl} onCta={startAudiencias} />
+          : <Hero onCreate={() => startWaitlist("hero")} onNav={scrollToId} onBeta={() => startWaitlist("hero_mobile")} inviteOnly={inviteOnly} />}
         <TrustBar />
         <CapabilitiesSection />
         <ProblemSection />

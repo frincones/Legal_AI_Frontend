@@ -169,11 +169,12 @@ export default function JuridicaApp({
     missionApi.me(backendUrl, accessToken).then((m: any) => {
       setMissionMode(!!m?.features?.mission_control);
       if (m?.access?.model) setAccessModel(m.access.model);
+      setMeLoaded(true);   // el modelo de acceso ya es confiable → habilita ramificaciones por plan (intención audiencias)
       // Onboarding: se muestra si el backend dice que el usuario aún no lo completó (flag en DB),
       // nunca dentro del popup OAuth, y respetando un skip de sesión en localStorage.
       const isPopup = typeof window !== "undefined" && !!window.opener && !!new URLSearchParams(window.location.search).get("connected");
       if (!isPopup && m && m.onboarded === false && !localStorage.getItem("juridica_onboarded")) setShowWizard(true);
-    }).catch(() => {});
+    }).catch(() => { setMeLoaded(true); });   // fail-open: aun si /api/me falla, no dejar la intención colgada
     missionApi.credits(backendUrl, accessToken).then((c: any) => setCreditsState({ balance: c.balance, cap: c.cap, plan: c.plan ?? null, trial_ends_at: c.trial_ends_at ?? null })).catch(() => {});
   }, [backendUrl, accessToken]);
 
@@ -230,6 +231,25 @@ export default function JuridicaApp({
   }, [backendUrl, accessToken]);
 
   const [upgradeTier, setUpgradeTier] = useState<string | null>(null);   // deep-link BOFU → UpgradeModal in-app pre-seleccionado
+  const [meLoaded, setMeLoaded] = useState(false);                       // /api/me resuelto → accessModel confiable
+  const [audienciaAutoOpen, setAudienciaAutoOpen] = useState(false);     // deep-link ?f=audiencias (paid) → abre el ▶ al montar
+
+  // Deep-link de campaña de AUDIENCIAS (localStorage `jurovia_intent`="audiencias", desde la Landing).
+  // Ramifica por plan cuando el modelo de acceso ya es confiable (meLoaded): paid → abre el modal ▶ de
+  // audiencia directo; free/trial → abre el UpgradeModal (las horas de audiencia van por plan). Una sola
+  // vez y se borra. Fail-open: sin flag no pasa nada; si algo falla, no rompe el arranque.
+  const audIntentRef = useRef(false);
+  useEffect(() => {
+    if (!backendUrl || !accessToken || !meLoaded || audIntentRef.current) return;
+    let intent: string | null = null;
+    try { intent = localStorage.getItem("jurovia_intent"); } catch { return; }
+    if (intent !== "audiencias") return;
+    audIntentRef.current = true;
+    try { localStorage.removeItem("jurovia_intent"); localStorage.setItem("juridica_onboarded", "1"); } catch { /* noop */ }
+    setShowWizard(false);
+    if (accessModel === "paid") { go("home"); setAudienciaAutoOpen(true); }   // cliente de pago → abre el ▶
+    else setUpgradeTier("");                                                  // free/trial → muro de planes
+  }, [backendUrl, accessToken, meLoaded, accessModel]);
 
   // Deep-link de correo (?ask=…) para usuario logueado/auto-logueado: siembra la pregunta de la campaña
   // en un chat nuevo (usa sus créditos, flujo normal). Una sola vez. Fail-open: si no hay flag, nada cambia.
@@ -496,6 +516,8 @@ export default function JuridicaApp({
         backendUrl={backendUrl}
         accessToken={accessToken}
         blocked={creditsBlocked}
+        audienciaOpen={audienciaAutoOpen}
+        onAudienciaOpenChange={setAudienciaAutoOpen}
       />
     );
   else if (route === "chat")
