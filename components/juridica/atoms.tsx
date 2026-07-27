@@ -742,23 +742,33 @@ export const JV_INCLUDED = [
 // Orden de planes (menor→mayor) para distinguir mejora vs plan actual vs inferior.
 const TIER_ORDER = ["free", "estandar", "pro", "firma"];
 
+// Precio en COP para MOSTRAR (redondeado a mil). rate<=0 → null (solo USD). Cobro real siempre USD (Paddle).
+const jvCop = (usd: number | null | undefined, rate: number) => (usd != null && rate > 0 ? "$" + (Math.round(usd * rate / 1000) * 1000).toLocaleString("es-CO") : null);
+
 export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTier, currentTier }: {
   open: boolean; onClose: () => void; backendUrl: string; accessToken: string; initialTier?: string;
   currentTier?: string | null;   // plan pagado vigente → se marca "Plan actual"; solo se ofrecen mejoras
 }) {
   const curIdx = currentTier ? TIER_ORDER.indexOf(currentTier) : -1;
-  const [cfg, setCfg] = useState<{ enabled: boolean; environment: string; client_token: string } | null>(null);
+  const [cfg, setCfg] = useState<{ enabled: boolean; environment: string; client_token: string; annual_enabled?: boolean } | null>(null);
   const [plans, setPlans] = useState<PlanCat[]>([]);
   const [tier, setTier] = useState<string | null>(null);   // plan elegido → vista de pago inline
+  const [cycle, setCycle] = useState<"annual" | "monthly">("annual");   // AOV: default anual (−20%)
+  const [copRate, setCopRate] = useState(0);                             // USD→COP (display; cobro real USD)
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const initedRef = useRef(false);
   const tierRef = useRef<string | null>(null);        // para el eventCallback (evita closures stale)
   const priceRef = useRef<number | null>(null);
+  const cycleRef = useRef<"annual" | "monthly">("annual");   // ciclo para el eventCallback (sin stale)
   const completedRef = useRef(false);
   const paddleRef = useRef<PaddleNS | null>(null);    // Paddle YA inicializado (desacoplado del open)
   const [paddleReady, setPaddleReady] = useState(false);
+  // Anual solo si el backend lo confirma (los 3 price_ids anuales existen). Si no, todo mensual (sin regresión).
+  const annualOn = !!cfg?.annual_enabled;
+  const effCycle: "annual" | "monthly" = annualOn && cycle === "annual" ? "annual" : "monthly";
+  useEffect(() => { cycleRef.current = effCycle; }, [effCycle]);
 
   // Carga config + planes al abrir. Inicializa Paddle en modo INLINE (checkout embebido).
   useEffect(() => {
@@ -768,6 +778,7 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
       .then(([c, p]) => {
         setCfg(c);
         setPlans((p.plans || []).filter((x) => x.tier !== "free" && x.price_usd != null));
+        if (typeof p.cop_rate === "number") setCopRate(p.cop_rate);
         // Deep-link BOFU: pre-selecciona el plan → abre directo en la vista de pago.
         // Nunca pre-selecciona el plan que el usuario YA tiene (evita re-suscripción).
         if (initialTier && initialTier !== currentTier) setTier(initialTier);
@@ -798,14 +809,14 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
           eventCallback: (ev: { name?: string }) => {
             const n = ev?.name;
             if (n === "checkout.loaded") {
-              track("checkout_started", { tier: tierRef.current });
+              track("checkout_started", { tier: tierRef.current, billing_cycle: cycleRef.current });
               metaEvent("InitiateCheckout", backendUrl, { value: priceRef.current ?? undefined, currency: "USD" });
             } else if (n === "checkout.completed") {
               completedRef.current = true; setDone(true);
-              track("purchase_completed", { tier: tierRef.current });
+              track("purchase_completed", { tier: tierRef.current, billing_cycle: cycleRef.current });
               // Compra directa (Opción B): el Purchase (Meta) lo dispara el webhook de Paddle al cobrar.
             } else if (n === "checkout.closed") {
-              if (!completedRef.current) track("checkout_abandoned", { tier: tierRef.current });
+              if (!completedRef.current) track("checkout_abandoned", { tier: tierRef.current, billing_cycle: cycleRef.current });
             }
           },
         });
@@ -823,8 +834,10 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
       setLoading(true); setErr(null);
       try {
         completedRef.current = false; tierRef.current = tier;
-        priceRef.current = plans.find((p) => p.tier === tier)?.price_usd ?? null;
-        const r = await api.billingCheckout(backendUrl, accessToken, tier, fbCookies(), false);   // Opción B: suscripción directa (sin trial)
+        const selPlan = plans.find((p) => p.tier === tier);
+        // valor para Meta = total cobrado (anual = total/año; mensual = /mes)
+        priceRef.current = (effCycle === "annual" && selPlan?.annual) ? selPlan.annual.usd : (selPlan?.price_usd ?? null);
+        const r = await api.billingCheckout(backendUrl, accessToken, tier, fbCookies(), false, effCycle);   // Opción B: suscripción directa (sin trial), ciclo elegido
         if (!r?.transaction_id) throw new Error("no txn");
         if (cancelled) return;
         paddleRef.current!.Checkout?.open({
@@ -835,7 +848,7 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
       finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [open, tier, paddleReady, backendUrl, accessToken, plans]);
+  }, [open, tier, paddleReady, backendUrl, accessToken, plans, effCycle]);
 
   if (!open) return null;
   const enabled = !!(cfg?.enabled && cfg?.client_token);
@@ -887,6 +900,19 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
                 ))}
               </div>
             </div>
+            {/* Toggle Mensual / Anual (AOV) — solo si el backend confirma precios anuales */}
+            {annualOn && (
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 999, padding: 4 }}>
+                  {(["monthly", "annual"] as const).map((cy) => (
+                    <button key={cy} onClick={() => setCycle(cy)} className="focus-ring" style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "8px 16px", fontSize: 13, fontWeight: 750, display: "inline-flex", alignItems: "center", gap: 7, background: cycle === cy ? "var(--bg-surface)" : "transparent", color: cycle === cy ? "var(--text)" : "var(--text-muted)", boxShadow: cycle === cy ? "0 1px 4px -1px rgba(0,0,0,.15)" : "none" }}>
+                      {cy === "monthly" ? "Mensual" : "Anual"}
+                      {cy === "annual" && <span style={{ fontSize: 10.5, fontWeight: 800, color: "#fff", background: JV_AURORA, borderRadius: 999, padding: "2px 7px" }}>−20%</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* Tarjetas */}
             <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "stretch" }}>
               {plans.map((p) => {
@@ -912,12 +938,30 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
                       : featured && <span style={{ position: "absolute", top: -11, left: 22, fontSize: 10.5, fontWeight: 750, letterSpacing: ".04em", textTransform: "uppercase", background: JV_AURORA, color: "#fff", borderRadius: 999, padding: "4px 11px" }}>Más popular</span>}
                     <div style={{ fontSize: 22, lineHeight: 1 }}>{c.icon}</div>
                     <div style={{ fontSize: 18, fontWeight: 780, color: "var(--text)", marginTop: 8 }}>{p.name}</div>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 10 }}>
-                      <span style={{ fontSize: 26, fontWeight: 820, letterSpacing: "-.02em", color: "var(--text)" }}>${p.price_usd}</span>
-                      <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>USD/mes</span>
-                    </div>
+                    {(() => {
+                      const ann = effCycle === "annual" ? p.annual : null;
+                      const shownMonthly = ann ? ann.month_usd : p.price_usd;   // precio/mes que se muestra grande
+                      const copM = jvCop(shownMonthly, copRate);
+                      return (
+                        <div style={{ marginTop: 10 }}>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: 4, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 25, fontWeight: 820, letterSpacing: "-.02em", color: "var(--text)" }}>{copM || `$${shownMonthly}`}</span>
+                            <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>{copM ? "COP/mes" : "USD/mes"}</span>
+                          </div>
+                          {ann ? (
+                            <div style={{ marginTop: 3, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                              antes <s style={{ opacity: .8 }}>{jvCop(p.price_usd, copRate) || `$${p.price_usd}`}/mes</s> · <span style={{ color: "var(--success, #16A34A)", fontWeight: 750 }}>ahorra {ann.save_pct}%</span><br />
+                              Facturado anual: <b style={{ color: "var(--text)" }}>{jvCop(ann.usd, copRate) || `$${ann.usd}`}</b> ≈ ${ann.usd} USD · ≈ 2 meses gratis
+                            </div>
+                          ) : (
+                            copM && <div style={{ marginTop: 3, fontSize: 12, color: "var(--text-muted)" }}>≈ ${p.price_usd} USD/mes</div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div style={{ fontSize: 13.5, fontWeight: 650, color: "var(--text)", marginTop: 14 }}>{c.tagline}</div>
                     <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 3 }}>{c.persona}</div>
+                    {p.tier === "firma" && <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--primary)", marginTop: 6 }}>👥 Hasta 5 abogados</div>}
                     <div style={{ margin: "14px 0 18px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
                       {c.usage.map((u, i) => (
                         <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.4 }}>
@@ -932,14 +976,20 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
                     ) : isLower ? (
                       <button disabled className="btn btn-secondary" style={{ width: "100%", fontWeight: 650, cursor: "default" }}>Incluido en tu plan</button>
                     ) : (
-                      <button className={`${featured ? "btn btn-primary jv-sub-btn-pro" : "btn btn-secondary"} jv-sub-btn`} onClick={() => { track("subscribe_click", { tier: p.tier }); metaEvent("AddToCart", backendUrl, { value: p.price_usd ?? undefined, currency: "USD" }); setTier(p.tier); }} style={{ width: "100%", fontWeight: 700 }}>{curIdx >= 0 ? "Mejorar a este plan" : "Suscribirme"}</button>
+                      <button className={`${featured ? "btn btn-primary jv-sub-btn-pro" : "btn btn-secondary"} jv-sub-btn`} onClick={() => { const val = (effCycle === "annual" && p.annual) ? p.annual.usd : (p.price_usd ?? undefined); track("subscribe_click", { tier: p.tier, billing_cycle: effCycle }); metaEvent("AddToCart", backendUrl, { value: val, currency: "USD" }); setTier(p.tier); }} style={{ width: "100%", fontWeight: 700 }}>{curIdx >= 0 ? "Mejorar a este plan" : "Suscribirme"}</button>
                     )}
                   </div>
                 );
               })}
             </div>
+            {/* Firma enterprise (>5 abogados) → cierre humano / lead a ventas */}
+            <a href="mailto:soporte@juroviapp.com?subject=Despacho%20con%20m%C3%A1s%20de%205%20abogados&body=Hola%2C%20somos%20un%20despacho%20con%20m%C3%A1s%20de%205%20abogados%20y%20queremos%20conocer%20un%20plan%20para%20la%20firma."
+              onClick={() => { try { track("enterprise_lead_click", { where: "upgrade_modal" }); } catch { /* noop */ } }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 18, padding: "12px 16px", borderRadius: 14, border: "1px dashed var(--border-strong, var(--border))", textDecoration: "none", fontSize: 13, fontWeight: 650, color: "var(--text)" }}>
+              👥 ¿Despacho con <b style={{ margin: "0 4px" }}>+5 abogados</b>? Habla con nosotros <Icon name="arrowRight" size={15} />
+            </a>
             {/* Confianza + identidad del prestador (Estatuto del Consumidor) */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 18, fontSize: 12, color: "var(--text-muted)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 14, fontSize: 12, color: "var(--text-muted)" }}>
               <Icon name="lock" size={13} /> Pago seguro · Cancela cuando quieras · Sin permanencia
             </div>
             <div style={{ textAlign: "center", marginTop: 6, fontSize: 11, color: "var(--text-muted)" }}>
@@ -954,8 +1004,15 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
             {/* Resumen del pedido (branding Jurovia) */}
             <div style={{ flex: "1 1 320px", minWidth: 300, padding: "26px 26px", background: "var(--bg-elevated)", borderRight: "1px solid var(--border)" }}>
               <Wordmark />
-              <div style={{ fontSize: 13.5, color: "var(--text-muted)", marginTop: 18 }}>Suscripción · plan {sel?.name}</div>
-              <div style={{ fontSize: 34, fontWeight: 800, color: "var(--text)", marginTop: 4 }}>${sel?.price_usd}<span style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}> USD/mes</span></div>
+              <div style={{ fontSize: 13.5, color: "var(--text-muted)", marginTop: 18 }}>Suscripción · plan {sel?.name} · {effCycle === "annual" ? "anual" : "mensual"}</div>
+              {effCycle === "annual" && sel?.annual ? (
+                <>
+                  <div style={{ fontSize: 34, fontWeight: 800, color: "var(--text)", marginTop: 4 }}>${sel.annual.month_usd}<span style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}> USD/mes</span></div>
+                  <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>Se cobra <b style={{ color: "var(--text)" }}>${sel.annual.usd} USD</b> hoy (12 meses) · ahorras {sel.annual.save_pct}%</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 34, fontWeight: 800, color: "var(--text)", marginTop: 4 }}>${sel?.price_usd}<span style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}> USD/mes</span></div>
+              )}
               <div style={{ height: 1, background: "var(--border)", margin: "20px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 9, fontSize: 13.5, color: "var(--text-secondary)" }}>
                 {["Citas verificadas en la fuente oficial", "Escritos radicables en Word", "Autopilot que vigila tus procesos", "Analiza cualquier documento", "Cancela cuando quieras · sin permanencia"].map((f, i) => (

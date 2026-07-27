@@ -125,7 +125,9 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   const isSubscribe = mode === "subscribe";
   // Gate propio cuando hay override (para que el pitch/desbloqueo de audiencias no herede el del VSL principal).
   const gateKey = vslUrlOverride ? "jv_vsl_pitch_aud" : "jv_vsl_pitch";
-  const [cfg, setCfg] = useState<{ enabled: boolean; environment: string; client_token: string } | null>(null);
+  const [cfg, setCfg] = useState<{ enabled: boolean; environment: string; client_token: string; annual_enabled?: boolean } | null>(null);
+  const [cycle, setCycle] = useState<"annual" | "monthly">("annual");   // AOV: default anual (solo aplica en compra)
+  const cycleRef = useRef<"annual" | "monthly">("annual");
   const [plans, setPlans] = useState<PlanCat[]>([]);
   const [copRate, setCopRate] = useState(0);
   const [stats, setStats] = useState<{ lawyers?: number; verifications?: number; positive_pct?: number }>({});
@@ -162,6 +164,10 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   const proPlan = plans.find((p) => p.tier === "pro");
   const showVsl = !!(vsl && vsl.enabled && vsl.full_url);         // hay hero VSL
   const gateActive = showVsl && !passedPitch;                     // planes ocultos hasta el pitch
+  // AOV: el toggle anual solo aplica al COMPRAR (subscribe). En trial no hay cobro → siempre mensual.
+  const annualOn = isSubscribe && !!cfg?.annual_enabled;
+  const effCycle: "annual" | "monthly" = annualOn && cycle === "annual" ? "annual" : "monthly";
+  useEffect(() => { cycleRef.current = effCycle; }, [effCycle]);
   const S = { lawyers: stats.lawyers ?? 170, verifications: stats.verifications ?? 893, positive: stats.positive_pct ?? 80 };
   function revealPitch() { setPassedPitch(true); try { localStorage.setItem(gateKey, "1"); } catch { /* noop */ } }
 
@@ -259,16 +265,16 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
           checkout: { settings: { displayMode: "inline", frameTarget: "dp-paddle-frame", frameInitialHeight: 450, frameStyle: "width:100%; min-width:312px; background-color: transparent; border: none;" } },
           eventCallback: (ev: { name?: string }) => {
             const n = ev?.name; const em = (emailValRef.current || "").trim().toLowerCase();
-            if (n) track(`paddle_${n.replace(/^checkout\./, "")}`, { tier: tierRef.current });   // tracking granular: TODOS los eventos de Paddle
-            if (n === "checkout.loaded") { track("checkout_started", { tier: tierRef.current, via: "demo", email: em, video_sec: Math.round(videoSecRef.current) }); metaEvent("InitiateCheckout", backendUrl, { value: priceRef.current ?? undefined, currency: "USD" }); }
+            if (n) track(`paddle_${n.replace(/^checkout\./, "")}`, { tier: tierRef.current, billing_cycle: cycleRef.current });   // tracking granular: TODOS los eventos de Paddle
+            if (n === "checkout.loaded") { track("checkout_started", { tier: tierRef.current, billing_cycle: cycleRef.current, via: "demo", email: em, video_sec: Math.round(videoSecRef.current) }); metaEvent("InitiateCheckout", backendUrl, { value: priceRef.current ?? undefined, currency: "USD" }); }
             else if (n === "checkout.completed") {
               completedRef.current = true; setDone(true);
-              track("purchase_completed", { tier: tierRef.current, via: "demo", email: em, video_sec: Math.round(videoSecRef.current) });
+              track("purchase_completed", { tier: tierRef.current, billing_cycle: cycleRef.current, via: "demo", email: em, video_sec: Math.round(videoSecRef.current) });
               // Compra directa (Opción B): el Purchase (Meta) lo dispara el webhook de Paddle con gross>0.
               try { (window as unknown as { Paddle?: { Checkout?: { close?: () => void } } }).Paddle?.Checkout?.close?.(); } catch { /* noop */ }
               setTimeout(() => { try { router.push("/chat"); } catch { /* noop */ } }, 1400);
             }
-            else if (n === "checkout.closed") { if (!completedRef.current) track("checkout_abandoned", { tier: tierRef.current, via: "demo", email: em, video_sec: Math.round(videoSecRef.current) }); }
+            else if (n === "checkout.closed") { if (!completedRef.current) track("checkout_abandoned", { tier: tierRef.current, billing_cycle: cycleRef.current, via: "demo", email: em, video_sec: Math.round(videoSecRef.current) }); }
           },
         });
         initedRef.current = true; paddleRef.current = P; setPaddleReady(true);
@@ -295,8 +301,9 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
       setCheckoutLoading(true);
       try {
         completedRef.current = false; tierRef.current = selTier;
-        priceRef.current = plans.find((p) => p.tier === selTier)?.price_usd ?? null;
-        const r = await api.billingCheckout(backendUrl, authTokenRef.current!, selTier, fbCookies(), false);   // Opción B: compra directa (sin trial)
+        const selP = plans.find((p) => p.tier === selTier);
+        priceRef.current = (effCycle === "annual" && selP?.annual) ? selP.annual.usd : (selP?.price_usd ?? null);
+        const r = await api.billingCheckout(backendUrl, authTokenRef.current!, selTier, fbCookies(), false, effCycle);   // Opción B: compra directa (sin trial), ciclo elegido
         if (!r?.transaction_id) throw new Error("no txn");
         if (cancelled) return;
         const successUrl = (typeof window !== "undefined" ? window.location.origin : "https://juroviapp.com") + "/chat?purchased=1";
@@ -305,7 +312,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
       finally { if (!cancelled) setCheckoutLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [accountReady, selTier, paddleReady, backendUrl, plans]);
+  }, [accountReady, selTier, paddleReady, backendUrl, plans, effCycle]);
 
   // Scroll interno del muro → hitos 25/50/75/100 (el tracker global mide el documento, no este contenedor).
   function onScroll() {
@@ -410,6 +417,19 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
             </div>
           </div>
 
+          {/* Toggle Mensual / Anual (AOV) — solo al comprar y si hay precios anuales */}
+          {annualOn && (
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 999, padding: 4 }}>
+                {(["monthly", "annual"] as const).map((cy) => (
+                  <button key={cy} onClick={() => setCycle(cy)} style={{ border: "none", cursor: "pointer", borderRadius: 999, padding: "8px 16px", fontSize: 13, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 7, background: cycle === cy ? "var(--bg-surface)" : "transparent", color: cycle === cy ? "var(--text)" : "var(--text-muted)", boxShadow: cycle === cy ? "0 1px 4px -1px rgba(0,0,0,.15)" : "none" }}>
+                    {cy === "monthly" ? "Mensual" : "Anual"}
+                    {cy === "annual" && <span style={{ fontSize: 10.5, fontWeight: 800, color: "#fff", background: JV_AURORA, borderRadius: 999, padding: "2px 7px" }}>−20%</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Planes — Pro anclado, precio en COP + anclaje */}
           <div style={{ display: "flex", flexDirection: "column", gap: 11, marginTop: 18 }}>
             {ordered.map((p, idx) => {
@@ -429,12 +449,29 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
                     {!isSubscribe && <span style={{ fontSize: 13, fontWeight: 800, color: "var(--success)" }}>7 días gratis</span>}
                   </div>
                   <div style={{ marginTop: 4 }}>
-                    {cop
-                      ? <span style={{ fontSize: pro ? 22 : 17, fontWeight: 800, letterSpacing: "-.02em", color: "var(--text)" }}>{cop}<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", marginLeft: 6 }}>COP/mes · ≈ ${p.price_usd} USD{cd ? ` · ${cd} COP/día` : ""}</span></span>
-                      : <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{isSubscribe ? "" : "luego "}<b style={{ color: "var(--text)" }}>${p.price_usd} USD/mes</b> · = ${daily(p.price_usd)}/día</span>}
-                    {p.tier === "firma" && <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}> · hasta 5 abogados</span>}
+                    {(() => {
+                      const ann = effCycle === "annual" ? p.annual : null;   // muro de compra + anual
+                      if (ann) {
+                        const cm = copFmt(ann.month_usd, copRate);
+                        return (
+                          <>
+                            <span style={{ fontSize: pro ? 22 : 17, fontWeight: 800, letterSpacing: "-.02em", color: "var(--text)" }}>{cm || `$${ann.month_usd}`}<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", marginLeft: 6 }}>{cm ? "COP/mes" : "USD/mes"} · ≈ ${ann.month_usd} USD</span></span>
+                            {p.tier === "firma" && <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}> · hasta 5 abogados</span>}
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>antes <s style={{ opacity: .8 }}>{cop || `$${p.price_usd}`}/mes</s> · <span style={{ color: "var(--success)", fontWeight: 800 }}>ahorra {ann.save_pct}%</span> · facturado anual <b style={{ color: "var(--text)" }}>{copFmt(ann.usd, copRate) || `$${ann.usd} USD`}</b> ≈ 2 meses gratis</div>
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          {cop
+                            ? <span style={{ fontSize: pro ? 22 : 17, fontWeight: 800, letterSpacing: "-.02em", color: "var(--text)" }}>{cop}<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", marginLeft: 6 }}>COP/mes · ≈ ${p.price_usd} USD{cd ? ` · ${cd} COP/día` : ""}</span></span>
+                            : <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{isSubscribe ? "" : "luego "}<b style={{ color: "var(--text)" }}>${p.price_usd} USD/mes</b> · = ${daily(p.price_usd)}/día</span>}
+                          {p.tier === "firma" && <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}> · hasta 5 abogados</span>}
+                        </>
+                      );
+                    })()}
                   </div>
-                  {reg && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Precio normal <s style={{ opacity: .75 }}>{regCop || `$${reg} USD`}</s> · <span style={{ color: GOLD, fontWeight: 800 }}>lanzamiento</span></div>}
+                  {reg && effCycle !== "annual" && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Precio normal <s style={{ opacity: .75 }}>{regCop || `$${reg} USD`}</s> · <span style={{ color: GOLD, fontWeight: 800 }}>lanzamiento</span></div>}
                   {cost && <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 9, fontSize: 12, fontWeight: 750, color: "var(--primary)", background: "var(--primary-soft)", borderRadius: 8, padding: "5px 9px" }}><Icon name="clock" size={13} /> {cost}</div>}
                   {pro && (
                     <div style={{ margin: "11px 0 4px", display: "flex", flexDirection: "column", gap: 6 }}>
@@ -452,6 +489,13 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
               );
             })}
           </div>
+
+          {/* Firma enterprise (>5 abogados) → cierre humano / lead a ventas */}
+          <a href="mailto:soporte@juroviapp.com?subject=Despacho%20con%20m%C3%A1s%20de%205%20abogados&body=Hola%2C%20somos%20un%20despacho%20con%20m%C3%A1s%20de%205%20abogados%20y%20queremos%20conocer%20un%20plan%20para%20la%20firma."
+            onClick={() => { try { track("enterprise_lead_click", { where: "demo_plans" }); } catch { /* noop */ } }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12, padding: "11px 14px", borderRadius: 14, border: "1px dashed var(--border-strong, var(--border))", textDecoration: "none", fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>
+            👥 ¿Despacho con +5 abogados? Habla con nosotros <Icon name="arrowRight" size={15} />
+          </a>
 
           {/* Bloque correo + tarjeta FUSIONADO (misma página, gated hasta crear cuenta) */}
           <div ref={cardRef} style={{ marginTop: 20, border: "1px solid var(--border)", borderRadius: 16, padding: 16, background: "var(--bg-elevated)" }}>

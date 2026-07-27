@@ -347,7 +347,7 @@ export type CostsDashboard = {
   alerts: { id: string; name: string; provider: string | null; metric: string; threshold_usd: number; enabled: boolean; state: string; last_fired_at: string | null }[];
   source_note: string; updated_for: string;
 };
-export type PlanCat = { tier: string; name: string; active: boolean; price_usd: number | null; regular_usd?: number | null; credits: number | null; trial_days: number | null; blurb: string; entitlements: Record<string, unknown> };
+export type PlanCat = { tier: string; name: string; active: boolean; price_usd: number | null; regular_usd?: number | null; credits: number | null; trial_days: number | null; blurb: string; entitlements: Record<string, unknown>; annual?: { usd: number; month_usd: number; save_pct: number } | null };
 export type PlansFunnelStep = { demo_opened: number; demo_opened_sess: number; plans_opened: number; plans_opened_sess: number; plan_selected: number; plan_selected_sess: number; checkout_started: number; checkout_started_sess: number; checkout_abandoned: number; checkout_abandoned_sess: number; purchased: number; purchased_sess: number };
 export type PlansFunnelLead = { email: string; name: string | null; city: string | null; user_type: string | null; practice_area: string | null; phone: string | null; source: string | null; status: string | null; created_at: string; purchased: boolean; gross_usd: number | null; purchased_at: string | null; reached_checkout: boolean; abandoned: boolean };
 export type PlansFunnelPurchase = { occurred_at: string; gross_usd: number | null; net_usd: number | null; status: string | null; email: string | null };
@@ -525,8 +525,8 @@ export const api = {
   adminIgSetSettings: (b: string, t: string, patch: Record<string, unknown>) => jsend<{ ok?: boolean }>("PATCH", b, t, "/api/admin/ig/settings", patch, { ok: false }),
   plansCatalog: (b: string, t: string) => jget<{ plans: PlanCat[]; cop_rate?: number }>(b, t, "/api/plans", { plans: [] }),
   // Billing (Paddle) de cara al usuario
-  billingConfig: (b: string, t: string) => jget<{ enabled: boolean; environment: string; client_token: string; prices: Record<string, string> }>(b, t, "/api/billing/config", { enabled: false, environment: "production", client_token: "", prices: {} }),
-  billingCheckout: (b: string, t: string, tier: string, fb?: { fbp?: string; fbc?: string }, trial?: boolean) => jpost<{ transaction_id?: string }>(b, t, "/api/billing/checkout", { tier, trial: !!trial, fbp: fb?.fbp, fbc: fb?.fbc }, {}),
+  billingConfig: (b: string, t: string) => jget<{ enabled: boolean; environment: string; client_token: string; prices: Record<string, string>; annual_enabled?: boolean }>(b, t, "/api/billing/config", { enabled: false, environment: "production", client_token: "", prices: {}, annual_enabled: false }),
+  billingCheckout: (b: string, t: string, tier: string, fb?: { fbp?: string; fbc?: string }, trial?: boolean, interval?: string) => jpost<{ transaction_id?: string }>(b, t, "/api/billing/checkout", { tier, interval: interval || "month", trial: !!trial, fbp: fb?.fbp, fbc: fb?.fbc }, {}),
   socialStats: (b: string) => jget<{ lawyers?: number; verifications?: number; responses?: number; orgs?: number; positive_pct?: number }>(b, "", "/api/stats/social", {}),
   vslConfig: (b: string) => jget<{ enabled?: boolean; full_url?: string; modal_url?: string; pitch_seconds?: number }>(b, "", "/api/vsl/config", {}),
   billingPortal: (b: string, t: string) => jpost<{ overview_url?: string; cancel_url?: string }>(b, t, "/api/billing/portal", {}, {}),
