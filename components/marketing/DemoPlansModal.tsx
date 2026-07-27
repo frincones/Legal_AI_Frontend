@@ -112,14 +112,19 @@ function FaqList({ items, title }: { items: [string, string][]; title?: string }
   );
 }
 
-export function DemoPlansModal({ backendUrl, context, onClose, initialTier, initialEmail, mode = "trial" }: {
+export function DemoPlansModal({ backendUrl, context, onClose, initialTier, initialEmail, mode = "trial", vslUrlOverride, vslPitchOverride }: {
   backendUrl: string; context?: Record<string, unknown>; onClose: () => void; onFree?: (email?: string) => void;
   initialTier?: string; initialEmail?: string;
   // Opción B: 'trial' = "Activar trial" SIN tarjeta (crea cuenta → 3 turnos/día × 7d → /chat).
   //           'subscribe' = "Suscribirme" → checkout Paddle (compra directa, sin trial).
   mode?: "trial" | "subscribe";
+  // Variante audiencias: reemplaza SOLO el video del hero por el de audiencias, dejando el muro igual
+  // (planes, trial, Paddle, tracking intactos). Sin override → comportamiento idéntico al de hoy.
+  vslUrlOverride?: string; vslPitchOverride?: number;
 }) {
   const isSubscribe = mode === "subscribe";
+  // Gate propio cuando hay override (para que el pitch/desbloqueo de audiencias no herede el del VSL principal).
+  const gateKey = vslUrlOverride ? "jv_vsl_pitch_aud" : "jv_vsl_pitch";
   const [cfg, setCfg] = useState<{ enabled: boolean; environment: string; client_token: string } | null>(null);
   const [plans, setPlans] = useState<PlanCat[]>([]);
   const [copRate, setCopRate] = useState(0);
@@ -131,7 +136,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   const [err, setErr] = useState<string | null>(null);
   const [selTier, setSelTier] = useState<string | null>(initialTier ?? "pro");
   const [vsl, setVsl] = useState<{ enabled?: boolean; full_url?: string; modal_url?: string; pitch_seconds?: number } | null>(null);
-  const [passedPitch, setPassedPitch] = useState<boolean>(() => { try { return localStorage.getItem("jv_vsl_pitch") === "1"; } catch { return false; } });
+  const [passedPitch, setPassedPitch] = useState<boolean>(() => { try { return localStorage.getItem(gateKey) === "1"; } catch { return false; } });
   const videoSecRef = useRef(0);   // segundo actual del VSL (para "en qué momento convirtió")
   const [accountReady, setAccountReady] = useState(false);   // cuenta creada → se monta Paddle inline
   const [paddleReady, setPaddleReady] = useState(false);     // SDK precargado + Initialize hecho (al montar)
@@ -158,7 +163,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   const showVsl = !!(vsl && vsl.enabled && vsl.full_url);         // hay hero VSL
   const gateActive = showVsl && !passedPitch;                     // planes ocultos hasta el pitch
   const S = { lawyers: stats.lawyers ?? 170, verifications: stats.verifications ?? 893, positive: stats.positive_pct ?? 80 };
-  function revealPitch() { setPassedPitch(true); try { localStorage.setItem("jv_vsl_pitch", "1"); } catch { /* noop */ } }
+  function revealPitch() { setPassedPitch(true); try { localStorage.setItem(gateKey, "1"); } catch { /* noop */ } }
 
   useEffect(() => {
     metaViewOnce("jv_vc_planes", backendUrl, "planes");
@@ -170,11 +175,14 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
       })
       .catch(() => { /* fail-open */ });
     api.socialStats(backendUrl).then(setStats).catch(() => { /* usa fallback real */ });
-    api.vslConfig(backendUrl).then(setVsl).catch(() => setVsl({}));   // fail-open: sin config → muro normal
+    // fail-open: sin config → muro normal. Con override (audiencias) → reemplaza SOLO el video del hero.
+    api.vslConfig(backendUrl).then((c) => setVsl(
+      vslUrlOverride ? { ...c, enabled: true, full_url: vslUrlOverride, pitch_seconds: vslPitchOverride ?? c.pitch_seconds } : c
+    )).catch(() => setVsl({}));
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [backendUrl, onClose]);
+  }, [backendUrl, onClose, vslUrlOverride, vslPitchOverride]);
 
   useEffect(() => { emailValRef.current = email; }, [email]);
 
@@ -501,8 +509,8 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
             <Icon name="sparkles" size={14} /> Precio de lanzamiento por tiempo limitado
           </div>
 
-          {/* Video corto FIJO, justo antes del FAQ */}
-          {vsl && vsl.enabled && vsl.modal_url && <div style={{ marginTop: 22 }}><VSLPlayer src={vsl.modal_url} poster={vsl.modal_url.replace(/\.mp4$/, "_poster.jpg")} lock autoPlay={false} preload="none" onEvent={(n, p) => track(n, { ...p, place: "modal" })} maxHeightVh={56} /></div>}
+          {/* Video corto FIJO, justo antes del FAQ. En la variante audiencias se oculta (un solo video: el de audiencias). */}
+          {vsl && vsl.enabled && vsl.modal_url && !vslUrlOverride && <div style={{ marginTop: 22 }}><VSLPlayer src={vsl.modal_url} poster={vsl.modal_url.replace(/\.mp4$/, "_poster.jpg")} lock autoPlay={false} preload="none" onEvent={(n, p) => track(n, { ...p, place: "modal" })} maxHeightVh={56} /></div>}
 
           {/* FAQ que derriba objeciones */}
           <div style={{ marginTop: 24 }}>

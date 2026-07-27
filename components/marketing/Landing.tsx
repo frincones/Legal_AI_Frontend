@@ -11,7 +11,6 @@ import {
 } from "./sections";
 import { GuestChat } from "./GuestChat";
 import { DemoPlansModal } from "./DemoPlansModal";
-import { VSLPlayer } from "./VSLPlayer";
 import { api } from "../juridica/mission/data";
 import { createClient } from "@/lib/supabase/client";
 import { initTracker, track } from "@/lib/tracker";
@@ -37,6 +36,9 @@ const FALLBACK_PLANS: Plan[] = [
   { tier: "pro", name: "Pro", active: false, price_usd: 18, credits: null, trial_days: null, blurb: "Para el abogado que no para." },
   { tier: "firma", name: "Firma", active: false, price_usd: 45, credits: null, trial_days: null, blurb: "Toda tu firma, en sintonía." },
 ];
+
+// VSL de audiencias (R2, egress $0). Se inyecta al muro vía vslUrlOverride cuando se entra por ?f=audiencias.
+const AUD_VSL_URL = (process.env.NEXT_PUBLIC_VSL_AUDIENCIAS_URL || "").trim();
 
 function scrollToId(id: string) {
   const el = document.getElementById(id);
@@ -139,24 +141,10 @@ function Hero({ onCreate, onNav, onBeta, inviteOnly }: {
 }
 
 /* ---------- Hero VARIANTE AUDIENCIAS (deep-link ?f=audiencias, solo guest) ----------
-   Mismo design system + misma maquinaria de conversión (CTA → muro/trial). Solo cambia el copy y el video
-   (VSL de audiencias). Reusa VSLPlayer tal cual (seek-lock + eventos vsl_* → analítica). Aditivo: solo
-   se renderiza cuando la landing detecta ?f=audiencias sin sesión. Sin el parámetro, no existe. */
-function AudienciasHero({ backendUrl, onCta }: { backendUrl: string; onCta: () => void }) {
-  const secRef = useRef(0);
-  const [src, setSrc] = useState("");
-  const [failed, setFailed] = useState(false);   // si el video no carga (asset aún no subido) → oculta el player, deja copy+CTA
-  const [pitch, setPitch] = useState<number | undefined>(undefined);
-  // URL del VSL de audiencias por env (R2, egress $0). Fail-open: si no está, cae al VSL global (full_url).
-  useEffect(() => {
-    const envUrl = (process.env.NEXT_PUBLIC_VSL_AUDIENCIAS_URL || "").trim();
-    if (envUrl) { setSrc(envUrl); }
-    api.vslConfig(backendUrl).then((c) => {
-      if (!envUrl && c.full_url) setSrc(c.full_url);
-      if (c.pitch_seconds) setPitch(c.pitch_seconds);
-    }).catch(() => {});
-  }, [backendUrl]);
-  const poster = src ? src.replace(/\.mp4$/, "_poster.jpg") : undefined;
+   Mismo design system + misma maquinaria de conversión: copy + CTA → muro/trial. El VSL de audiencias NO
+   va aquí — vive DENTRO del muro (DemoPlansModal recibe vslUrlOverride) para que sea el mismo muro de hoy
+   con el único cambio del video. Aditivo: sin ?f=audiencias, no existe. */
+function AudienciasHero({ onCta }: { onCta: () => void }) {
   return (
     <header style={{ position: "relative", overflow: "hidden" }}>
       <div className="hero-bg" style={{ position: "absolute", inset: 0, background: "var(--grad-mesh)", opacity: 0.9 }} />
@@ -172,11 +160,6 @@ function AudienciasHero({ backendUrl, onCta }: { backendUrl: string; onCta: () =
         <p style={{ fontSize: 17.5, color: "var(--text-secondary)", margin: "16px auto 0", maxWidth: 600, lineHeight: 1.55 }}>
           Sube la grabación o pega el enlace (YouTube, Rama Judicial). Jurovia transcribe, identifica lo decidido y te entrega un acta estructurada — tú revisas y decides.
         </p>
-        {src && !failed && (
-          <div style={{ margin: "28px auto 0", maxWidth: 340 }}>
-            <VSLPlayer src={src} poster={poster} pitchSeconds={pitch} secRef={secRef} onEvent={(n, p) => track(n, p)} onError={() => setFailed(true)} />
-          </div>
-        )}
         <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 28, flexWrap: "wrap" }}>
           <button className="btn btn-primary btn-lg" onClick={onCta}>Probar Análisis de Audiencias<Icon name="arrowRight" size={17} stroke={2.2} /></button>
         </div>
@@ -324,7 +307,7 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
       <div className="land-root-pad" style={{ minHeight: "100%", background: "var(--bg-base)" }}>
         <LandingNav authed={authed} onStart={audienciasVariant ? startAudiencias : onStart} onLogin={goLogin} onNav={scrollToId} onPanel={goPanel} />
         {audienciasVariant
-          ? <AudienciasHero backendUrl={backendUrl} onCta={startAudiencias} />
+          ? <AudienciasHero onCta={startAudiencias} />
           : <Hero onCreate={() => startWaitlist("hero")} onNav={scrollToId} onBeta={() => startWaitlist("hero_mobile")} inviteOnly={inviteOnly} />}
         <TrustBar />
         <CapabilitiesSection />
@@ -359,11 +342,13 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
       )}
       {register && (
         // Opción B: muro de PRUEBA (trial sin tarjeta) para TODOS los orígenes. Ya no hay waitlist.
+        // Variante audiencias: mismo muro, único cambio = el VSL del hero (vslUrlOverride). Sin override = hoy.
         <DemoPlansModal
           backendUrl={backendUrl}
           context={regCtx}
           mode="trial"
           initialEmail={initialEmail}
+          vslUrlOverride={register === "audiencias" ? (AUD_VSL_URL || undefined) : undefined}
           onClose={() => { setRegister(false); setRegCtx(undefined); setInitialEmail(""); }}
         />
       )}
