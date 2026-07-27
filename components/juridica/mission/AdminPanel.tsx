@@ -7,6 +7,7 @@ import { PlansFunnelTab } from "./PlansFunnelTab";
 import { VSLTab } from "./VSLTab";
 import { AttributionTab } from "./AttributionTab";
 import { InstagramTab } from "./InstagramTab";
+import { EngineContactsTab, EngineSegmentsTab, EngineJourneysTab } from "./CampaignEngine";
 
 type Org = { id: string; name: string | null; balance: number | null; cap: number | null; members: number; cost_usd: number; actions: number; last_activity: string | null };
 
@@ -18,7 +19,7 @@ const ADMIN_GROUPS: { key: string; label: string; subs: [string, string][] }[] =
   { key: "ingresos", label: "Ingresos & Cobros", subs: [["costos", "Costos"], ["suscripciones", "Suscripciones"], ["cartera", "Cartera"], ["devoluciones", "Devoluciones"]] },
   { key: "planes", label: "Planes & Acceso", subs: [["planes", "Planes"], ["uso_costos", "Uso & Costos"]] },
   { key: "producto", label: "Producto", subs: [["analytics", "Analytics"], ["embudo_planes", "Embudo de Planes"], ["vsl", "VSL"], ["retencion", "Retención"], ["conversaciones", "Conversaciones"]] },
-  { key: "crecimiento", label: "Crecimiento", subs: [["atribucion", "Atribución"], ["waitlist", "Waitlist"], ["referidos", "Referidos"], ["campanas", "Campañas"], ["instagram", "Instagram"]] },
+  { key: "crecimiento", label: "Crecimiento", subs: [["atribucion", "Atribución"], ["waitlist", "Waitlist"], ["referidos", "Referidos"], ["campanas", "Campañas"], ["contactos", "Contactos"], ["segmentos", "Segmentos"], ["journeys", "Journeys"], ["instagram", "Instagram"]] },
   { key: "soporte", label: "Soporte", subs: [["feedback", "Feedback"], ["whatsapp", "WhatsApp"], ["email", "Email"], ["tickets", "Tickets"]] },
   { key: "sistema", label: "Sistema", subs: [["auditoria", "Auditoría"], ["config", "Config"]] },
 ];
@@ -33,6 +34,9 @@ const ADMIN_DESC: Record<string, string> = {
   whatsapp: "Feedback y conversaciones por WhatsApp.",
   email: "Feedback recolectado por la campaña de correo.",
   campanas: "Campañas activas (email + WhatsApp): entrega, apertura, clic, entra.",
+  contactos: "Contacto 360°: estado, temperatura, en qué journeys va y qué recibió.",
+  segmentos: "Segmentos dinámicos: reglas por comportamiento + conteo en vivo.",
+  journeys: "Journeys (secuencias): pasos, inscritos por paso y estado. Activa/pausa.",
   referidos: "Programa de referidos (growth loop).",
   tickets: "Tickets de soporte del formulario de /ayuda.",
   devoluciones: "Reembolsos: pagos reembolsables y devoluciones ejecutadas vía Paddle.",
@@ -150,6 +154,12 @@ export function AdminPanel({
           <InstagramTab backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />
         ) : tab === "campanas" ? (
           <CampaignsTab backendUrl={backendUrl} accessToken={accessToken} />
+        ) : tab === "contactos" ? (
+          <EngineContactsTab backendUrl={backendUrl} accessToken={accessToken} />
+        ) : tab === "segmentos" ? (
+          <EngineSegmentsTab backendUrl={backendUrl} accessToken={accessToken} />
+        ) : tab === "journeys" ? (
+          <EngineJourneysTab backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />
         ) : tab === "tickets" ? (
           <TicketsTab backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />
         ) : tab === "devoluciones" ? (

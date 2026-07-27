@@ -292,6 +292,13 @@ export type CampaignRecipient = {
   bounced_at: string | null; replied_at: string | null; entered_at: string | null;
   unsubscribed_at: string | null; meta: Record<string, unknown> | null;
 };
+// Motor de campañas (contactos · segmentos · journeys)
+export type EngineContact = { email: string; full_name?: string | null; lifecycle: string; temperature: string; source?: string | null; email_status?: string; opted_out?: boolean; last_activity_at?: string | null };
+export type EngineEnrollment = { journey_key: string; status: string; current_step: number; next_send_at?: string | null; enrolled_at?: string; last_sent_at?: string | null; exit_reason?: string | null };
+export type EngineSend = { campaign_key: string; status: string | null; sent_at: string | null; opened_at: string | null; clicked_at: string | null; bounced_at: string | null; entered_at: string | null; meta: Record<string, unknown> | null };
+export type EngineSegment = { key: string; name: string; description?: string | null; rule: Record<string, unknown>; kind: string; count?: number };
+export type EngineJourneyStep = { step_no: number; offset_days: number; stage?: string | null; subject: string; cta_label?: string | null };
+export type EngineJourney = { key: string; name: string; goal?: string | null; channel: string; status: string; entry_segment?: string | null; exit_rule?: string | null; priority: number; steps?: EngineJourneyStep[]; stats?: Record<string, number>; by_step?: Record<string, number>; total?: number };
 
 // Back-office multitenant (Admin → Clientes/Ingresos/Planes) — Fase 1
 export type Tenant = {
@@ -482,6 +489,22 @@ export const api = {
     jget<{ recipients: CampaignRecipient[] }>(b, t,
       `/api/admin/campaigns/${encodeURIComponent(key)}/recipients?days=${days}${from && to ? `&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : ""}`,
       { recipients: [] }),
+  // Motor de campañas (contactos · segmentos · journeys) — admin, aditivo.
+  adminContacts: (b: string, t: string, q = "", lifecycle = "", temperature = "", limit = 100) =>
+    jget<{ contacts: EngineContact[] }>(b, t,
+      `/api/admin/contacts?q=${encodeURIComponent(q)}&lifecycle=${lifecycle}&temperature=${temperature}&limit=${limit}`, { contacts: [] }),
+  adminContact360: (b: string, t: string, email: string) =>
+    jget<{ contact: EngineContact | null; enrollments: EngineEnrollment[]; sends: EngineSend[] }>(b, t,
+      `/api/admin/contacts/${encodeURIComponent(email)}`, { contact: null, enrollments: [], sends: [] }),
+  adminSegments: (b: string, t: string) =>
+    jget<{ segments: EngineSegment[] }>(b, t, `/api/admin/segments`, { segments: [] }),
+  adminSegmentPreview: (b: string, t: string, rule: Record<string, unknown>) =>
+    jpost<{ count: number; sample: { email: string; lifecycle: string; temperature: string }[] }>(b, t,
+      `/api/admin/segments/preview`, { rule }, { count: 0, sample: [] }),
+  adminJourneys: (b: string, t: string) =>
+    jget<{ journeys: EngineJourney[] }>(b, t, `/api/admin/journeys`, { journeys: [] }),
+  adminSetJourneyStatus: (b: string, t: string, key: string, status: string) =>
+    jpost<{ ok?: boolean; status?: string }>(b, t, `/api/admin/journeys/${encodeURIComponent(key)}/status`, { status }, {}),
   // Back-office multitenant (Fase 1)
   adminTenants: (b: string, t: string) => jget<TenantsResp>(b, t, "/api/admin/tenants", { tenants: [], mrr_usd: 0, mrr_gross_usd: 0, total: 0, paying: 0 }),
   adminTenantDetail: (b: string, t: string, orgId: string) => jget<TenantDetail>(b, t, `/api/admin/tenants/${orgId}`, {} as TenantDetail),
