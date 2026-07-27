@@ -145,6 +145,7 @@ function Hero({ onCreate, onNav, onBeta, inviteOnly }: {
 function AudienciasHero({ backendUrl, onCta }: { backendUrl: string; onCta: () => void }) {
   const secRef = useRef(0);
   const [src, setSrc] = useState("");
+  const [failed, setFailed] = useState(false);   // si el video no carga (asset aún no subido) → oculta el player, deja copy+CTA
   const [pitch, setPitch] = useState<number | undefined>(undefined);
   // URL del VSL de audiencias por env (R2, egress $0). Fail-open: si no está, cae al VSL global (full_url).
   useEffect(() => {
@@ -171,9 +172,9 @@ function AudienciasHero({ backendUrl, onCta }: { backendUrl: string; onCta: () =
         <p style={{ fontSize: 17.5, color: "var(--text-secondary)", margin: "16px auto 0", maxWidth: 600, lineHeight: 1.55 }}>
           Sube la grabación o pega el enlace (YouTube, Rama Judicial). Jurovia transcribe, identifica lo decidido y te entrega un acta estructurada — tú revisas y decides.
         </p>
-        {src && (
+        {src && !failed && (
           <div style={{ margin: "28px auto 0", maxWidth: 340 }}>
-            <VSLPlayer src={src} poster={poster} pitchSeconds={pitch} secRef={secRef} onEvent={(n, p) => track(n, p)} />
+            <VSLPlayer src={src} poster={poster} pitchSeconds={pitch} secRef={secRef} onEvent={(n, p) => track(n, p)} onError={() => setFailed(true)} />
           </div>
         )}
         <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 28, flexWrap: "wrap" }}>
