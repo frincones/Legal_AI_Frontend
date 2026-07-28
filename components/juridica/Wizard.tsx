@@ -42,6 +42,20 @@ const TOUR: { icon: string; title: string; body: string }[] = [
   { icon: "coins", title: "Créditos", body: "Cada consulta o documento consume créditos del plan. Revisa tu saldo y tu plan en Ajustes." },
 ];
 
+/* ¿El texto parece un nombre real (no un handle/username tipo "jasaenzr1")? Espejo del filtro del backend
+   (campaigns_engine._display_name). Se usa para NO precargar un handle en el campo — así el usuario escribe
+   su nombre real y los correos se personalizan de verdad. */
+const _BAD_PREFIX = ["jurotest", "test", "prueba", "demo", "guest", "cortesia", "noreply", "admin", "info", "soporte"];
+function looksLikeName(v: string | null | undefined): boolean {
+  const parts = (v || "").trim().replace(/[._]+/g, " ").split(/\s+/).filter(Boolean);
+  const first = parts[0] || "";
+  const low = first.toLowerCase();
+  if (first.length < 2 || first.length > 20 || !/^[\p{L}]+$/u.test(first)) return false;
+  if (_BAD_PREFIX.some((p) => low.startsWith(p))) return false;
+  if (first.length > 12 && first === low) return false;   // handle concatenado en minúscula
+  return true;
+}
+
 /* F6.3 — Onboarding multi-paso: bienvenida → perfil → integraciones → tour. Persiste en DB. */
 export function Wizard({ backendUrl, accessToken, onClose }: { backendUrl: string; accessToken: string; onClose: () => void }) {
   const [step, setStep] = useState(0); // 0 bienvenida · 1 perfil · 2 integraciones · 3 tour
@@ -59,6 +73,26 @@ export function Wizard({ backendUrl, accessToken, onClose }: { backendUrl: strin
     } catch { /* ignore */ }
   }
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  // Prefill del perfil existente (aditivo, fail-open). NO precarga un handle en "Tu nombre" (looksLikeName):
+  // si el nombre guardado es un username, deja el campo vacío para que el usuario escriba su nombre real.
+  useEffect(() => {
+    fetch(`${backendUrl}/api/profile`, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        const u = d.user || {}, pf = d.profile || {};
+        setProf((p) => ({
+          ...p,
+          full_name: looksLikeName(u.full_name) ? u.full_name : p.full_name,
+          bar_number: u.bar_number || p.bar_number,
+          entity_name: pf.entity_name || p.entity_name,
+          jurisdiction: pf.primary_jurisdiction || p.jurisdiction,
+        }));
+      })
+      .catch(() => { /* ignore */ });
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, []);
 
   // Guarda el perfil + marca onboarded (best-effort; nunca bloquea el avance).
   async function saveProfile() {
@@ -136,6 +170,7 @@ export function Wizard({ backendUrl, accessToken, onClose }: { backendUrl: strin
                     <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 5 }}>{label}</span>
                     <input value={prof[k]} onChange={(e) => setProf((p) => ({ ...p, [k]: e.target.value }))} placeholder={ph}
                       style={{ width: "100%", border: "1px solid var(--border-strong)", borderRadius: "var(--r-md)", padding: "10px 12px", fontSize: 14, background: "var(--bg-base)", color: "var(--text)", fontFamily: "var(--font-ui)", outline: "none" }} />
+                    {k === "full_name" && <span style={{ display: "block", fontSize: 11.5, color: "var(--text-muted)", marginTop: 4 }}>Lo usamos para dirigirnos a ti por tu nombre en la app y los correos.</span>}
                   </label>
                 ))}
               </div>
