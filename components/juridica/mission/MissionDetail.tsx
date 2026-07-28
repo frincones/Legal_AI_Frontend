@@ -76,6 +76,12 @@ export function MissionDetail({
     api.mission(backendUrl, accessToken, missionId).then(setM);
   }
 
+  async function toggleVigilancia(on: boolean) {
+    await api.updateMission(backendUrl, accessToken, missionId, { autopilot_on: on });
+    pushToast(on ? "Vigilancia reactivada · revisaremos el proceso a diario" : "Vigilancia pausada", on ? "success" : "info");
+    api.mission(backendUrl, accessToken, missionId).then(setM);
+  }
+
   async function saveDatos() {
     setSavingDatos(true);
     await api.updateMission(backendUrl, accessToken, missionId, {
@@ -279,7 +285,16 @@ export function MissionDetail({
                   style={{ flex: 1, height: 40, padding: "0 12px", borderRadius: "var(--r-md)", border: "1px solid var(--border)", background: "var(--bg-base)", fontFamily: "var(--font-mono)", fontSize: 13.5, color: "var(--text)", outline: "none" }} />
                 <button className="btn btn-primary btn-sm" disabled={radicado.replace(/\D/g, "").length !== 23} onClick={saveRadicado}><Icon name="radar" size={14} />Activar vigilancia</button>
               </div>
-              {m.radicado && m.radicado !== "—" && <div style={{ fontSize: 12, color: "var(--success)", marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}><Icon name="circleCheck" size={13} />Vigilancia activa para {m.radicado}</div>}
+              {m.radicado && m.radicado !== "—" && (
+                <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  {m.autopilot_on
+                    ? <span style={{ fontSize: 12.5, color: "var(--success)", display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 650 }}><Icon name="circleCheck" size={14} />Vigilando <span style={{ fontFamily: "var(--font-mono)", fontWeight: 500 }}>{m.radicado}</span></span>
+                    : <span style={{ fontSize: 12.5, color: "var(--warning)", display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 650 }}>❙❙ Vigilancia pausada</span>}
+                  {m.last_check && <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>· última revisión {new Date(m.last_check).toLocaleDateString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>}
+                  <span style={{ flex: 1 }} />
+                  <button className="btn btn-secondary btn-sm" onClick={() => toggleVigilancia(!m.autopilot_on)}>{m.autopilot_on ? "Pausar" : "Reactivar"}</button>
+                </div>
+              )}
             </div>
 
             {/* Datos del caso (editable) */}

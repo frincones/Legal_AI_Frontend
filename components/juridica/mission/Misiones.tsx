@@ -120,7 +120,10 @@ export function Misiones({
                     <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: 6, padding: "1px 8px", flexShrink: 0 }}>{e.area}</span>
                   </div>
                   <div style={{ maxWidth: 360 }}><ProgressBar value={e.progress} accent={e.accent} height={5} /></div>
-                  {e.radicado && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>Rad. {e.radicado}</div>}
+                  {e.radicado && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--primary)", fontWeight: 700 }}><Icon name="radar" size={12} />Vigilando</span>
+                    <span style={{ fontFamily: "var(--font-mono)" }}>Rad. {e.radicado}</span>
+                  </div>}
                 </div>
                 <div style={{ textAlign: "center", flexShrink: 0 }}>
                   <div style={{ fontSize: 18, fontWeight: 700 }}>{e.progress}%</div>

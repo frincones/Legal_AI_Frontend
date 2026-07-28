@@ -26,6 +26,8 @@ export interface Mission {
   requirementsMap?: { tengo?: { label: string; value?: string }[]; falta?: { label: string; channel?: string }[] } | null;
   nextTerm?: NextTerm | null;
   keyFacts?: string | null;
+  autopilot_on?: boolean;          // vigilancia encendida (estado real)
+  last_check?: string | null;      // última revisión del proceso en la Rama Judicial
 }
 
 export interface TimelineEvent {
