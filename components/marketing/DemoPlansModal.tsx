@@ -126,8 +126,8 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   // Gate propio cuando hay override (para que el pitch/desbloqueo de audiencias no herede el del VSL principal).
   const gateKey = vslUrlOverride ? "jv_vsl_pitch_aud" : "jv_vsl_pitch";
   const [cfg, setCfg] = useState<{ enabled: boolean; environment: string; client_token: string; annual_enabled?: boolean } | null>(null);
-  const [cycle, setCycle] = useState<"annual" | "monthly">("annual");   // AOV: default anual (solo aplica en compra)
-  const cycleRef = useRef<"annual" | "monthly">("annual");
+  const [cycle, setCycle] = useState<"annual" | "monthly">("monthly");   // default MENSUAL (el usuario elige anual)
+  const cycleRef = useRef<"annual" | "monthly">("monthly");
   const [plans, setPlans] = useState<PlanCat[]>([]);
   const [copRate, setCopRate] = useState(0);
   const [stats, setStats] = useState<{ lawyers?: number; verifications?: number; positive_pct?: number }>({});

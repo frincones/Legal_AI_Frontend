@@ -753,7 +753,7 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
   const [cfg, setCfg] = useState<{ enabled: boolean; environment: string; client_token: string; annual_enabled?: boolean } | null>(null);
   const [plans, setPlans] = useState<PlanCat[]>([]);
   const [tier, setTier] = useState<string | null>(null);   // plan elegido → vista de pago inline
-  const [cycle, setCycle] = useState<"annual" | "monthly">("annual");   // AOV: default anual (−20%)
+  const [cycle, setCycle] = useState<"annual" | "monthly">("monthly");   // default MENSUAL (el usuario elige anual)
   const [copRate, setCopRate] = useState(0);                             // USD→COP (display; cobro real USD)
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -761,7 +761,7 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
   const initedRef = useRef(false);
   const tierRef = useRef<string | null>(null);        // para el eventCallback (evita closures stale)
   const priceRef = useRef<number | null>(null);
-  const cycleRef = useRef<"annual" | "monthly">("annual");   // ciclo para el eventCallback (sin stale)
+  const cycleRef = useRef<"annual" | "monthly">("monthly");   // ciclo para el eventCallback (sin stale)
   const completedRef = useRef(false);
   const paddleRef = useRef<PaddleNS | null>(null);    // Paddle YA inicializado (desacoplado del open)
   const [paddleReady, setPaddleReady] = useState(false);
