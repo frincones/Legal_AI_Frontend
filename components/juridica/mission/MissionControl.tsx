@@ -142,22 +142,34 @@ export function MissionControl({
           </div>
         )}
 
-        {/* 🛡️ Escudo / racha (aversión a la pérdida) */}
-        {brief && (brief.escudo.vigilados > 0 || brief.escudo.dias_sin_vencer != null) && (
-          <div className="card" style={{ padding: "16px 20px", marginBottom: 26, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", background: "var(--gold-soft)", borderColor: "var(--gold)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-              <span style={{ fontSize: 24 }}>🛡️</span>
-              <div>
-                <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: "var(--gold-text)" }}>{brief.escudo.dias_sin_vencer ?? 0}</div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>días sin vencer un término</div>
+        {/* 🛡️ Escudo / racha (aversión a la pérdida) — SIEMPRE visible; aspiracional si aún no vigila */}
+        {brief && (
+          <>
+            <SectionLabel icon="calendarClock">Tu escudo</SectionLabel>
+            <div className="card" style={{ padding: "16px 20px", marginBottom: 26, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", background: "var(--gold-soft)", borderColor: "var(--gold)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                <span style={{ fontSize: 24 }}>🛡️</span>
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: "var(--gold-text)" }}>{brief.escudo.dias_sin_vencer ?? 0}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{brief.escudo.vigilados > 0 ? "días sin vencer un término" : "días · empieza tu racha"}</div>
+                </div>
               </div>
+              {brief.escudo.vigilados > 0 ? (
+                <>
+                  <div style={{ width: 1, alignSelf: "stretch", background: "var(--border)" }} />
+                  <div style={{ textAlign: "center" }}><div style={{ fontSize: 18, fontWeight: 750 }}>{brief.escudo.vigilados}</div><div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>vigilados 24/7</div></div>
+                  <div style={{ textAlign: "center" }}><div style={{ fontSize: 18, fontWeight: 750, color: "var(--success)" }}>{brief.escudo.perdidos}</div><div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>perdidos</div></div>
+                  <div style={{ flex: 1 }} />
+                  <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("terminos")}>Ver vencimientos<Icon name="arrowRight" size={14} /></button>
+                </>
+              ) : (
+                <>
+                  <div style={{ flex: 1, minWidth: 180, fontSize: 12.5, color: "var(--text-secondary)" }}>Los abogados que vigilan con Jurovia <strong>no dejan vencer términos</strong>. Vincula un proceso y arranca la cuenta.</div>
+                  <button className="btn btn-sm" style={{ background: "linear-gradient(135deg,#F2B338,#E8902A)", color: "#3a2600", border: "none" }} onClick={onNewMission}>Empezar</button>
+                </>
+              )}
             </div>
-            <div style={{ width: 1, alignSelf: "stretch", background: "var(--border)" }} />
-            <div style={{ textAlign: "center" }}><div style={{ fontSize: 18, fontWeight: 750 }}>{brief.escudo.vigilados}</div><div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>vigilados 24/7</div></div>
-            <div style={{ textAlign: "center" }}><div style={{ fontSize: 18, fontWeight: 750, color: "var(--success)" }}>{brief.escudo.perdidos}</div><div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>perdidos</div></div>
-            <div style={{ flex: 1 }} />
-            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("terminos")}>Ver vencimientos<Icon name="arrowRight" size={14} /></button>
-          </div>
+          </>
         )}
 
         {/* Esto es lo importante — 3 tarjetas */}
@@ -233,20 +245,40 @@ export function MissionControl({
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 14, alignSelf: "flex-start" }} onClick={() => onNavigate("autopilot")}><Icon name="radar" size={15} />Ver lo que encontró</button>
           </div>
 
-          <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <span style={{ fontWeight: 650, fontSize: 14.5, flex: 1 }}>Misiones activas</span>
+          {/* Procesos por prioridad (score determinista del briefing) */}
+          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontWeight: 650, fontSize: 14.5, flex: 1 }}>Procesos por prioridad</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-elevated-2)", borderRadius: 999, padding: "2px 9px" }}>{missions.length}</span>
             </div>
-            {missions.length === 0 ? (
-              <div style={{ minHeight: 200 }}>
-                <EmptyState
-                  icon="folder"
-                  title="Aún no tienes casos"
-                  desc="Crea tu primer caso y Jurovia arma el expediente con cronología, documentos y plazos."
-                  cta="Crea tu primer caso"
-                  onCta={onNewMission}
-                />
+            {brief?.procesos && brief.procesos.length > 0 ? (
+              <>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {brief.procesos.slice(0, 4).map((p) => {
+                    const dl = p.daysLeft;
+                    const col = dl == null ? "var(--text-muted)" : dl <= 2 ? "var(--danger)" : dl <= 7 ? "var(--gold-text)" : "var(--primary)";
+                    const next = p.deadline_at ? `vence ${p.deadline_at}` : "en curso";
+                    return (
+                      <button key={p.id} onClick={() => onOpenMission(p.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px", border: "none", borderRadius: "var(--r-md)", background: "transparent", textAlign: "left", cursor: "pointer" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-base)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                        <div style={{ width: 32, textAlign: "center", flexShrink: 0 }}><div style={{ fontSize: 14, fontWeight: 800, color: col }}>{p.score}</div><div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>prio</div></div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                            <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</span>
+                            {p.code && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-muted)", flexShrink: 0 }}>{p.code}</span>}
+                          </div>
+                          <ProgressBar value={p.progress} accent={col} height={5} />
+                          <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 5 }}>→ {next}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: 8, alignSelf: "flex-start", color: "var(--primary)" }} onClick={() => onNavigate("expedientes")}>Ver todas<Icon name="arrowRight" size={15} /></button>
+              </>
+            ) : missions.length === 0 ? (
+              <div style={{ minHeight: 180 }}>
+                <EmptyState icon="folder" title="Aún no tienes casos" desc="Crea tu primer caso y Jurovia arma el expediente con cronología, documentos y plazos." cta="Crea tu primer caso" onCta={onNewMission} />
               </div>
             ) : (
               <>
