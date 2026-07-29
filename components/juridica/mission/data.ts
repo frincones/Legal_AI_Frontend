@@ -111,6 +111,18 @@ export interface AttentionData {
   pendientesItems?: TaskItem[];
 }
 
+// Briefing — el motor único que alimenta el Inicio y el Parte Diario (2 capas: intel + despacho).
+export interface IntelItem { tipo: string; titulo: string; resumen: string; ask_query: string }
+export interface Briefing {
+  escudo: { dias_sin_vencer: number | null; vigilados: number; perdidos: number };
+  overnight: { movimientos: { matter_id: string; name: string; code: string | null; event_type: string | null; summary: string }[] };
+  atencion: { terminos: { id: string; title: string; deadline_at: string | null; daysLeft: number | null; severity: string; matter_id: string | null; confidence?: string }[]; borradores: { id: string; title: string; matter_id: string | null }[]; pendientes: TaskItem[] };
+  procesos: { id: string; name: string; code: string | null; progress: number; radicado: string | null; autopilot_on: boolean; deadline_at: string | null; daysLeft: number | null; score: number }[];
+  legal_intel: { area: string; items: IntelItem[]; tip: IntelItem | null } | null;
+  area?: string;
+  gate: string;
+}
+
 export interface AutopilotSummary {
   status: string;
   lastRun: string | null;
@@ -398,6 +410,7 @@ export const api = {
   mission: (b: string, t: string, id: string) => jget<Mission>(b, t, `/api/missions/${id}`, {} as Mission),
   timeline: (b: string, t: string, id: string) => jget<TimelineEvent[]>(b, t, `/api/missions/${id}/timeline`, []),
   attention: (b: string, t: string) => jget<AttentionData>(b, t, "/api/missions/attention", { criticos: 0, terminos: 0, actuaciones: 0, items: [] }),
+  briefing: (b: string, t: string) => jget<Briefing>(b, t, "/api/briefing", { escudo: { dias_sin_vencer: null, vigilados: 0, perdidos: 0 }, overnight: { movimientos: [] }, atencion: { terminos: [], borradores: [], pendientes: [] }, procesos: [], legal_intel: null, gate: "activation" }),
   tasks: (b: string, t: string, matterId?: string) => jget<TaskItem[]>(b, t, `/api/tasks${matterId ? `?matter_id=${encodeURIComponent(matterId)}` : ""}`, []),
   createMission: (b: string, t: string, body: Record<string, unknown>) => jpost<Mission>(b, t, "/api/missions", body, {} as Mission),
   // Convierte un chat efímero en caso (liga la sesión al matter nuevo, preserva el historial).

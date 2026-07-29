@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Icon } from "../icons";
-import { api, type AttentionData, type AutopilotSummary, type Mission } from "./data";
+import { api, type AttentionData, type AutopilotSummary, type Briefing, type Mission } from "./data";
 import { ProgressBar, SectionLabel, SEVERITY } from "./atoms";
 import { Coachmark, useFirstVisit } from "../Coachmark";
 import { EmptyState } from "../atoms";
@@ -56,6 +56,7 @@ export function MissionControl({
   const [missions, setMissions] = useState<Mission[]>([]);
   const [att, setAtt] = useState<AttentionData>({ criticos: 0, terminos: 0, actuaciones: 0, items: [] });
   const [ap, setAp] = useState<AutopilotSummary | null>(null);
+  const [brief, setBrief] = useState<Briefing | null>(null);
   const [dateStr, setDateStr] = useState("");
 
   useEffect(() => {
@@ -63,6 +64,7 @@ export function MissionControl({
     api.missions(backendUrl, accessToken).then(setMissions);
     api.attention(backendUrl, accessToken).then(setAtt);
     api.autopilot(backendUrl, accessToken).then(setAp);
+    api.briefing(backendUrl, accessToken).then(setBrief);
     try {
       setDateStr(new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "short" }));
     } catch { /* ignore */ }
@@ -123,6 +125,41 @@ export function MissionControl({
           </div>
         </div>
 
+        {/* 🌐 Capa 1 — Inteligencia jurídica del día (valor desde el minuto cero) */}
+        {brief?.legal_intel && brief.legal_intel.items.length > 0 && (
+          <div style={{ marginBottom: 26 }}>
+            <SectionLabel icon="sparkles">Novedades para tu práctica{brief.legal_intel.area ? ` · ${brief.legal_intel.area.charAt(0).toUpperCase() + brief.legal_intel.area.slice(1)}` : ""}</SectionLabel>
+            <div className="grid-resp-3" style={{ gridTemplateColumns: `repeat(${Math.min(brief.legal_intel.items.length, 3)}, 1fr)` }}>
+              {brief.legal_intel.items.slice(0, 3).map((it, i) => (
+                <button key={i} onClick={onNewMission} className="card" style={{ padding: 14, textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.03em", color: "var(--primary)", textTransform: "uppercase" }}>{it.tipo}</span>
+                  <span style={{ fontWeight: 650, fontSize: 13.5, lineHeight: 1.3 }}>{it.titulo}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>{it.resumen}</span>
+                  <span style={{ fontSize: 11.5, color: "var(--primary)", fontWeight: 700, marginTop: 2 }}>Resolver en Jurovia →</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 🛡️ Escudo / racha (aversión a la pérdida) */}
+        {brief && (brief.escudo.vigilados > 0 || brief.escudo.dias_sin_vencer != null) && (
+          <div className="card" style={{ padding: "16px 20px", marginBottom: 26, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", background: "var(--gold-soft)", borderColor: "var(--gold)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+              <span style={{ fontSize: 24 }}>🛡️</span>
+              <div>
+                <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: "var(--gold-text)" }}>{brief.escudo.dias_sin_vencer ?? 0}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>días sin vencer un término</div>
+              </div>
+            </div>
+            <div style={{ width: 1, alignSelf: "stretch", background: "var(--border)" }} />
+            <div style={{ textAlign: "center" }}><div style={{ fontSize: 18, fontWeight: 750 }}>{brief.escudo.vigilados}</div><div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>vigilados 24/7</div></div>
+            <div style={{ textAlign: "center" }}><div style={{ fontSize: 18, fontWeight: 750, color: "var(--success)" }}>{brief.escudo.perdidos}</div><div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>perdidos</div></div>
+            <div style={{ flex: 1 }} />
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("terminos")}>Ver vencimientos<Icon name="arrowRight" size={14} /></button>
+          </div>
+        )}
+
         {/* Esto es lo importante — 3 tarjetas */}
         <SectionLabel icon="alert" tone="danger">Esto es lo importante</SectionLabel>
         {cards.length > 0 ? (
@@ -169,13 +206,29 @@ export function MissionControl({
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 9, margin: "14px 0 4px" }}>
-              {(ap?.reviewed || []).map((r, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: "var(--text-secondary)" }}>
-                  <Icon name="check" size={15} stroke={2.4} style={{ color: "var(--success)" }} />
-                  <strong style={{ color: "var(--text)", fontWeight: 650, minWidth: 24 }}>{r.n}</strong> {r.label}
-                </div>
-              ))}
-              {(!ap || ap.reviewed.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Sin actividad reciente.</div>}
+              {/* Movimientos reales de las últimas 24h (con acción); si no hay, cae al resumen del autopilot. */}
+              {(brief?.overnight.movimientos || []).length > 0 ? (
+                (brief!.overnight.movimientos).slice(0, 4).map((mv, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 15, flexShrink: 0 }}>🛰️</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mv.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mv.summary}</div>
+                    </div>
+                    <button className="btn btn-sm btn-secondary" style={{ flexShrink: 0 }} onClick={() => onOpenMission(mv.matter_id)}>Revisar</button>
+                  </div>
+                ))
+              ) : (
+                <>
+                  {(ap?.reviewed || []).map((r, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: "var(--text-secondary)" }}>
+                      <Icon name="check" size={15} stroke={2.4} style={{ color: "var(--success)" }} />
+                      <strong style={{ color: "var(--text)", fontWeight: 650, minWidth: 24 }}>{r.n}</strong> {r.label}
+                    </div>
+                  ))}
+                  {(!ap || ap.reviewed.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Revisé tus procesos. Sin movimientos nuevos — todo en orden.</div>}
+                </>
+              )}
             </div>
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 14, alignSelf: "flex-start" }} onClick={() => onNavigate("autopilot")}><Icon name="radar" size={15} />Ver lo que encontró</button>
           </div>
