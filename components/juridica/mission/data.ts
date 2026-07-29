@@ -12,6 +12,8 @@ export interface NextTerm {
 
 export interface Mission {
   id: string;
+  code?: string | null;            // código global único (JUR-XXXX-XXXX)
+  display?: string;                // nombre legible (resuelto en el backend); preferir sobre title
   title: string;
   area: string;
   status: string;

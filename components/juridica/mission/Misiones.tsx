@@ -116,8 +116,9 @@ export function Misiones({
                 <span style={{ width: 46, height: 46, borderRadius: 13, background: `${e.accent}1a`, display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="folder" size={22} style={{ color: e.accent }} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontWeight: 650, fontSize: 16, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.title}</span>
+                    <span style={{ fontWeight: 650, fontSize: 16, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.display || e.title}</span>
                     <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: 6, padding: "1px 8px", flexShrink: 0 }}>{e.area}</span>
+                    {e.code && <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.02em", flexShrink: 0 }}>{e.code}</span>}
                   </div>
                   <div style={{ maxWidth: 360 }}><ProgressBar value={e.progress} accent={e.accent} height={5} /></div>
                   {e.radicado && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

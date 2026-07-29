@@ -112,8 +112,9 @@ export function MissionDetail({
           <span style={{ width: 38, height: 38, borderRadius: 11, background: `${m.accent}1a`, display: "grid", placeItems: "center" }}><Icon name="folder" size={19} style={{ color: m.accent }} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
-              <span style={{ fontWeight: 650, fontSize: 17 }}>{m.title}</span>
+              <span style={{ fontWeight: 650, fontSize: 17 }}>{m.display || m.title}</span>
               <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: 6, padding: "1px 8px" }}>{m.area}</span>
+              {m.code && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.02em" }}>{m.code}</span>}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3 }}>{m.juzgado}</div>
           </div>
