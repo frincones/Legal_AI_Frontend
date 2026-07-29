@@ -209,7 +209,7 @@ export function MissionControl({
 
         {/* Mientras no estabas · Procesos por prioridad */}
         <SectionLabel icon="radar">Mientras no estabas · Procesos por prioridad</SectionLabel>
-        <div className="grid-resp-2" style={{ gap: 22, marginBottom: 30 }}>
+        <div className="grid-resp-2" style={{ gap: 22, marginBottom: 30, alignItems: "start" }}>
           <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
               <span style={{ width: 30, height: 30, borderRadius: 9, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center" }}><Icon name="radar" size={17} style={{ color: "var(--primary)" }} /></span>
