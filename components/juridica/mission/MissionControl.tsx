@@ -207,18 +207,19 @@ export function MissionControl({
           </div>
         )}
 
-        {/* Autopilot + Misiones */}
+        {/* Mientras no estabas · Procesos por prioridad */}
+        <SectionLabel icon="radar">Mientras no estabas · Procesos por prioridad</SectionLabel>
         <div className="grid-resp-2" style={{ gap: 22, marginBottom: 30 }}>
           <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
               <span style={{ width: 30, height: 30, borderRadius: 9, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center" }}><Icon name="radar" size={17} style={{ color: "var(--primary)" }} /></span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 650, fontSize: 14.5 }}>Mientras no estabas</div>
-                <div style={{ fontSize: 11.5, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)" }} />Autopilot · {ap?.status || "Activo"}</div>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)" }} />Autopilot · {(brief?.overnight.movimientos.length || 0) > 0 ? `${brief!.overnight.movimientos.length} novedad${brief!.overnight.movimientos.length !== 1 ? "es" : ""} hoy` : "Activo · sin novedades hoy"}</div>
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 9, margin: "14px 0 4px" }}>
-              {/* Movimientos reales de las últimas 24h (con acción); si no hay, cae al resumen del autopilot. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "14px 0 4px" }}>
+              {/* Movimientos reales de las últimas 24h (con acción); si no hay → mensaje tranquilo (estilo prototipo). */}
               {(brief?.overnight.movimientos || []).length > 0 ? (
                 (brief!.overnight.movimientos).slice(0, 4).map((mv, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -231,15 +232,10 @@ export function MissionControl({
                   </div>
                 ))
               ) : (
-                <>
-                  {(ap?.reviewed || []).map((r, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: "var(--text-secondary)" }}>
-                      <Icon name="check" size={15} stroke={2.4} style={{ color: "var(--success)" }} />
-                      <strong style={{ color: "var(--text)", fontWeight: 650, minWidth: 24 }}>{r.n}</strong> {r.label}
-                    </div>
-                  ))}
-                  {(!ap || ap.reviewed.length === 0) && <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Revisé tus procesos. Sin movimientos nuevos — todo en orden.</div>}
-                </>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: "var(--text-secondary)", padding: "4px 0" }}>
+                  <Icon name="circleCheck" size={16} style={{ color: "var(--success)" }} />
+                  Revisé tus procesos hoy · <strong>sin movimientos nuevos</strong> — todo en orden.
+                </div>
               )}
             </div>
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 14, alignSelf: "flex-start" }} onClick={() => onNavigate("autopilot")}><Icon name="radar" size={15} />Ver lo que encontró</button>
@@ -256,7 +252,7 @@ export function MissionControl({
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {brief.procesos.slice(0, 4).map((p) => {
                     const dl = p.daysLeft;
-                    const col = dl == null ? "var(--text-muted)" : dl <= 2 ? "var(--danger)" : dl <= 7 ? "var(--gold-text)" : "var(--primary)";
+                    const col = dl == null ? "var(--primary)" : dl <= 2 ? "var(--danger)" : dl <= 7 ? "var(--gold-text)" : "var(--primary)";
                     const next = p.deadline_at ? `vence ${p.deadline_at}` : "en curso";
                     return (
                       <button key={p.id} onClick={() => onOpenMission(p.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px", border: "none", borderRadius: "var(--r-md)", background: "transparent", textAlign: "left", cursor: "pointer" }}
