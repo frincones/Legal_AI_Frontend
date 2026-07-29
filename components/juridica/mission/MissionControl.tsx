@@ -131,11 +131,11 @@ export function MissionControl({
             <SectionLabel icon="sparkles">Novedades para tu práctica{brief.legal_intel.area ? ` · ${brief.legal_intel.area.charAt(0).toUpperCase() + brief.legal_intel.area.slice(1)}` : ""}</SectionLabel>
             <div className="grid-resp-3" style={{ gridTemplateColumns: `repeat(${Math.min(brief.legal_intel.items.length, 3)}, 1fr)` }}>
               {brief.legal_intel.items.slice(0, 3).map((it, i) => (
-                <button key={i} onClick={onNewMission} className="card" style={{ padding: 14, textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 4 }}>
+                <button key={i} onClick={onNewMission} className="card" style={{ padding: 15, textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 5, height: "100%" }}>
                   <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.03em", color: "var(--primary)", textTransform: "uppercase" }}>{it.tipo}</span>
                   <span style={{ fontWeight: 650, fontSize: 13.5, lineHeight: 1.3 }}>{it.titulo}</span>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>{it.resumen}</span>
-                  <span style={{ fontSize: 11.5, color: "var(--primary)", fontWeight: 700, marginTop: 2 }}>Resolver en Jurovia →</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.45 }}>{it.resumen}</span>
+                  <span style={{ fontSize: 11.5, color: "var(--primary)", fontWeight: 700, marginTop: "auto", paddingTop: 6 }}>Resolver en Jurovia →</span>
                 </button>
               ))}
             </div>
@@ -255,12 +255,12 @@ export function MissionControl({
                     const col = dl == null ? "var(--primary)" : dl <= 2 ? "var(--danger)" : dl <= 7 ? "var(--gold-text)" : "var(--primary)";
                     const next = p.deadline_at ? `vence ${p.deadline_at}` : "en curso";
                     return (
-                      <button key={p.id} onClick={() => onOpenMission(p.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px", border: "none", borderRadius: "var(--r-md)", background: "transparent", textAlign: "left", cursor: "pointer" }}
+                      <button key={p.id} onClick={() => onOpenMission(p.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 8px", border: "none", borderRadius: "var(--r-md)", background: "transparent", textAlign: "left", cursor: "pointer", width: "100%" }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-base)")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
-                        <div style={{ width: 32, textAlign: "center", flexShrink: 0 }}><div style={{ fontSize: 14, fontWeight: 800, color: col }}>{p.score}</div><div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>prio</div></div>
+                        <div style={{ width: 40, textAlign: "center", flexShrink: 0 }}><div style={{ fontSize: 14, fontWeight: 800, color: col, fontVariantNumeric: "tabular-nums" }}>{p.score}</div><div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>prio</div></div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-                            <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</span>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginBottom: 5 }}>
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</span>
                             {p.code && <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--text-muted)", flexShrink: 0 }}>{p.code}</span>}
                           </div>
                           <ProgressBar value={p.progress} accent={col} height={5} />
