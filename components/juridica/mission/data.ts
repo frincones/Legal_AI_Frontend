@@ -398,6 +398,10 @@ export const api = {
   attention: (b: string, t: string) => jget<AttentionData>(b, t, "/api/missions/attention", { criticos: 0, terminos: 0, actuaciones: 0, items: [] }),
   tasks: (b: string, t: string, matterId?: string) => jget<TaskItem[]>(b, t, `/api/tasks${matterId ? `?matter_id=${encodeURIComponent(matterId)}` : ""}`, []),
   createMission: (b: string, t: string, body: Record<string, unknown>) => jpost<Mission>(b, t, "/api/missions", body, {} as Mission),
+  // Convierte un chat efímero en caso (liga la sesión al matter nuevo, preserva el historial).
+  promoteToCase: (b: string, t: string, sessionId: string, body: Record<string, unknown>) =>
+    jpost<{ ok?: boolean; matter_id?: string; code?: string; name?: string; vigilancia?: boolean; error?: string }>(
+      b, t, `/api/sessions/${sessionId}/promote-to-case`, body, {}),
   // Importar procesos desde Excel/CSV → casos. preview (confirm=false) devuelve el mapeo detectado; commit crea.
   importProcesosPreview: (b: string, t: string, documentId: string) =>
     jpost<{ preview?: boolean; columns?: string[]; mapping?: Record<string, string | null>; detected?: number; sample?: Record<string, unknown>[]; total?: number; error?: string }>(b, t, "/api/missions/import", { document_id: documentId, confirm: false }, {}),

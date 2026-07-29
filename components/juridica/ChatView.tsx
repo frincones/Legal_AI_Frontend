@@ -13,8 +13,12 @@ import type { Artifact } from "./Canvas";
 
 type Step = ActStep;
 type HookChip = { label: string; tipo: string; prompt: string };
+// Sugerencia de caso (2º pase del agente): convertir este chat en expediente.
+type CaseSuggestion = { nombre?: string | null; cliente?: string | null; contraparte?: string | null;
+  materia?: string | null; radicado?: string | null; score?: number; done?: boolean; code?: string };
 type Turn = { thinking: string; steps: Step[]; text: string; artifacts: Artifact[]; agent?: string;
   activity?: LiveActivity | null; hooks?: HookChip[];
+  caseSuggestion?: CaseSuggestion; caseCreated?: { code?: string; name?: string };
   startedAt?: number; firstTextAt?: number; durationMs?: number | null;
   messageId?: string; runId?: string; feedbackSent?: boolean; agentSkill?: string;
   microPrompt?: boolean; microSent?: boolean;
@@ -153,6 +157,10 @@ export function ChatView({
   const [fbPopup, setFbPopup] = useState(false);   // popup muestreado de feedback (no bloqueante)
   const fbPopupTried = useRef(false);
   const [nudgeDismissed, setNudgeDismissed] = useState(-1);   // índice del turno cuyo nudge se descartó
+  // Caso creado/promovido en esta sesión (por el agente o por el chip). Se envía en los turnos siguientes
+  // para que la sesión NO se desligue del expediente.
+  const [caseInfo, setCaseInfo] = useState<{ matterId?: string; code?: string }>({});
+  const effectiveMatterId = matterId || caseInfo.matterId;
 
   // Popup muestreado: al terminar un turno, si ya hubo ≥5 respuestas o se generó un documento, y es
   // elegible (máx 1/sesión y 1/24h), lo mostramos UNA vez. Anti-fatiga vía localStorage/sessionStorage.
@@ -222,7 +230,7 @@ export function ChatView({
       const res = await fetch(`${backendUrl}/api/chat/${sessionId.current}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ message: sendText, matter_id: matterId, document_ids: documentIds }),
+        body: JSON.stringify({ message: sendText, matter_id: effectiveMatterId, document_ids: documentIds }),
       });
       if (!res.ok || !res.body) throw new Error(`backend ${res.status}`);
       trackChatUsage("registrado");  // Meta Pixel · activación (1×/sesión)
@@ -272,6 +280,8 @@ export function ChatView({
         });
         else if (event === "done") { gotDone = true; patchTurn((t) => { t.messageId = data.message_id; t.runId = data.run_id; }); }
         else if (event === "hooks") patchTurn((t) => { t.hooks = Array.isArray(data.hooks) ? data.hooks : []; });
+        else if (event === "case_suggestion") patchTurn((t) => { if (!effectiveMatterId) t.caseSuggestion = { nombre: data.nombre, cliente: data.cliente, contraparte: data.contraparte, materia: data.materia, radicado: data.radicado, score: data.score }; });
+        else if (event === "case_created") { setCaseInfo({ matterId: data.matter_id, code: data.code }); patchTurn((t) => { t.caseCreated = { code: data.code, name: data.nombre }; }); }
         else if (event === "credits") onCredits?.(data);
         else if (event === "blocked") { serverError = true; patchTurn((t) => (t.text += data.message || "Sin créditos disponibles.")); onBlocked?.(); }
         else if (event === "error") { serverError = true; patchTurn((t) => (t.text += `\n\n⚠️ ${data.message}`)); }
@@ -299,6 +309,28 @@ export function ChatView({
       });
       if (!willRetry) setBusy(false);
     }
+  }
+
+  // Actualiza el turno en un índice específico (para acciones sobre turnos ya renderizados, ej. el chip de caso).
+  function updateTurnAt(i: number, fn: (t: Turn) => void) {
+    setMessages((ms) => ms.map((mm, k) => {
+      if (k !== i || mm.role !== "assistant") return mm;
+      const t = { ...mm.turn }; fn(t); return { ...mm, turn: t };
+    }));
+  }
+
+  // HITL: el abogado acepta el chip → crea el caso y liga la sesión (preserva el historial).
+  async function promoteCase(i: number, sug: CaseSuggestion) {
+    try {
+      const r = await api.promoteToCase(backendUrl, accessToken, sessionId.current, {
+        nombre: sug.nombre, cliente: sug.cliente, contraparte: sug.contraparte,
+        materia: sug.materia, radicado: sug.radicado,
+      });
+      if (r && r.matter_id) {
+        setCaseInfo({ matterId: r.matter_id, code: r.code });
+        updateTurnAt(i, (t) => { if (t.caseSuggestion) t.caseSuggestion.done = true; t.caseCreated = { code: r.code, name: r.name }; });
+      }
+    } catch { /* fail-open: si falla, el chip queda para reintentar */ }
   }
 
   // Arranca: o carga una conversación existente (Recientes), o lanza el mensaje inicial (Home).
@@ -393,6 +425,23 @@ export function ChatView({
                     </div>
                   )}
                   {m.turn.text && <SourcesFooter steps={m.turn.steps} />}
+                  {/* Sugerencia de CASO (HITL): el agente detectó que el chat parece un expediente. */}
+                  {m.turn.caseCreated ? (
+                    <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 13px", borderRadius: 12, background: "var(--bg-elevated-2)", border: "1px solid var(--border)", fontSize: 13 }}>
+                      <span style={{ fontSize: 15 }}>📁</span>
+                      <span>Caso creado{m.turn.caseCreated.name ? `: ${m.turn.caseCreated.name}` : ""}{m.turn.caseCreated.code ? ` · ${m.turn.caseCreated.code}` : ""}</span>
+                    </div>
+                  ) : (!(busy && i === messages.length - 1) && m.turn.caseSuggestion && !m.turn.caseSuggestion.done && !effectiveMatterId && (
+                    <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 14px", borderRadius: 14, background: "var(--grad-aurora-soft)", border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: 18 }}>📁</span>
+                      <div style={{ flex: 1, minWidth: 170 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700 }}>¿Guardar como caso?</div>
+                        <div style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>{m.turn.caseSuggestion.nombre || "Este chat parece un expediente"}{m.turn.caseSuggestion.materia ? ` · ${m.turn.caseSuggestion.materia}` : ""}</div>
+                      </div>
+                      <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => promoteCase(i, m.turn.caseSuggestion!)}>Crear caso<Icon name="arrowRight" size={14} /></button>
+                      <button className="btn btn-sm btn-secondary" disabled={busy} onClick={() => updateTurnAt(i, (t) => { if (t.caseSuggestion) t.caseSuggestion.done = true; })}>Ahora no</button>
+                    </div>
+                  ))}
                   {/* Hook Model — próximas acciones (chips branded animados). Un clic = envía ese prompt. */}
                   {!(busy && i === messages.length - 1) && m.turn.hooks && m.turn.hooks.length > 0 && (
                     <div style={{ marginTop: 12 }}>
