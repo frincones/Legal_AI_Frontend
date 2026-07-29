@@ -209,8 +209,8 @@ export function MissionControl({
 
         {/* Mientras no estabas · Procesos por prioridad */}
         <SectionLabel icon="radar">Mientras no estabas · Procesos por prioridad</SectionLabel>
-        <div className="grid-resp-2" style={{ gap: 22, marginBottom: 30, alignItems: "start" }}>
-          <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column" }}>
+        <div className="grid-resp-2" style={{ gap: 22, marginBottom: 30 }}>
+          <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column", minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4 }}>
               <span style={{ width: 30, height: 30, borderRadius: 9, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center" }}><Icon name="radar" size={17} style={{ color: "var(--primary)" }} /></span>
               <div style={{ flex: 1 }}>
@@ -242,7 +242,7 @@ export function MissionControl({
           </div>
 
           {/* Procesos por prioridad (score determinista del briefing) */}
-          <div className="card" style={{ padding: 16, display: "flex", flexDirection: "column" }}>
+          <div className="card" style={{ padding: 20, display: "flex", flexDirection: "column", minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <span style={{ fontWeight: 650, fontSize: 14.5, flex: 1 }}>Procesos por prioridad</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", background: "var(--bg-elevated-2)", borderRadius: 999, padding: "2px 9px" }}>{missions.length}</span>
