@@ -232,9 +232,9 @@ export function MissionControl({
                   </div>
                 ))
               ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13.5, color: "var(--text-secondary)", padding: "4px 0" }}>
-                  <Icon name="circleCheck" size={16} style={{ color: "var(--success)" }} />
-                  Revisé tus procesos hoy · <strong>sin movimientos nuevos</strong> — todo en orden.
+                <div style={{ fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.5, padding: "2px 0" }}>
+                  <Icon name="circleCheck" size={15} style={{ color: "var(--success)", verticalAlign: "-2px", marginRight: 6 }} />
+                  Revisé tus procesos hoy. Sin movimientos nuevos — todo en orden.
                 </div>
               )}
             </div>
