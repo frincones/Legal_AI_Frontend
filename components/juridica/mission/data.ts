@@ -331,7 +331,7 @@ export type TenantDetail = {
   revenue: Revenue | null;
   members: { user_id: string; role: string; status: string; email?: string | null; full_name?: string | null }[];
   entitlements: Record<string, unknown>;
-  usage: { by_model: Record<string, { calls: number; cost_usd: number }>; total_cost_usd: number; margin_usd: number | null; session_5h: number; weekly_7d: number; limit_session: number | null; limit_weekly: number | null };
+  usage: { by_model: Record<string, { calls: number; cost_usd: number }>; total_cost_usd: number; margin_usd: number | null; session_5h: number; weekly_7d: number; limit_session: number | null; limit_weekly: number | null; bonus_turns?: number };
 };
 export type Subscription = {
   id: string; org_id: string; org_name?: string | null; plan: string; status: string;

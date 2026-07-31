@@ -350,6 +350,9 @@ function TenantsTab({ backendUrl, accessToken, pushToast }: { backendUrl: string
                     <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8 }}>USO (ventanas rolling)</div>
                     <UsageBar label="Sesión (5h)" n={detail.usage.session_5h} d={detail.usage.limit_session} />
                     <UsageBar label="Semanal (7d)" n={detail.usage.weekly_7d} d={detail.usage.limit_weekly} />
+                    {!!detail.usage.bonus_turns && detail.usage.bonus_turns > 0 && (
+                      <div style={{ fontSize: 12.5, marginTop: 6, color: "var(--success, #16A34A)", fontWeight: 700 }}>🎁 Bonus: {detail.usage.bonus_turns} turnos de colchón (extra al límite)</div>
+                    )}
                     <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 8 }}>Costo total: <b style={{ color: "var(--text)" }}>${detail.usage.total_cost_usd.toFixed(3)}</b></div>
                   </div>
                   {/* Suscripción */}
