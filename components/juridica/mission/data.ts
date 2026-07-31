@@ -399,7 +399,7 @@ export type CrmItem = {
   conversation_id: string; phone: string; stage: string; qualified: boolean; ai_enabled: boolean;
   needs_human: boolean; lead_name: string | null; area_practica: string | null; contact_email: string | null;
   demo_used: boolean; last_demo_link_at: string | null; next_action_at: string | null;
-  last_agent_at: string | null; updated_at: string; messages?: number;
+  last_agent_at: string | null; updated_at: string; messages?: number; unread?: number;
 };
 export type CrmBoard = { stages: string[]; items: CrmItem[]; counts: Record<string, number>; enabled: boolean; wa_enabled: boolean };
 export type CrmMsg = { direction: string; role: string; content: string | null; msg_type: string | null; status: string | null; seq: number };

@@ -70,7 +70,10 @@ export function CrmTab({ backendUrl, accessToken }: { backendUrl: string; access
                       {c.needs_human ? <span title="Requiere humano" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--danger,#DC2626)", flex: "none" }} />
                         : !c.ai_enabled ? <span title="Humano tomó el control" style={{ width: 6, height: 6, borderRadius: "50%", background: "#6B7280", flex: "none" }} />
                         : c.qualified ? <span title="Calificado" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success,#16A34A)", flex: "none" }} /> : null}
-                      <span style={{ fontSize: 12, fontWeight: 650, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.lead_name || `+${c.phone}`}</span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: c.unread ? 750 : 650, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.lead_name || `+${c.phone}`}</span>
+                      {!!c.unread && c.unread > 0 && (
+                        <span title={`${c.unread} sin leer`} style={{ flex: "none", background: "#25D366", color: "#fff", fontSize: 10.5, fontWeight: 800, minWidth: 17, height: 17, borderRadius: 999, display: "grid", placeItems: "center", padding: "0 5px" }}>{c.unread > 99 ? "99+" : c.unread}</span>
+                      )}
                     </button>
                   ))}
                   {cards.length === 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "2px 2px" }}>—</div>}
@@ -109,6 +112,7 @@ function CardTooltip({ c, x, y }: { c: CrmItem; x: number; y: number }) {
       {row("Etapa", STAGE_LABEL[c.stage] || c.stage)}
       {row("Calificado", c.qualified ? "sí" : "no")}
       {row("Mensajes con Camila", c.messages ?? 0)}
+      {row("Sin leer", c.unread ?? 0)}
       {row("Demo", demo)}
       {row("Último contacto", fmtWhen(c.last_agent_at) || "—")}
       {c.next_action_at ? row("Seguimiento", fmtWhen(c.next_action_at)) : null}
