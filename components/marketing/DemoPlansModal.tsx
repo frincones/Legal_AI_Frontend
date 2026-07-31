@@ -578,7 +578,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
               <div style={{ textAlign: "center", padding: "22px 6px" }}>
                 <div style={{ fontSize: 44, marginBottom: 8 }}>✅</div>
                 <div style={{ fontSize: 18, fontWeight: 750 }}>{(isSubscribe || boughtDirect) ? "¡Suscripción activada!" : "¡Prueba activada!"}</div>
-                <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.55 }}>Tu plan <b>{sel?.name}</b> está listo. {(isSubscribe || boughtDirect) ? "Ya puedes seguir usando Jurovia sin límites." : "Entra y empieza a usar Jurovia."}</div>
+                <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.55 }}>Tu plan <b>{sel?.name}</b> está listo. {(isSubscribe || boughtDirect) ? "Ya puedes seguir usando Jurovia con todo tu plan activo." : "Entra y empieza a usar Jurovia."}</div>
                 <button className="btn btn-primary dp-btn" style={{ marginTop: 18, fontWeight: 700 }} onClick={() => router.push("/chat")}>Entrar a Jurovia</button>
               </div>
             ) : accountReady ? (
@@ -615,7 +615,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
                 </div>
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.45, cursor: "pointer", margin: "12px 0 4px" }}>
                   <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, width: 17, height: 17 }} />
-                  <span>Acepto los <a href="/terminos" target="_blank" rel="noopener" style={{ color: "var(--primary)" }}>Términos</a> y la <a href="/privacidad" target="_blank" rel="noopener" style={{ color: "var(--primary)" }}>Política de Privacidad</a>.</span>
+                  <span>Acepto los <a href="/terminos" target="_blank" rel="noopener" style={{ color: "var(--primary)" }}>Términos</a>, la <a href="/privacidad" target="_blank" rel="noopener" style={{ color: "var(--primary)" }}>Política de Privacidad</a> y la <a href="/politica-de-consumo" target="_blank" rel="noopener" style={{ color: "var(--primary)" }}>Política de Consumo</a>.</span>
                 </label>
                 {err && <div style={{ margin: "8px 0 0", padding: "9px 12px", borderRadius: 10, background: "rgba(220,38,38,.1)", color: "var(--danger, #DC2626)", fontSize: 13 }}>{err}</div>}
                 {loginPlan ? (

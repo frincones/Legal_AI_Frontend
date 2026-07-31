@@ -726,7 +726,7 @@ export const PLAN_COPY: Record<string, { icon: string; tagline: string; persona:
   estandar: { icon: "⚖️", tagline: "Tu copiloto legal de cada día.", persona: "Para el abogado independiente.",
     usage: ["Uso ideal para tu práctica diaria."] },
   pro: { icon: "🚀", tagline: "Para el abogado que no para.", persona: "Muchos casos, ni un término perdido.",
-    usage: ["Trabaja sin toparte con límites, incluso en tus semanas pesadas.", "Acceso prioritario a los modelos y funciones nuevas."] },
+    usage: ["Capacidad amplia que cubre con holgura tus semanas pesadas.", "Acceso prioritario a los modelos y funciones nuevas."] },
   firma: { icon: "🏛️", tagline: "Toda tu firma, en sintonía.", persona: "Para equipos que producen en grande.",
     usage: ["Hasta 5 abogados en una cuenta.", "Tus plantillas y membrete aplicados a cada escrito.", "Uso ampliado para todo el equipo."] },
 };

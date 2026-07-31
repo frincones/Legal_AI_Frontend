@@ -388,7 +388,7 @@ const PRICE_USD: Record<string, number> = { estandar: 9, pro: 18, firma: 45 };
 const PLAN_NAME: Record<string, string> = { estandar: "Estándar", pro: "Pro", firma: "Firma" };
 const PLAN_DIFF: Record<string, string> = {
   estandar: "Para el abogado independiente · uso diario.",
-  pro: "Uso alto, sin límites que te frenen · acceso prioritario.",
+  pro: "Uso amplio para el día a día · acceso prioritario a modelos y funciones nuevas.",
   firma: "Hasta 5 abogados · plantillas y membrete de la firma.",
 };
 
