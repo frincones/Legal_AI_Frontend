@@ -8,7 +8,8 @@ import { api, type CrmBoard, type CrmItem, type CrmThread } from "./data";
 
 const STAGE_LABEL: Record<string, string> = {
   nuevo: "🆕 Nuevo", contactado: "💬 Contactado", calificado: "✅ Calificado",
-  probando: "🔥 Probando", en_cierre: "💳 En cierre", cliente: "🏆 Cliente", reactivacion: "♻️ Reactivación",
+  probando: "🔥 Probando", en_cierre: "💳 En cierre", cliente: "🏆 Cliente",
+  trial_vencido: "⏳ Trial vencido", reactivacion: "♻️ Reactivación",
 };
 
 function fmtWhen(iso: string | null): string {
