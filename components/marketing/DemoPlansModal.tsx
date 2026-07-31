@@ -22,6 +22,14 @@ const field: React.CSSProperties = {
   background: "var(--bg-base)", fontSize: 16, color: "var(--text)", fontFamily: "var(--font-ui)", outline: "none",
 };
 const GOLD = "#D4AF37";
+// Códigos de país para el WhatsApp (default Colombia). El backend normaliza a E.164.
+const CC_OPTIONS: { code: string; flag: string }[] = [
+  { code: "+57", flag: "🇨🇴" }, { code: "+52", flag: "🇲🇽" }, { code: "+51", flag: "🇵🇪" },
+  { code: "+593", flag: "🇪🇨" }, { code: "+56", flag: "🇨🇱" }, { code: "+54", flag: "🇦🇷" },
+  { code: "+58", flag: "🇻🇪" }, { code: "+591", flag: "🇧🇴" }, { code: "+507", flag: "🇵🇦" },
+  { code: "+506", flag: "🇨🇷" }, { code: "+502", flag: "🇬🇹" }, { code: "+1", flag: "🇺🇸" },
+  { code: "+34", flag: "🇪🇸" },
+];
 const ORDER: Record<string, number> = { pro: 0, estandar: 1, firma: 2 };
 const HERO_TITLE = ["No te falta tiempo.", "Te falta un copiloto."];
 const COST_LINE: Record<string, string> = { pro: "Menos que una hora facturable", firma: "Menos que un término vencido" };
@@ -132,6 +140,9 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   const [copRate, setCopRate] = useState(0);
   const [stats, setStats] = useState<{ lawyers?: number; verifications?: number; positive_pct?: number }>({});
   const [email, setEmail] = useState(initialEmail ?? "");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [cc, setCc] = useState("+57");   // código de país del WhatsApp (default Colombia)
   const [consent, setConsent] = useState(false);
   const [loginPlan, setLoginPlan] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -159,6 +170,10 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   const emailStarted = useRef(false);
   const router = useRouter();
   const validEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const validName = name.trim().length >= 2;
+  const validPhone = phone.replace(/\D/g, "").length >= 7;   // móvil válido (código de país aparte)
+  // Los 3 datos + consentimiento son obligatorios para avanzar (trial o suscripción).
+  const canAdvance = validEmail && validName && validPhone && consent;
   const ordered = [...plans].sort((a, b) => (ORDER[a.tier] ?? 9) - (ORDER[b.tier] ?? 9));
   const sel = plans.find((p) => p.tier === selTier);
   const proPlan = plans.find((p) => p.tier === "pro");
@@ -207,7 +222,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
     const em = (emailValRef.current || email).trim().toLowerCase();
     // Lead (Meta): el correo entra al registrar el trial. Mismo eventID a Pixel + CAPI (dedup).
     if (!leadIdRef.current) { try { leadIdRef.current = crypto.randomUUID(); } catch { leadIdRef.current = String(Date.now()); } }
-    await api.waitlistJoin(backendUrl, { email: em, source: "demo_plans", context: { ...context, sid: getSessionId() }, final: true, consent: true, consent_version: CONSENT_VERSION, lead_event_id: leadIdRef.current });
+    await api.waitlistJoin(backendUrl, { email: em, name: name.trim(), phone: (cc + phone).replace(/\s+/g, ""), source: "demo_plans", context: { ...context, sid: getSessionId() }, final: true, consent: true, consent_version: CONSENT_VERSION, lead_event_id: leadIdRef.current });
     const ia = await api.instantAccess(backendUrl, em);
     if (ia?.instant && ia.token_hash) {
       const { data, error } = await createClient().auth.verifyOtp({ token_hash: ia.token_hash, type: "magiclink" });
@@ -220,7 +235,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   // En 'subscribe' → habilita el render de Paddle (compra directa) en el bloque tarjeta.
   async function startTrial() {
     if (busy || accountReady || !selTier) return;
-    if (!validEmail || !consent) { setErr("Ingresa tu correo y acepta la política para continuar."); return; }
+    if (!canAdvance) { setErr("Completa nombre, correo y WhatsApp, y acepta la política para continuar."); return; }
     setErr(null); setBusy(true);
     try {
       const token = await ensureAccount();
@@ -247,7 +262,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   function onCta() {
     if (!selTier && proPlan) pickPlan("pro", proPlan.price_usd ?? null);
     if (accountReady || busy) { goToCard(); return; }
-    if (validEmail && consent) { prewarmRef.current = false; startTrial(); goToCard(); return; }
+    if (canAdvance) { prewarmRef.current = false; startTrial(); goToCard(); return; }
     goToCard(true);
   }
 
@@ -286,11 +301,11 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   // #1 PRE-CALENTADO: apenas el correo es válido + hay consentimiento, crea la cuenta en background (debounce)
   // → cuando el usuario mira, el checkout ya está montado. Instant-access solo crea cuentas nuevas.
   useEffect(() => {
-    if (!validEmail || !consent || accountReady || busy || loginPlan || prewarmRef.current) return;
+    if (!canAdvance || accountReady || busy || loginPlan || prewarmRef.current) return;
     prewarmRef.current = true;
     const t = setTimeout(() => { startTrial(); }, 400);
     return () => clearTimeout(t);
-  }, [validEmail, consent, accountReady, busy, loginPlan]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canAdvance, accountReady, busy, loginPlan]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abre/renderiza el checkout inline cuando la cuenta está lista (Paddle ya precargado); re-abre al cambiar de plan.
   // Solo en modo 'subscribe' (compra directa). En 'trial' no hay Paddle (se entró directo a la app).
@@ -522,9 +537,22 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
                   <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-.02em", margin: "6px 0 3px" }}>{isSubscribe ? "Casi listo — suscríbete" : "Casi listo — activa tu prueba"}</h2>
                   <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 14px" }}>{isSubscribe ? "Creamos tu cuenta y activas tu plan al instante." : "Creamos tu cuenta al instante y empiezas gratis — 3 usos por día durante 7 días, sin tarjeta."}</p>
                 </div>
-                <input ref={emailRef} style={field} type="email" placeholder="tu@correo.com" value={email} inputMode="email"
+                <input style={field} type="text" placeholder="Nombre completo" value={name} autoComplete="name"
+                  onChange={(e) => { setName(e.target.value); prewarmRef.current = false; if (err) setErr(null); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && canAdvance) startTrial(); }} />
+                <input ref={emailRef} style={{ ...field, marginTop: 10 }} type="email" placeholder="tu@correo.com" value={email} inputMode="email" autoComplete="email"
                   onChange={(e) => { setEmail(e.target.value); if (!emailStarted.current && e.target.value.length > 2) { emailStarted.current = true; track("email_started", {}); } if (loginPlan) setLoginPlan(null); prewarmRef.current = false; if (err) setErr(null); }}
-                  onKeyDown={(e) => { if (e.key === "Enter" && validEmail && consent) startTrial(); }} />
+                  onKeyDown={(e) => { if (e.key === "Enter" && canAdvance) startTrial(); }} />
+                <div style={{ display: "flex", alignItems: "center", marginTop: 10, borderRadius: "var(--r-md)", border: "1px solid var(--border-strong)", background: "var(--bg-base)", overflow: "hidden" }}>
+                  <select value={cc} aria-label="Código de país" onChange={(e) => { setCc(e.target.value); prewarmRef.current = false; }}
+                    style={{ border: "none", background: "transparent", padding: "14px 6px 14px 12px", fontSize: 15, color: "var(--text)", fontFamily: "var(--font-ui)", outline: "none", cursor: "pointer" }}>
+                    {CC_OPTIONS.map((o) => <option key={o.code} value={o.code}>{o.flag} {o.code}</option>)}
+                  </select>
+                  <input inputMode="tel" placeholder="WhatsApp" value={phone} autoComplete="tel-national"
+                    onChange={(e) => { setPhone(e.target.value); prewarmRef.current = false; if (err) setErr(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && canAdvance) startTrial(); }}
+                    style={{ flex: 1, minWidth: 0, padding: "14px 14px 14px 4px", border: "none", background: "transparent", fontSize: 16, color: "var(--text)", fontFamily: "var(--font-ui)", outline: "none" }} />
+                </div>
                 <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.45, cursor: "pointer", margin: "12px 0 4px" }}>
                   <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, width: 17, height: 17 }} />
                   <span>Acepto los <a href="/terminos" target="_blank" rel="noopener" style={{ color: "var(--primary)" }}>Términos</a> y la <a href="/privacidad" target="_blank" rel="noopener" style={{ color: "var(--primary)" }}>Política de Privacidad</a>.</span>
@@ -540,7 +568,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
                   </div>
                 ) : (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 16, fontSize: 12.5, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.4 }}>
-                    <Icon name="lock" size={13} style={{ flexShrink: 0 }} /> {isSubscribe ? "Marca tu correo y el consentimiento — el pago seguro se activa al instante" : "Marca tu correo y el consentimiento — entras gratis al instante, sin tarjeta"}
+                    <Icon name="lock" size={13} style={{ flexShrink: 0 }} /> {isSubscribe ? "Completa nombre, correo y WhatsApp + acepta la política — el pago seguro se activa al instante" : "Completa nombre, correo y WhatsApp + acepta la política — entras gratis al instante, sin tarjeta"}
                   </div>
                 )}
               </>
