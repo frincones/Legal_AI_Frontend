@@ -404,6 +404,15 @@ export type CrmItem = {
 export type CrmBoard = { stages: string[]; items: CrmItem[]; counts: Record<string, number>; enabled: boolean; wa_enabled: boolean };
 export type CrmMsg = { direction: string; role: string; content: string | null; msg_type: string | null; status: string | null; seq: number };
 export type CrmThread = { messages: CrmMsg[]; state: Record<string, unknown>; conversation: { wa_phone?: string; display_phone?: string; name?: string; reminders_opt_in?: boolean } };
+// CRM de EMAIL (leads con correo, sin WhatsApp) — pestaña paralela.
+export type EmailLead = {
+  email: string; name: string | null; area: string | null; stage: string;
+  registered: boolean; temperature: string; lifecycle: string;
+  opens: number; clicks: number; last_open: string | null; last_click: string | null;
+  camila_sent: number; camila_clicked: number; is_customer: boolean; opted_out: boolean;
+};
+export type EmailKpis = { universo: number; abrieron: number; clic: number; enviados: number; clic_whatsapp: number; clientes: number };
+export type EmailBoard = { columns: { key: string; label: string; count: number }[]; items: EmailLead[]; kpis: EmailKpis; wa_number: string };
 
 export const api = {
   me: (b: string, t: string) => jget<{ features?: Record<string, boolean> }>(b, t, "/api/me", {}),
@@ -629,4 +638,6 @@ export const api = {
   adminCrmReply: (b: string, t: string, convId: string, text: string) => jpost<{ ok?: boolean; wa_message_id?: string | null }>(b, t, "/api/admin/crm/reply", { conversation_id: convId, text }, {}),
   adminCrmStage: (b: string, t: string, convId: string, stage: string) => jpost<{ ok?: boolean; stage?: string }>(b, t, "/api/admin/crm/stage", { conversation_id: convId, stage }, {}),
   adminCrmAi: (b: string, t: string, convId: string, enabled: boolean) => jpost<{ ok?: boolean; ai_enabled?: boolean }>(b, t, "/api/admin/crm/ai", { conversation_id: convId, enabled }, {}),
+  adminCrmEmail: (b: string, t: string) => jget<EmailBoard>(b, t, "/api/admin/crm/email", { columns: [], items: [], kpis: { universo: 0, abrieron: 0, clic: 0, enviados: 0, clic_whatsapp: 0, clientes: 0 }, wa_number: "" }),
+  adminCrmEmailOutreach: (b: string, t: string, segment: string, dry_run: boolean, limit: number) => jpost<{ dry_run: boolean; count: number; sent: number; targets?: { email: string; name: string | null }[] }>(b, t, "/api/admin/crm/email/outreach", { segment, dry_run, limit }, { dry_run, count: 0, sent: 0 }),
 };
