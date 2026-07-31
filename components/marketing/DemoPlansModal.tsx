@@ -22,6 +22,11 @@ const field: React.CSSProperties = {
   background: "var(--bg-base)", fontSize: 16, color: "var(--text)", fontFamily: "var(--font-ui)", outline: "none",
 };
 const GOLD = "#D4AF37";
+// ─── Urgencia real + compra directa (F2). Flags reversibles; editar la fecha para renovar la cohorte. ───
+const SHOW_URGENCY = true;                              // cuenta regresiva del precio fundador
+const SHOW_BUYNOW = true;                               // "Actívalo ya" (compra directa) en el modo trial
+const FOUNDER_DEADLINE = "2026-08-31T23:59:59-05:00";  // fecha fija global (COT). Al vencer → se oculta sola.
+const FOUNDER_SPOTS = 23;                               // cupos de fundador (real; 0 o menos → no se muestran)
 // Códigos de país para el WhatsApp (default Colombia). El backend normaliza a E.164.
 const CC_OPTIONS: { code: string; flag: string }[] = [
   { code: "+57", flag: "🇨🇴" }, { code: "+52", flag: "🇲🇽" }, { code: "+51", flag: "🇵🇪" },
@@ -72,6 +77,39 @@ function CountUp({ to, prefix = "", suffix = "", dur = 1200 }: { to: number; pre
     return () => cancelAnimationFrame(raf);
   }, [to, dur]);
   return <>{prefix}{n.toLocaleString("es-CO")}{suffix}</>;
+}
+
+// Cuenta regresiva a una fecha (dd hh mm ss). Tabular para que no "salte".
+function Countdown({ to }: { to: string }) {
+  const [left, setLeft] = useState(0);
+  useEffect(() => {
+    const upd = () => setLeft(Math.max(0, new Date(to).getTime() - Date.now()));
+    upd(); const id = setInterval(upd, 1000); return () => clearInterval(id);
+  }, [to]);
+  const d = Math.floor(left / 86400000), h = Math.floor((left % 86400000) / 3600000),
+    m = Math.floor((left % 3600000) / 60000), s = Math.floor((left % 60000) / 1000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 800, color: "#D6336C" }}>{d}d {p(h)}h {p(m)}m {p(s)}s</span>;
+}
+
+// Barra de URGENCIA REAL: cuenta regresiva al fin del precio fundador (+ cupos). Se oculta sola al vencer.
+// Empieza oculta (expired=true) para no romper la hidratación SSR; el efecto calcula el estado real. Fail-open.
+function UrgencyBar() {
+  const [expired, setExpired] = useState(true);
+  useEffect(() => {
+    const upd = () => setExpired(new Date(FOUNDER_DEADLINE).getTime() <= Date.now());
+    upd(); const id = setInterval(upd, 1000); return () => clearInterval(id);
+  }, []);
+  if (!SHOW_URGENCY || expired) return null;
+  return (
+    <div className="dp-up" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, padding: "11px 14px", borderRadius: 13, background: "linear-gradient(120deg,#FFF4F7,#F1ECFD)", border: "1px solid #F3C9DA" }}>
+      <span style={{ fontSize: 17 }}>⏳</span>
+      <div style={{ flex: 1, lineHeight: 1.3 }}>
+        <div style={{ fontSize: 12.5, color: "var(--text)" }}><b>Precio fundador</b> termina en <Countdown to={FOUNDER_DEADLINE} /></div>
+        {FOUNDER_SPOTS > 0 && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>Después sube a precio normal · quedan <b>{FOUNDER_SPOTS}</b> cupos de fundador</div>}
+      </div>
+    </div>
+  );
 }
 
 // Métricas reales, centradas, animadas (número en gradiente + fondo tintado + pop + float + hover-glow).
@@ -166,6 +204,8 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   const emailRef = useRef<HTMLInputElement | null>(null);
   const emailValRef = useRef("");         // correo más reciente (el eventCallback/ensureAccount lo leen sin stale)
   const prewarmRef = useRef(false);        // el pre-calentado del checkout ya se disparó
+  const forceSubRef = useRef(false);       // compra directa (F2): fuerza el flujo subscribe aun en modo trial
+  const [boughtDirect, setBoughtDirect] = useState(false);  // solo para copy reactivo (compra directa)
   const scrollHits = useRef<Set<number>>(new Set());
   const emailStarted = useRef(false);
   const router = useRouter();
@@ -241,7 +281,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
       const token = await ensureAccount();
       if (!token) { setErr("Ese correo ya tiene una cuenta."); setLoginPlan(selTier); setBusy(false); return; }
       authTokenRef.current = token;
-      if (!isSubscribe) {
+      if (!isSubscribe && !forceSubRef.current) {
         // Trial SIN tarjeta activado: cuenta creada + sesión lista → a la app. StartTrial + Lead a Meta.
         // Lead (Pixel, mismo eventID que la CAPI del waitlistJoin → Meta deduplica) + StartTrial.
         try {
@@ -256,6 +296,17 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
       }
       setAccountReady(true); setBusy(false);
     } catch { setErr("No se pudo continuar. Intenta de nuevo."); prewarmRef.current = false; setBusy(false); }
+  }
+
+  // Compra directa (F2): el lead que YA se decidió paga ahora (sin trial). Reusa el flujo subscribe existente
+  // vía forceSubRef (marca ANTES de cualquier startTrial, incl. el pre-calentado). Fail-open.
+  function activateNow(tier: string, price: number | null) {
+    forceSubRef.current = true; setBoughtDirect(true);
+    if (tier) pickPlan(tier, price);
+    try { track("buy_now_click", { tier, via: "demo", video_sec: Math.round(videoSecRef.current) }); } catch { /* noop */ }
+    if (accountReady || busy) { goToCard(); return; }
+    if (!canAdvance) { setErr("Completa nombre, correo y WhatsApp, y acepta la política para activar tu plan."); goToCard(true); return; }
+    prewarmRef.current = false; startTrial(); goToCard();
   }
 
   // Sticky: asegura plan → si ya hay cuenta/está cargando baja a la tarjeta; si el correo está listo, arranca; si no, baja y enfoca.
@@ -310,7 +361,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
   // Abre/renderiza el checkout inline cuando la cuenta está lista (Paddle ya precargado); re-abre al cambiar de plan.
   // Solo en modo 'subscribe' (compra directa). En 'trial' no hay Paddle (se entró directo a la app).
   useEffect(() => {
-    if (!isSubscribe || !accountReady || !selTier || !authTokenRef.current || !paddleReady || !paddleRef.current) return;
+    if ((!isSubscribe && !forceSubRef.current) || !accountReady || !selTier || !authTokenRef.current || !paddleReady || !paddleRef.current) return;
     let cancelled = false;
     (async () => {
       setCheckoutLoading(true);
@@ -339,7 +390,7 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
 
   const guarantee = (
     <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "12px 15px", borderRadius: 12, background: "var(--success-soft)", border: "1px solid var(--success)", color: "var(--success)", fontSize: 13.5, fontWeight: 750, lineHeight: 1.35 }}>
-      <Icon name="shieldCheck" size={18} stroke={2.2} style={{ flexShrink: 0 }} /> {isSubscribe ? "Pago cifrado · activa tu plan al instante · cancela cuando quieras" : "Sin tarjeta · pruébalo gratis 7 días · cancela cuando quieras"}
+      <Icon name="shieldCheck" size={18} stroke={2.2} style={{ flexShrink: 0 }} /> {(isSubscribe || boughtDirect) ? "Pago cifrado · activa tu plan al instante · cancela cuando quieras" : "Sin tarjeta · pruébalo gratis 7 días · cancela cuando quieras"}
     </div>
   );
 
@@ -445,6 +496,8 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
               </div>
             </div>
           )}
+          {/* Urgencia real (F2) — cuenta regresiva del precio fundador (ambos modos; se oculta al vencer) */}
+          <UrgencyBar />
           {/* Planes — Pro anclado, precio en COP + anclaje */}
           <div style={{ display: "flex", flexDirection: "column", gap: 11, marginTop: 18 }}>
             {ordered.map((p, idx) => {
@@ -500,6 +553,13 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
                   <button data-track={`plan_${p.tier}`} onClick={(e) => { e.stopPropagation(); pickPlan(p.tier, p.price_usd); goToCard(!accountReady); }} className={`${pro ? "btn btn-primary" : "btn btn-secondary"} dp-btn`} style={{ width: "100%", fontWeight: 800, marginTop: 12, height: pro ? 50 : 46 }}>
                     {isSubscribe ? "Suscribirme" : "Activar prueba gratis"} <Icon name="arrowRight" size={17} stroke={2.4} />
                   </button>
+                  {/* Compra directa (F2): "Actívalo ya" — solo en modo trial (en subscribe el CTA ya compra) */}
+                  {!isSubscribe && SHOW_BUYNOW && (
+                    <button data-track={`buynow_${p.tier}`} onClick={(e) => { e.stopPropagation(); activateNow(p.tier, p.price_usd); }}
+                      className="dp-btn" style={{ width: "100%", height: 44, marginTop: 9, fontWeight: 800, fontSize: 13.5, cursor: "pointer", color: "#8A6D12", border: `1.5px solid ${GOLD}`, borderRadius: "var(--r-md)", background: "linear-gradient(120deg,#FBF3DF,#FFF7E8)", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, fontFamily: "var(--font-ui)" }}>
+                      ⚡ Actívalo ya · sin esperar
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -517,8 +577,8 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
             {done ? (
               <div style={{ textAlign: "center", padding: "22px 6px" }}>
                 <div style={{ fontSize: 44, marginBottom: 8 }}>✅</div>
-                <div style={{ fontSize: 18, fontWeight: 750 }}>{isSubscribe ? "¡Suscripción activada!" : "¡Prueba activada!"}</div>
-                <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.55 }}>Tu plan <b>{sel?.name}</b> está listo. {isSubscribe ? "Ya puedes seguir usando Jurovia sin límites." : "Entra y empieza a usar Jurovia."}</div>
+                <div style={{ fontSize: 18, fontWeight: 750 }}>{(isSubscribe || boughtDirect) ? "¡Suscripción activada!" : "¡Prueba activada!"}</div>
+                <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.55 }}>Tu plan <b>{sel?.name}</b> está listo. {(isSubscribe || boughtDirect) ? "Ya puedes seguir usando Jurovia sin límites." : "Entra y empieza a usar Jurovia."}</div>
                 <button className="btn btn-primary dp-btn" style={{ marginTop: 18, fontWeight: 700 }} onClick={() => router.push("/chat")}>Entrar a Jurovia</button>
               </div>
             ) : accountReady ? (
@@ -575,11 +635,9 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
             )}
           </div>
 
-          {/* Garantía + urgencia */}
+          {/* Garantía + urgencia real (refuerzo cerca del cierre) */}
           <div className="dp-up" style={{ marginTop: 18 }}>{guarantee}</div>
-          <div className="dp-up" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 11, fontSize: 12.5, fontWeight: 750, color: "var(--primary)" }}>
-            <Icon name="sparkles" size={14} /> Precio de lanzamiento por tiempo limitado
-          </div>
+          <UrgencyBar />
 
           {/* Video corto FIJO, justo antes del FAQ. En la variante audiencias se oculta (un solo video: el de audiencias). */}
           {vsl && vsl.enabled && vsl.modal_url && !vslUrlOverride && <div style={{ marginTop: 22 }}><VSLPlayer src={vsl.modal_url} poster={vsl.modal_url.replace(/\.mp4$/, "_poster.jpg")} lock autoPlay={false} preload="none" onEvent={(n, p) => track(n, { ...p, place: "modal" })} maxHeightVh={56} /></div>}
@@ -601,6 +659,13 @@ export function DemoPlansModal({ backendUrl, context, onClose, initialTier, init
             <button data-track="cta_sticky" onClick={onCta} className="dp-cta" style={{ width: "100%", height: 54, fontSize: 15.5, fontWeight: 800, color: "#fff", border: "none", borderRadius: "var(--r-md)", background: JV_AURORA, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "var(--font-ui)" }}>
               {isSubscribe ? (accountReady ? "Ir al pago" : `Suscribirme · ${sel?.name || "Pro"}`) : `Activar prueba gratis · ${sel?.name || "Pro"}`} <Icon name="arrowRight" size={18} stroke={2.4} />
             </button>
+            {/* Compra directa (F2) — link discreto para quien ya se decidió (solo modo trial) */}
+            {!isSubscribe && SHOW_BUYNOW && !accountReady && (
+              <div style={{ textAlign: "center", marginTop: 9, fontSize: 12.5, fontWeight: 750 }}>
+                <span style={{ color: "var(--text-muted)" }}>¿Ya te decidiste?</span>{" "}
+                <a data-track="buynow_sticky" onClick={() => activateNow(selTier || "pro", sel?.price_usd ?? null)} style={{ color: "var(--primary)", textDecoration: "none", cursor: "pointer" }}>Actívalo ahora sin esperar →</a>
+              </div>
+            )}
             <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", marginTop: 8, fontWeight: 600 }}>
               {isSubscribe ? "Pago cifrado · cancela cuando quieras" : "Sin tarjeta · 3 turnos/día gratis por 7 días"}
             </div>

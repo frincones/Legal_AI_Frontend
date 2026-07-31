@@ -394,6 +394,17 @@ export type Refund = { id: string; org_id: string | null; org_name?: string | nu
 export type Payment = { org_id: string | null; org_name?: string | null; paddle_transaction_id: string; gross_usd: number | null; net_usd: number | null; currency: string | null; status: string; occurred_at: string | null; refunded: boolean };
 export type RefundsResp = { refunds: Refund[]; payments: Payment[] };
 
+// ── CRM de ventas (Kanban + inbox WhatsApp-app) ──
+export type CrmItem = {
+  conversation_id: string; phone: string; stage: string; qualified: boolean; ai_enabled: boolean;
+  needs_human: boolean; lead_name: string | null; area_practica: string | null; contact_email: string | null;
+  demo_used: boolean; last_demo_link_at: string | null; next_action_at: string | null;
+  last_agent_at: string | null; updated_at: string;
+};
+export type CrmBoard = { stages: string[]; items: CrmItem[]; counts: Record<string, number>; enabled: boolean; wa_enabled: boolean };
+export type CrmMsg = { direction: string; role: string; content: string | null; msg_type: string | null; status: string | null; seq: number };
+export type CrmThread = { messages: CrmMsg[]; state: Record<string, unknown>; conversation: { wa_phone?: string; display_phone?: string; name?: string; reminders_opt_in?: boolean } };
+
 export const api = {
   me: (b: string, t: string) => jget<{ features?: Record<string, boolean> }>(b, t, "/api/me", {}),
   missions: (b: string, t: string, opts?: { q?: string; materia?: string; estado?: string; vigilancia?: boolean; limit?: number; offset?: number }) => {
@@ -612,4 +623,10 @@ export const api = {
       return { error: "upload_failed" };
     }
   },
+  // ── CRM de ventas (admin) ──
+  adminCrm: (b: string, t: string) => jget<CrmBoard>(b, t, "/api/admin/crm", { stages: [], items: [], counts: {}, enabled: false, wa_enabled: false }),
+  adminCrmThread: (b: string, t: string, convId: string) => jget<CrmThread>(b, t, `/api/admin/crm/thread?conversation_id=${encodeURIComponent(convId)}`, { messages: [], state: {}, conversation: {} }),
+  adminCrmReply: (b: string, t: string, convId: string, text: string) => jpost<{ ok?: boolean; wa_message_id?: string | null }>(b, t, "/api/admin/crm/reply", { conversation_id: convId, text }, {}),
+  adminCrmStage: (b: string, t: string, convId: string, stage: string) => jpost<{ ok?: boolean; stage?: string }>(b, t, "/api/admin/crm/stage", { conversation_id: convId, stage }, {}),
+  adminCrmAi: (b: string, t: string, convId: string, enabled: boolean) => jpost<{ ok?: boolean; ai_enabled?: boolean }>(b, t, "/api/admin/crm/ai", { conversation_id: convId, enabled }, {}),
 };

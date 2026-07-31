@@ -8,6 +8,7 @@ import { VSLTab } from "./VSLTab";
 import { AttributionTab } from "./AttributionTab";
 import { InstagramTab } from "./InstagramTab";
 import { EngineContactsTab, EngineSegmentsTab, EngineJourneysTab } from "./CampaignEngine";
+import { CrmTab } from "./CrmTab";
 
 type Org = { id: string; name: string | null; balance: number | null; cap: number | null; members: number; cost_usd: number; actions: number; last_activity: string | null };
 
@@ -19,11 +20,12 @@ const ADMIN_GROUPS: { key: string; label: string; subs: [string, string][] }[] =
   { key: "ingresos", label: "Ingresos & Cobros", subs: [["costos", "Costos"], ["suscripciones", "Suscripciones"], ["cartera", "Cartera"], ["devoluciones", "Devoluciones"]] },
   { key: "planes", label: "Planes & Acceso", subs: [["planes", "Planes"], ["uso_costos", "Uso & Costos"]] },
   { key: "producto", label: "Producto", subs: [["analytics", "Analytics"], ["embudo_planes", "Embudo de Planes"], ["vsl", "VSL"], ["retencion", "Retención"], ["conversaciones", "Conversaciones"]] },
-  { key: "crecimiento", label: "Crecimiento", subs: [["atribucion", "Atribución"], ["waitlist", "Waitlist"], ["referidos", "Referidos"], ["campanas", "Campañas"], ["contactos", "Contactos"], ["segmentos", "Segmentos"], ["journeys", "Journeys"], ["instagram", "Instagram"]] },
+  { key: "crecimiento", label: "Crecimiento", subs: [["crm", "CRM"], ["atribucion", "Atribución"], ["waitlist", "Waitlist"], ["referidos", "Referidos"], ["campanas", "Campañas"], ["contactos", "Contactos"], ["segmentos", "Segmentos"], ["journeys", "Journeys"], ["instagram", "Instagram"]] },
   { key: "soporte", label: "Soporte", subs: [["feedback", "Feedback"], ["whatsapp", "WhatsApp"], ["email", "Email"], ["tickets", "Tickets"]] },
   { key: "sistema", label: "Sistema", subs: [["auditoria", "Auditoría"], ["config", "Config"]] },
 ];
 const ADMIN_DESC: Record<string, string> = {
+  crm: "CRM de ventas: Kanban por etapa + conversación WhatsApp cliente ↔ agente IA (responder, tomar el control, mover etapa).",
   costos: "FinOps: gasto casi en línea por proveedor/modelo, proyección mensual, margen vs MRR y alertas.",
   creditos: "Consumo, costo estimado y gestión de saldo de cada org.",
   feedback: "Feedback de usuarios (BETA).",
@@ -150,6 +152,8 @@ export function AdminPanel({
           <WhatsAppTab backendUrl={backendUrl} accessToken={accessToken} />
         ) : tab === "email" ? (
           <EmailTab backendUrl={backendUrl} accessToken={accessToken} />
+        ) : tab === "crm" ? (
+          <CrmTab backendUrl={backendUrl} accessToken={accessToken} />
         ) : tab === "instagram" ? (
           <InstagramTab backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />
         ) : tab === "campanas" ? (
