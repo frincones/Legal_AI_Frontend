@@ -10,6 +10,7 @@ const STAGE_LABEL: Record<string, string> = {
   nuevo: "🆕 Nuevo", contactado: "💬 Contactado", calificado: "✅ Calificado",
   probando: "🔥 Probando", en_cierre: "💳 En cierre", cliente: "🏆 Cliente",
   trial_vencido: "⏳ Trial vencido", reactivacion: "♻️ Reactivación",
+  no_recordatorios: "🔕 No recordatorios",
 };
 
 function fmtWhen(iso: string | null): string {
