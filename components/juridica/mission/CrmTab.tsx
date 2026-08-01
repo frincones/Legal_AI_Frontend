@@ -92,6 +92,7 @@ function WaBoard({ backendUrl, accessToken }: { backendUrl: string; accessToken:
                       onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHover({ c, x: r.right, y: r.top }); }}
                       onMouseLeave={() => setHover(null)}
                       style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", cursor: "pointer", background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 9px", fontFamily: "inherit" }}>
+                      <span title={c.channel === "instagram" ? "Instagram" : "WhatsApp"} style={{ flex: "none", fontSize: 11 }}>{c.channel === "instagram" ? "📸" : "💬"}</span>
                       {c.needs_human ? <span title="Requiere humano" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--danger,#DC2626)", flex: "none" }} />
                         : !c.ai_enabled ? <span title="Humano tomó el control" style={{ width: 6, height: 6, borderRadius: "50%", background: "#6B7280", flex: "none" }} />
                         : c.qualified ? <span title="Calificado" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success,#16A34A)", flex: "none" }} /> : null}
@@ -131,7 +132,8 @@ function CardTooltip({ c, x, y }: { c: CrmItem; x: number; y: number }) {
   return (
     <div style={{ position: "fixed", left, top, width: 284, zIndex: 800, background: "var(--bg-surface)", border: "1px solid var(--border-strong, var(--border))", borderRadius: 12, boxShadow: "var(--sh-3, 0 14px 36px -10px rgba(0,0,0,.35))", padding: "12px 14px", pointerEvents: "none" }}>
       <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--text)" }}>{c.lead_name || "(sin nombre)"}</div>
-      <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 9 }}>+{c.phone}</div>
+      <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 9 }}>{c.channel === "instagram" ? "📸 Instagram" : `+${c.phone}`}</div>
+      {row("Canal", c.channel === "instagram" ? "Instagram" : "WhatsApp")}
       {row("Email", c.contact_email || "—")}
       {row("Área", c.area_practica || "—")}
       {row("Etapa", STAGE_LABEL[c.stage] || c.stage)}
