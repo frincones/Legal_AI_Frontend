@@ -28,6 +28,12 @@ const DEMO_SEEDS: Record<string, string> = {
   citas:   "¿Sigue vigente la Ley 2101 de 2021?",                                   // warm (validada)
   norma:   "¿Está vigente el artículo 90 del Código General del Proceso?",          // recalentar antes de usar
   laboral: "¿Sigue vigente el artículo 65 del Código Sustantivo del Trabajo?",      // recalentar antes de usar
+  // ── Demos por funcionalidad (para contenido/ads). Interactivas: verificar + documento (turno real).
+  //    Guiadas (el flujo real usa carga de archivo dentro de la app): vigilancia + audiencia.
+  verificar:  "Verifica si la Ley 2101 de 2021 sigue vigente y dime exactamente qué cambió, con la fuente oficial.",
+  documento:  "Redáctame un derecho de petición dirigido a Colpensiones para solicitar el reconocimiento de una pensión de vejez, con los fundamentos de derecho.",
+  vigilancia: "Si te doy el radicado de un proceso judicial, ¿cómo lo vigilas y me avisas de nuevas actuaciones y de los términos que están por vencer? Explícamelo con un ejemplo concreto.",
+  audiencia:  "Si subo la grabación de una audiencia, ¿qué me entregas exactamente? Explícame cómo generas el acta con los compromisos, las decisiones y los términos.",
 };
 
 const FALLBACK_PLANS: Plan[] = [
