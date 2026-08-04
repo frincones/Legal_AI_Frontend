@@ -30,6 +30,7 @@ const DEMO_SEEDS: Record<string, string> = {
   laboral: "¿Sigue vigente el artículo 65 del Código Sustantivo del Trabajo?",      // recalentar antes de usar
   // ── Demos por funcionalidad (para contenido/ads). Interactivas: verificar + documento (turno real).
   //    Guiadas (el flujo real usa carga de archivo dentro de la app): vigilancia + audiencia.
+  caso:       "Te comparto un caso: mi cliente Juan Pérez fue despedido sin justa causa; llevaba 3 años con contrato a término indefinido y salario de $2.500.000. Quiero reclamar la indemnización del artículo 64 del Código Sustantivo del Trabajo. Organízame el caso: verifica que esa norma siga vigente con la fuente oficial, dime los riesgos clave y cuál es el siguiente paso.",
   verificar:  "Verifica si la Ley 2101 de 2021 sigue vigente y dime exactamente qué cambió, con la fuente oficial.",
   documento:  "Redáctame un derecho de petición dirigido a Colpensiones para solicitar el reconocimiento de una pensión de vejez, con los fundamentos de derecho.",
   vigilancia: "Si te doy el radicado de un proceso judicial, ¿cómo lo vigilas y me avisas de nuevas actuaciones y de los términos que están por vencer? Explícamelo con un ejemplo concreto.",
