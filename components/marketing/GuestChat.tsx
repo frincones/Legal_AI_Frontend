@@ -294,13 +294,17 @@ export function GuestChat({ seed, demoKey, backendUrl, onBack, onRegister }: {
                     : <>Pega una cita o hazme una consulta jurídica — la <strong style={{ color: "var(--text)" }}>verifico en vivo</strong>, igual que arriba. Toca una para probar:</>}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 13 }}>
-                  {(demoKey === "caso"
-                    ? ["Mi cliente fue despedido sin justa causa hace un mes, llevaba 3 años; quiero reclamar la indemnización.",
-                       "Tengo un proceso ejecutivo por un pagaré de $50.000.000 sin pagar; ¿cómo lo estructuro?"]
-                    : ["¿Sigue vigente el artículo 65 del CST?", "¿Está vigente el artículo 90 del CGP?", "¿Sigue vigente la Ley 100 de 1993?"]
-                  ).map((ex) => (
-                    <button key={ex} className="chip demo-cta-chip" onClick={() => run(ex)} style={{ fontSize: 13, borderColor: "var(--primary)", color: "var(--primary)", fontWeight: 600, maxWidth: 340, textAlign: "left" }}>{ex}</button>
-                  ))}
+                  {demoKey === "caso"
+                    ? [
+                        { label: "Despido sin justa causa", seed: "Mi cliente fue despedido sin justa causa; llevaba 3 años con contrato a término indefinido. Quiero reclamar la indemnización del artículo 64 del CST." },
+                        { label: "Ejecutivo por pagaré", seed: "Tengo un proceso ejecutivo por un pagaré de $50.000.000 que no me han pagado; quiero cobrar capital e intereses de mora. ¿Cómo lo estructuro?" },
+                        { label: "Tutela en salud", seed: "Mi cliente necesita una cirugía que la EPS le negó; quiero presentar una acción de tutela por el derecho a la salud." },
+                      ].map((ex) => (
+                        <button key={ex.label} className="chip demo-cta-chip" onClick={() => setInput(ex.seed)} style={{ fontSize: 13, borderColor: "var(--primary)", color: "var(--primary)", fontWeight: 600 }}>{ex.label}</button>
+                      ))
+                    : ["¿Sigue vigente el artículo 65 del CST?", "¿Está vigente el artículo 90 del CGP?", "¿Sigue vigente la Ley 100 de 1993?"].map((ex) => (
+                        <button key={ex} className="chip demo-cta-chip" onClick={() => run(ex)} style={{ fontSize: 13, borderColor: "var(--primary)", color: "var(--primary)", fontWeight: 600 }}>{ex}</button>
+                      ))}
                 </div>
               </div>
             </div>
@@ -312,11 +316,16 @@ export function GuestChat({ seed, demoKey, backendUrl, onBack, onRegister }: {
               {demoKey === "caso" ? (
                 <div className="road-card" style={{ padding: "20px 20px 18px", borderRadius: 16, background: "var(--grad-aurora-soft)", border: "1.5px solid var(--primary)" }}>
                   <style>{`
-                    @keyframes roadGlow { 0%,100%{ box-shadow:0 0 0 0 rgba(123,61,245,0);} 50%{ box-shadow:0 0 34px -6px rgba(123,61,245,0.5);} }
+                    @keyframes roadShake { 0%,100%{transform:translateX(0);} 15%{transform:translateX(-6px) rotate(-.5deg);} 30%{transform:translateX(6px) rotate(.5deg);} 45%{transform:translateX(-4px);} 60%{transform:translateX(4px);} 78%{transform:translateX(-2px);} }
+                    @keyframes roadGlow { 0%,100%{ box-shadow:0 0 0 0 rgba(123,61,245,0);} 50%{ box-shadow:0 0 30px -4px rgba(210,59,224,0.45), 0 0 46px -10px rgba(123,61,245,0.5);} }
                     @keyframes roadRise { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
-                    .road-card{ animation: roadGlow 2.3s ease-in-out infinite; }
+                    @keyframes roadPulse { 0%,100%{ box-shadow: var(--glow-primary);} 50%{ box-shadow:0 8px 26px -6px rgba(123,61,245,.7);} }
+                    .road-card{ animation: roadShake .7s ease-in-out .25s 1 both, roadGlow 2.4s ease-in-out infinite; }
                     .road-row{ animation: roadRise .5s ease both; }
-                    @media (prefers-reduced-motion: reduce){ .road-card{ animation:none; } .road-row{ animation:none; } }
+                    .road-cta{ animation: roadPulse 1.9s ease-in-out infinite; }
+                    .road-unlock{ transition: transform .12s ease, box-shadow .12s ease; }
+                    .road-unlock:hover{ transform: translateY(-2px); box-shadow: var(--glow-primary); }
+                    @media (prefers-reduced-motion: reduce){ .road-card,.road-row,.road-cta{ animation:none; } }
                   `}</style>
                   <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary)", textAlign: "center" }}>Lo que Jurovia hará con tu caso</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 9, margin: "14px 0 4px" }}>
@@ -330,10 +339,19 @@ export function GuestChat({ seed, demoKey, backendUrl, onBack, onRegister }: {
                       </div>
                     ))}
                   </div>
-                  <div style={{ fontSize: 13.5, color: "var(--text-secondary)", textAlign: "center", margin: "8px 0 13px" }}>
+                  {/* Lo que desbloqueas al crear la cuenta (todo abre el muro/registro). */}
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--text-muted)", textAlign: "center", marginTop: 12 }}>Desbloqueas con tu cuenta</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "center", margin: "8px 0 4px" }}>
+                    {[["📄", "Documento en Word"], ["🎧", "Analizar audiencia"], ["🛰️", "Vigilancia del proceso"], ["⏱️", "Control de términos"]].map(([em, l]) => (
+                      <button key={l} className="road-unlock" onClick={() => goRegister({ context: { demo: demoMode, tried: lastTried.current } })} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 999, border: "1px solid var(--primary)", background: "var(--bg-surface)", color: "var(--primary)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                        <span style={{ fontSize: 14 }}>{em}</span>{l}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 13.5, color: "var(--text-secondary)", textAlign: "center", margin: "10px 0 13px" }}>
                     Crea tu cuenta gratis y <strong style={{ color: "var(--text)" }}>guardo este caso como expediente</strong> — sin tarjeta.
                   </div>
-                  <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => goRegister({ context: { demo: demoMode, tried: lastTried.current } })}>Crear mi cuenta y guardar el caso<Icon name="arrowRight" size={16} /></button>
+                  <button className="btn btn-primary road-cta" style={{ width: "100%", justifyContent: "center" }} onClick={() => goRegister({ context: { demo: demoMode, tried: lastTried.current } })}>Crear mi cuenta y guardar el caso<Icon name="arrowRight" size={16} /></button>
                 </div>
               ) : (
                 <div style={{ padding: "16px 18px", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--grad-aurora-soft)" }}>
