@@ -286,14 +286,20 @@ export function GuestChat({ seed, demoKey, backendUrl, onBack, onRegister }: {
               `}</style>
               <div className="demo-cta" style={{ position: "relative", padding: "18px 18px 16px", borderRadius: 16, background: "var(--grad-aurora-soft)", border: "1.5px solid var(--primary)", textAlign: "center" }}>
                 <div style={{ fontSize: 18, fontWeight: 750, color: "var(--text)", letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}>
-                  <span className="demo-cta-hand" style={{ fontSize: 22 }}>👇</span>Ahora te toca a ti
+                  <span className="demo-cta-hand" style={{ fontSize: 22 }}>👇</span>{demoKey === "caso" ? "Ahora pega TU caso real" : "Ahora te toca a ti"}
                 </div>
                 <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 5, lineHeight: 1.5 }}>
-                  Pega una cita o hazme una consulta jurídica — la <strong style={{ color: "var(--text)" }}>verifico en vivo</strong>, igual que arriba. Toca una para probar:
+                  {demoKey === "caso"
+                    ? <>Pega los <strong style={{ color: "var(--text)" }}>hechos de tu caso</strong> (o el número de radicado) y te lo organizo igual que arriba: verifico las normas, calculo términos y te digo el siguiente paso.</>
+                    : <>Pega una cita o hazme una consulta jurídica — la <strong style={{ color: "var(--text)" }}>verifico en vivo</strong>, igual que arriba. Toca una para probar:</>}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 13 }}>
-                  {["¿Sigue vigente el artículo 65 del CST?", "¿Está vigente el artículo 90 del CGP?", "¿Sigue vigente la Ley 100 de 1993?"].map((ex) => (
-                    <button key={ex} className="chip demo-cta-chip" onClick={() => run(ex)} style={{ fontSize: 13, borderColor: "var(--primary)", color: "var(--primary)", fontWeight: 600 }}>{ex}</button>
+                  {(demoKey === "caso"
+                    ? ["Mi cliente fue despedido sin justa causa hace un mes, llevaba 3 años; quiero reclamar la indemnización.",
+                       "Tengo un proceso ejecutivo por un pagaré de $50.000.000 sin pagar; ¿cómo lo estructuro?"]
+                    : ["¿Sigue vigente el artículo 65 del CST?", "¿Está vigente el artículo 90 del CGP?", "¿Sigue vigente la Ley 100 de 1993?"]
+                  ).map((ex) => (
+                    <button key={ex} className="chip demo-cta-chip" onClick={() => run(ex)} style={{ fontSize: 13, borderColor: "var(--primary)", color: "var(--primary)", fontWeight: 600, maxWidth: 340, textAlign: "left" }}>{ex}</button>
                   ))}
                 </div>
               </div>
@@ -302,10 +308,40 @@ export function GuestChat({ seed, demoKey, backendUrl, onBack, onRegister }: {
 
           {/* Modo demo · muro tras la 1ª prueba propia (reusa el estilo de la tarjeta 'blocked') */}
           {demoWall && (
-            <div className="fade-up" style={{ marginTop: 4, padding: "16px 18px", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--grad-aurora-soft)" }}>
-              <div style={{ fontWeight: 650, marginBottom: 6 }}>Desbloquea todo Jurovia</div>
-              <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginBottom: 12 }}>Ya viste cómo cada afirmación viene con su fuente oficial verificable. Regístrate para desbloquear documentos, misiones y vigilancia.</div>
-              <button className="btn btn-primary" onClick={() => goRegister({ context: { demo: demoMode, tried: lastTried.current } })}>Registrarme<Icon name="arrowRight" size={16} /></button>
+            <div className="fade-up" style={{ marginTop: 4 }}>
+              {demoKey === "caso" ? (
+                <div className="road-card" style={{ padding: "20px 20px 18px", borderRadius: 16, background: "var(--grad-aurora-soft)", border: "1.5px solid var(--primary)" }}>
+                  <style>{`
+                    @keyframes roadGlow { 0%,100%{ box-shadow:0 0 0 0 rgba(123,61,245,0);} 50%{ box-shadow:0 0 34px -6px rgba(123,61,245,0.5);} }
+                    @keyframes roadRise { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+                    .road-card{ animation: roadGlow 2.3s ease-in-out infinite; }
+                    .road-row{ animation: roadRise .5s ease both; }
+                    @media (prefers-reduced-motion: reduce){ .road-card{ animation:none; } .road-row{ animation:none; } }
+                  `}</style>
+                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "var(--primary)", textAlign: "center" }}>Lo que Jurovia hará con tu caso</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 9, margin: "14px 0 4px" }}>
+                    {[["✅", "Hoy", "Verifiqué las normas y organicé tu caso."],
+                      ["🛰️", "Mañana", "Reviso la Rama Judicial y te aviso de cada actuación y término."],
+                      ["📄", "Día 2", "Te dejo el borrador en Word listo para revisar y firmar."],
+                      ["⚖️", "Día 3", "Vigilo tus plazos y te recuerdo antes de que venzan."]].map(([em, d, t], idx) => (
+                      <div key={d} className="road-row" style={{ display: "flex", alignItems: "flex-start", gap: 11, animationDelay: `${idx * 90}ms`, background: "var(--bg-surface)", borderRadius: 12, padding: "10px 13px" }}>
+                        <span style={{ fontSize: 19, flex: "none" }}>{em}</span>
+                        <span style={{ fontSize: 13.5, color: "var(--text)" }}><strong>{d}</strong> · <span style={{ color: "var(--text-secondary)" }}>{t}</span></span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 13.5, color: "var(--text-secondary)", textAlign: "center", margin: "8px 0 13px" }}>
+                    Crea tu cuenta gratis y <strong style={{ color: "var(--text)" }}>guardo este caso como expediente</strong> — sin tarjeta.
+                  </div>
+                  <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => goRegister({ context: { demo: demoMode, tried: lastTried.current } })}>Crear mi cuenta y guardar el caso<Icon name="arrowRight" size={16} /></button>
+                </div>
+              ) : (
+                <div style={{ padding: "16px 18px", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--grad-aurora-soft)" }}>
+                  <div style={{ fontWeight: 650, marginBottom: 6 }}>Desbloquea todo Jurovia</div>
+                  <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginBottom: 12 }}>Ya viste cómo cada afirmación viene con su fuente oficial verificable. Regístrate para desbloquear documentos, misiones y vigilancia.</div>
+                  <button className="btn btn-primary" onClick={() => goRegister({ context: { demo: demoMode, tried: lastTried.current } })}>Registrarme<Icon name="arrowRight" size={16} /></button>
+                </div>
+              )}
             </div>
           )}
         </div>
