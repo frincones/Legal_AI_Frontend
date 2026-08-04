@@ -28,6 +28,7 @@ export function MissionDetail({
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [tab, setTab] = useState("resumen");
   const [docs, setDocs] = useState<DocItem[]>([]);
+  const [outputs, setOutputs] = useState<{ id: string; title: string; kind: string; version_id?: string | null; date: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [radicado, setRadicadoInput] = useState("");
   const [form, setForm] = useState({ name: "", client: "", counterparty: "", jurisdiction: "", matter_type: "" });
@@ -43,6 +44,7 @@ export function MissionDetail({
     });
     api.timeline(backendUrl, accessToken, missionId).then(setTimeline);
     api.missionDocuments(backendUrl, accessToken, missionId).then(setDocs);
+    api.missionOutputs(backendUrl, accessToken, missionId).then(setOutputs);
     api.tasks(backendUrl, accessToken, missionId).then((ts) => setTasks(ts.filter((t) => t.status !== "done" && t.status !== "cancelled")));
   }, [backendUrl, accessToken, missionId]);
 
@@ -156,6 +158,12 @@ export function MissionDetail({
             <div className="card" style={{ padding: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                 <span style={{ fontWeight: 650, fontSize: 14.5, flex: 1 }}>Estado de la misión</span>
+                {m.health && (
+                  <span title={m.health.reason || ""} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, color: "var(--text-muted)" }}>
+                    <span style={{ width: 9, height: 9, borderRadius: 999, background: m.health.color === "rojo" ? "#DC2626" : m.health.color === "amarillo" ? "#C98A14" : "#16A34A" }} />
+                    {m.health.reason}
+                  </span>
+                )}
                 <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--success)", background: "var(--success-soft)", borderRadius: 999, padding: "2px 10px" }}>{m.status}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 7 }}><span style={{ color: "var(--text-muted)" }}>Progreso</span><strong>{m.progress}%</strong></div>
@@ -275,6 +283,23 @@ export function MissionDetail({
               )}
             </div>
             <div style={{ marginTop: 4 }}><button className="btn btn-secondary btn-sm" onClick={() => onOpenChat(m.id, "¿Qué dicen los documentos de este caso?")}><Icon name="message" size={14} />Preguntarle al expediente</button></div>
+            {outputs.length > 0 && (
+              <div style={{ marginTop: 18 }}>
+                <SectionLabel icon="sparkles">Documentos generados por Jurovia</SectionLabel>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+                  {outputs.map((o) => (
+                    <div key={o.id} className="card" style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 15px" }}>
+                      <span style={{ width: 38, height: 38, borderRadius: 10, background: "var(--grad-aurora-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="sparkles" size={18} style={{ color: "var(--primary)" }} /></span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.title}</div>
+                        <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{o.date} · generado por el agente</div>
+                      </div>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "var(--gold-text)", background: "rgba(201,138,20,.12)", borderRadius: 999, padding: "3px 9px" }}><Icon name="check" size={12} stroke={2.4} />Verificado</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>}
 
           {tab === "config" && <>

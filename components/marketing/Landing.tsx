@@ -292,6 +292,20 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
     track("audiencias_landing_view", {});   // marca la sesión para segmentar la analítica del VSL
   }, [authed, router]);
 
+  // Deep-link al CASO: /?caso=<JUR-XXXX> → guarda el código y, tras autenticar, la app abre ese expediente
+  // (motor de retención Día 1-3). Una sola vez. Sin `?caso=`, nada cambia. Aditivo, fail-open.
+  const casoDoneRef = useRef(false);
+  useEffect(() => {
+    if (casoDoneRef.current) return;
+    let caso = "";
+    try { caso = new URLSearchParams(window.location.search).get("caso") || ""; } catch { return; }
+    if (!caso.trim()) return;
+    casoDoneRef.current = true;
+    try { localStorage.setItem("jurovia_pending_case", caso.trim()); } catch { /* noop */ }
+    track("case_deeplink", {});
+    router.push(authed ? "/chat" : "/login");
+  }, [authed, router]);
+
   const goLogin = () => router.push("/login");
   const goPanel = () => router.push("/chat");
   // Abre el registro conservando el contexto de "qué probó" (para el waitlist). Los CTAs normales no lo pasan.

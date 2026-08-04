@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import { Composer, ChatMessage } from "./shell";
 import { ArtifactCard, FeedbackBar, FeedbackNudge, FeedbackPopup, feedbackPopupEligible, markFeedbackPopupShown } from "./atoms";
 import { trackChatUsage } from "@/lib/analytics";
+import { track } from "@/lib/tracker";
 import { api } from "./mission/data";
 import { AI_DISCLAIMER } from "../company";
 import { Icon } from "./icons";
@@ -206,7 +207,7 @@ export function ChatView({
     const userMsg = rawMsg.trim();
     const hasDocs = !!(documentIds && documentIds.length);
     if (!userMsg && !hasDocs) return;
-    const baseMsg = userMsg || "Revisa el documento que adjunté y dime de qué se trata.";
+    const baseMsg = userMsg || "Te adjunto mi caso. Organízalo: identifica las partes y el tipo de proceso, verifica las normas o sentencias citadas, calcula los términos que apliquen y dime la siguiente mejor acción.";
     // Subtle prefix when asking a question (vs drafting a document)
     const sendText = mode === "Pregunta" ? `Consulta legal: ${baseMsg}` : baseMsg;
     const displayMsg = userMsg || "📎 Documento adjunto";
@@ -281,7 +282,7 @@ export function ChatView({
         else if (event === "done") { gotDone = true; patchTurn((t) => { t.messageId = data.message_id; t.runId = data.run_id; }); }
         else if (event === "hooks") patchTurn((t) => { t.hooks = Array.isArray(data.hooks) ? data.hooks : []; });
         else if (event === "case_suggestion") patchTurn((t) => { if (!effectiveMatterId) t.caseSuggestion = { nombre: data.nombre, cliente: data.cliente, contraparte: data.contraparte, materia: data.materia, radicado: data.radicado, score: data.score }; });
-        else if (event === "case_created") { setCaseInfo({ matterId: data.matter_id, code: data.code }); patchTurn((t) => { t.caseCreated = { code: data.code, name: data.nombre }; }); }
+        else if (event === "case_created") { setCaseInfo({ matterId: data.matter_id, code: data.code }); patchTurn((t) => { t.caseCreated = { code: data.code, name: data.nombre }; }); try { track("case_created", { source: "auto", code: data.code }); } catch { /* fail-open */ } }
         else if (event === "credits") onCredits?.(data);
         else if (event === "blocked") { serverError = true; patchTurn((t) => (t.text += data.message || "Sin créditos disponibles.")); onBlocked?.(); }
         else if (event === "error") { serverError = true; patchTurn((t) => (t.text += `\n\n⚠️ ${data.message}`)); }
@@ -329,6 +330,7 @@ export function ChatView({
       if (r && r.matter_id) {
         setCaseInfo({ matterId: r.matter_id, code: r.code });
         updateTurnAt(i, (t) => { if (t.caseSuggestion) t.caseSuggestion.done = true; t.caseCreated = { code: r.code, name: r.name }; });
+        try { track("case_created", { source: "manual", code: r.code }); } catch { /* fail-open */ }
       }
     } catch { /* fail-open: si falla, el chip queda para reintentar */ }
   }

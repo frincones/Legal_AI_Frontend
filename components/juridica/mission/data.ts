@@ -30,6 +30,7 @@ export interface Mission {
   keyFacts?: string | null;
   autopilot_on?: boolean;          // vigilancia encendida (estado real)
   last_check?: string | null;      // última revisión del proceso en la Rama Judicial
+  health?: { color: "rojo" | "amarillo" | "verde"; reason?: string; progress?: number } | null;  // semáforo del caso
 }
 
 export interface TimelineEvent {
@@ -428,6 +429,7 @@ export const api = {
     return jget<Mission[]>(b, t, `/api/missions${qs ? `?${qs}` : ""}`, []);
   },
   mission: (b: string, t: string, id: string) => jget<Mission>(b, t, `/api/missions/${id}`, {} as Mission),
+  portfolio: (b: string, t: string) => jget<{ items: Mission[]; counts: { rojo: number; amarillo: number; verde: number } }>(b, t, `/api/missions/portfolio`, { items: [], counts: { rojo: 0, amarillo: 0, verde: 0 } }),
   timeline: (b: string, t: string, id: string) => jget<TimelineEvent[]>(b, t, `/api/missions/${id}/timeline`, []),
   attention: (b: string, t: string) => jget<AttentionData>(b, t, "/api/missions/attention", { criticos: 0, terminos: 0, actuaciones: 0, items: [] }),
   briefing: (b: string, t: string) => jget<Briefing>(b, t, "/api/briefing", { escudo: { dias_sin_vencer: null, vigilados: 0, perdidos: 0 }, overnight: { movimientos: [] }, atencion: { terminos: [], borradores: [], pendientes: [] }, procesos: [], legal_intel: null, gate: "activation" }),
@@ -586,6 +588,7 @@ export const api = {
   markAllRead: (b: string, t: string) => jpost(b, t, "/api/notifications/read-all", {}, {}),
   requestClient: (b: string, t: string, matterId: string, item: string) => jpost<{ ok?: boolean }>(b, t, "/api/missions/request-client", { matter_id: matterId, item }, {}),
   missionDocuments: (b: string, t: string, id: string) => jget<{ id: string; title: string; mime_type: string; ingest_status: string; created_at: string }[]>(b, t, `/api/missions/${id}/documents`, []),
+  missionOutputs: (b: string, t: string, id: string) => jget<{ id: string; title: string; kind: string; version_id?: string | null; date: string }[]>(b, t, `/api/missions/${id}/outputs`, []),
   async uploadDocument(b: string, t: string, matterId: string, file: File): Promise<{ document_id?: string; chunks?: number; ingest_status?: string; error?: string }> {
     const fd = new FormData();
     fd.append("file", file);

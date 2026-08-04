@@ -10,6 +10,7 @@ import { Canvas, type Artifact } from "./Canvas";
 import { Wizard } from "./Wizard";
 import type { LibraryItem } from "./data";
 import { createClient } from "@/lib/supabase/client";
+import { initTracker, track } from "@/lib/tracker";
 // Mission Control (F2) — pantallas nuevas; se activan SOLO con el flag por org.
 import { MissionControl } from "./mission/MissionControl";
 import { Misiones } from "./mission/Misiones";
@@ -265,6 +266,32 @@ export default function JuridicaApp({
     submitToChat(ask, "Pregunta");
   }, [backendUrl, accessToken]);
 
+  // Tracker first-party en la app (instrumentación de activación). initTracker es idempotente (guard interno).
+  useEffect(() => {
+    if (backendUrl) { try { initTracker(backendUrl); } catch { /* fail-open */ } }
+  }, [backendUrl]);
+
+  // Deep-link al CASO (?caso=<JUR-XXXX>) → resuelve el código a un expediente y lo abre (motor de retención).
+  // Una sola vez. Fail-open: si no resuelve, no pasa nada. Reusa /api/missions?q= (busca por código).
+  const caseRef = useRef(false);
+  useEffect(() => {
+    if (!backendUrl || !accessToken || caseRef.current) return;
+    let code: string | null = null;
+    try { code = localStorage.getItem("jurovia_pending_case"); } catch { return; }
+    if (!code || !code.trim()) return;
+    caseRef.current = true;
+    try { localStorage.removeItem("jurovia_pending_case"); localStorage.setItem("juridica_onboarded", "1"); } catch { /* noop */ }
+    setShowWizard(false);
+    (async () => {
+      try {
+        const r = await fetch(`${backendUrl}/api/missions?q=${encodeURIComponent(code!.trim())}&limit=1`,
+          { headers: { Authorization: `Bearer ${accessToken}` } });
+        const arr = r.ok ? await r.json() : [];
+        if (Array.isArray(arr) && arr[0]?.id) openMission(arr[0].id);
+      } catch { /* fail-open */ }
+    })();
+  }, [backendUrl, accessToken]);
+
   // Deep-link BOFU (/login?next=upgrade&plan=…) → abre el UpgradeModal in-app pre-seleccionado. Una sola
   // vez. Fail-open: sin flag, nada cambia. Aditivo — no toca el flujo de créditos ni el chat.
   const upgradeRef = useRef(false);
@@ -435,6 +462,7 @@ export default function JuridicaApp({
   function openMission(id: string) {
     setCurrentMissionId(id);
     setRoute("expediente");
+    try { track("case_opened", { id }); } catch { /* fail-open */ }
   }
   function newMission() {
     if (missionMode) setRoute("mission");

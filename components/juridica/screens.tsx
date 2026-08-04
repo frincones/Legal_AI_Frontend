@@ -116,6 +116,10 @@ export function Home({
               legal trabajamos <span className="gradient-text">hoy</span>?
             </h1>
             <p style={{ fontSize: 16, color: "var(--text-secondary)", margin: "12px 0 0" }}>Redacta, verifica normas y jurisprudencia, y reutiliza tus documentos.</p>
+            <p style={{ fontSize: 14, color: "var(--text-muted)", margin: "8px 0 0", display: "inline-flex", alignItems: "center", gap: 7 }}>
+              <Icon name="paperclip" size={15} style={{ color: "var(--primary)" }} />
+              ¿Tienes un expediente? Adjúntalo con el clip y te armo el caso completo: partes, normas verificadas, términos y siguiente paso.
+            </p>
           </div>
 
           {/* Task cards — el "trabajo por hacer" (no auto-envían) */}

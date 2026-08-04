@@ -6,6 +6,7 @@ import { AgentAvatar } from "./atoms";
 import { useDictation } from "./Dictation";
 import { AudienciaModal, AudienciaTracker } from "./Audiencia";
 import { ToolLogo } from "./Wizard";
+import { track } from "@/lib/tracker";
 
 /* ---------------- Sidebar ---------------- */
 export function Sidebar({
@@ -456,6 +457,7 @@ export function Composer({
         const r = await fetch(`${backendUrl}/api/documents`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` }, body: fd });
         const j = r.ok ? await r.json() : null;
         setAtts((a) => a.map((x) => (x.key === k ? { ...x, loading: false, id: j?.document_id, err: !j?.document_id, status: j?.ingest_status } : x)));
+        if (j?.document_id) { try { track("document_uploaded", { in_case: !!matterId, status: j?.ingest_status }); } catch { /* fail-open */ } }
       } catch {
         setAtts((a) => a.map((x) => (x.key === k ? { ...x, loading: false, err: true } : x)));
       }

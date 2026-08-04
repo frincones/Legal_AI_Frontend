@@ -21,6 +21,7 @@ export function Misiones({
   const [imp, setImp] = useState<null | { docId: string; columns: string[]; mapping: Record<string, string | null>; detected: number; sample: Record<string, unknown>[] }>(null);
   const [impBusy, setImpBusy] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  const [health, setHealth] = useState<{ rojo: number; amarillo: number; verde: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
@@ -34,6 +35,11 @@ export function Misiones({
     const id = setTimeout(load, q ? 300 : 0);  // debounce del texto
     return () => clearTimeout(id);
   }, [load, q]);
+
+  // Semáforo del portafolio (una consulta batch; aislada de la lista/filtros). Fail-open.
+  useEffect(() => {
+    if (backendUrl && accessToken) api.portfolio(backendUrl, accessToken).then((p) => setHealth(p.counts)).catch(() => {});
+  }, [backendUrl, accessToken]);
 
   // ── Importar Excel: subir → preview del mapeo → confirmar ──
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -106,6 +112,18 @@ export function Misiones({
             <button style={chip(false)} onClick={() => { setQ(""); setMateria(undefined); setVigilancia(undefined); }}>Limpiar</button>
           )}
         </div>
+
+        {health && (health.rojo + health.amarillo + health.verde) > 0 && (
+          <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+            {([["rojo", "#DC2626", "Con término crítico"], ["amarillo", "#C98A14", "Término próximo"], ["verde", "#16A34A", "Al día"]] as const).map(([k, c, label]) => (
+              <div key={k} className="card" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px" }}>
+                <span style={{ width: 10, height: 10, borderRadius: 999, background: c }} />
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{health[k]}</span>
+                <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {banner && <div className="card" style={{ padding: "10px 14px", marginBottom: 12, fontSize: 13.5, borderColor: "var(--primary)" }}>{banner}</div>}
 
