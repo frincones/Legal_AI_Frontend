@@ -147,7 +147,10 @@ export default function JuridicaApp({
   useEffect(() => {
     try {
       const code = new URLSearchParams(window.location.search).get("ref");
-      if (code) localStorage.setItem("jurovia_ref", code);
+      if (code) {
+        localStorage.setItem("jurovia_ref", code);                       // referido (turnos) — se reclama y borra
+        localStorage.setItem("jurovia_aff", JSON.stringify({ code, ts: Date.now() }));  // afiliado (comisión) — durable hasta la compra
+      }
     } catch { /* ignore */ }
   }, []);
 

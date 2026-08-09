@@ -569,7 +569,22 @@ export const api = {
   plansCatalog: (b: string, t: string) => jget<{ plans: PlanCat[]; cop_rate?: number }>(b, t, "/api/plans", { plans: [] }),
   // Billing (Paddle) de cara al usuario
   billingConfig: (b: string, t: string) => jget<{ enabled: boolean; environment: string; client_token: string; prices: Record<string, string>; annual_enabled?: boolean }>(b, t, "/api/billing/config", { enabled: false, environment: "production", client_token: "", prices: {}, annual_enabled: false }),
-  billingCheckout: (b: string, t: string, tier: string, fb?: { fbp?: string; fbc?: string }, trial?: boolean, interval?: string) => jpost<{ transaction_id?: string }>(b, t, "/api/billing/checkout", { tier, interval: interval || "month", trial: !!trial, fbp: fb?.fbp, fbc: fb?.fbc }, {}),
+  billingCheckout: (b: string, t: string, tier: string, fb?: { fbp?: string; fbc?: string }, trial?: boolean, interval?: string) => {
+    let affiliate_ref: string | undefined;
+    try {
+      const raw = localStorage.getItem("jurovia_aff");
+      if (raw) { const o = JSON.parse(raw); if (o?.code && (!o.ts || Date.now() - o.ts < 60 * 864e5)) affiliate_ref = o.code; }  // ventana 60 días
+    } catch { /* ignore */ }
+    return jpost<{ transaction_id?: string }>(b, t, "/api/billing/checkout", { tier, interval: interval || "month", trial: !!trial, fbp: fb?.fbp, fbc: fb?.fbc, affiliate_ref }, {});
+  },
+  // Afiliados (admin)
+  adminAffiliates: (b: string, t: string) => jget<{ items: any[]; count: number }>(b, t, "/api/admin/affiliates", { items: [], count: 0 }),
+  adminAffiliateSave: (b: string, t: string, body: Record<string, unknown>) => jpost<{ ok?: boolean; id?: string; code?: string; link?: string }>(b, t, "/api/admin/affiliates", body, {}),
+  adminAffiliateDetail: (b: string, t: string, id: string) => jget<any>(b, t, `/api/admin/affiliates/${id}`, {} as any),
+  adminCommissions: (b: string, t: string, status?: string) => jget<{ items: any[]; count: number }>(b, t, `/api/admin/commissions${status ? `?status=${encodeURIComponent(status)}` : ""}`, { items: [], count: 0 }),
+  adminApproveCommission: (b: string, t: string, id: string) => jpost<{ ok?: boolean }>(b, t, `/api/admin/commissions/${id}/approve`, {}, {}),
+  adminApproveDue: (b: string, t: string) => jpost<{ approved?: number }>(b, t, "/api/admin/commissions/approve-due", {}, {}),
+  adminCreatePayout: (b: string, t: string, affiliate_id: string, reference?: string, method?: string) => jpost<{ payout_id?: string; amount_usd?: number; commissions?: number }>(b, t, "/api/admin/payouts", { affiliate_id, reference, method }, {}),
   socialStats: (b: string) => jget<{ lawyers?: number; verifications?: number; responses?: number; orgs?: number; positive_pct?: number }>(b, "", "/api/stats/social", {}),
   vslConfig: (b: string) => jget<{ enabled?: boolean; full_url?: string; modal_url?: string; pitch_seconds?: number }>(b, "", "/api/vsl/config", {}),
   billingPortal: (b: string, t: string) => jpost<{ overview_url?: string; cancel_url?: string }>(b, t, "/api/billing/portal", {}, {}),

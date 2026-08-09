@@ -307,6 +307,24 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
     router.push(authed ? "/chat" : "/login");
   }, [authed, router]);
 
+  // Afiliados: captura ?ref=<code> (durable en jurovia_aff, ventana 60 días) + registra el clic, para
+  // atribuir la comisión cuando el lead compre. Coexiste con el referido de turnos (jurovia_ref). Fail-open.
+  const affDoneRef = useRef(false);
+  useEffect(() => {
+    if (affDoneRef.current) return;
+    let code = "";
+    try { code = new URLSearchParams(window.location.search).get("ref") || ""; } catch { return; }
+    if (!code.trim()) return;
+    affDoneRef.current = true;
+    try { localStorage.setItem("jurovia_aff", JSON.stringify({ code: code.trim(), ts: Date.now() })); } catch { /* noop */ }
+    try {
+      fetch(`${backendUrl}/api/affiliates/click`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim(), landing: window.location.pathname }), keepalive: true,
+      }).catch(() => {});
+    } catch { /* noop */ }
+  }, [backendUrl]);
+
   const goLogin = () => router.push("/login");
   const goPanel = () => router.push("/chat");
   // Abre el registro conservando el contexto de "qué probó" (para el waitlist). Los CTAs normales no lo pasan.

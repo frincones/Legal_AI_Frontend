@@ -9,6 +9,7 @@ import { AttributionTab } from "./AttributionTab";
 import { InstagramTab } from "./InstagramTab";
 import { EngineContactsTab, EngineSegmentsTab, EngineJourneysTab } from "./CampaignEngine";
 import { CrmTab } from "./CrmTab";
+import { AffiliatesTab } from "./AffiliatesTab";
 
 type Org = { id: string; name: string | null; balance: number | null; cap: number | null; members: number; cost_usd: number; actions: number; last_activity: string | null };
 
@@ -20,7 +21,7 @@ const ADMIN_GROUPS: { key: string; label: string; subs: [string, string][] }[] =
   { key: "ingresos", label: "Ingresos & Cobros", subs: [["costos", "Costos"], ["suscripciones", "Suscripciones"], ["cartera", "Cartera"], ["devoluciones", "Devoluciones"]] },
   { key: "planes", label: "Planes & Acceso", subs: [["planes", "Planes"], ["uso_costos", "Uso & Costos"]] },
   { key: "producto", label: "Producto", subs: [["analytics", "Analytics"], ["embudo_planes", "Embudo de Planes"], ["vsl", "VSL"], ["retencion", "Retención"], ["conversaciones", "Conversaciones"]] },
-  { key: "crecimiento", label: "Crecimiento", subs: [["crm", "CRM"], ["atribucion", "Atribución"], ["waitlist", "Waitlist"], ["referidos", "Referidos"], ["campanas", "Campañas"], ["contactos", "Contactos"], ["segmentos", "Segmentos"], ["journeys", "Journeys"], ["instagram", "Instagram"]] },
+  { key: "crecimiento", label: "Crecimiento", subs: [["crm", "CRM"], ["atribucion", "Atribución"], ["waitlist", "Waitlist"], ["referidos", "Referidos"], ["afiliados", "Afiliados"], ["campanas", "Campañas"], ["contactos", "Contactos"], ["segmentos", "Segmentos"], ["journeys", "Journeys"], ["instagram", "Instagram"]] },
   { key: "soporte", label: "Soporte", subs: [["feedback", "Feedback"], ["whatsapp", "WhatsApp"], ["email", "Email"], ["tickets", "Tickets"]] },
   { key: "sistema", label: "Sistema", subs: [["auditoria", "Auditoría"], ["config", "Config"]] },
 ];
@@ -134,6 +135,8 @@ export function AdminPanel({
           <FeedbackTab backendUrl={backendUrl} accessToken={accessToken} />
         ) : tab === "referidos" ? (
           <ReferralsTab backendUrl={backendUrl} accessToken={accessToken} />
+        ) : tab === "afiliados" ? (
+          <AffiliatesTab backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />
         ) : tab === "waitlist" ? (
           <WaitlistTab backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />
         ) : tab === "analytics" ? (
