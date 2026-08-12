@@ -37,7 +37,7 @@ export default function AfiliadosPage() {
   if (result) return (
     <main style={wrap}>{brand}
       <h1 style={{ fontSize: "1.5rem", margin: "18px 0 6px" }}>🎉 ¡Ya eres afiliado de Jurovia!</h1>
-      <p style={{ color: "#6b5d78" }}>{result.existing ? "Ya tenías tu cuenta — este es tu link:" : "Este es tu link único. Compártelo con tu audiencia y ganas 30% por cada abogado que se suscriba."}</p>
+      <p style={{ color: "#6b5d78" }}>{result.existing ? "Ya tenías tu cuenta — este es tu link:" : "Este es tu link único. Compártelo con tu audiencia y ganas 30% recurrente cada mes que tu cliente siga activo (hasta 12 meses)."}</p>
       <div style={{ background: "#f1ecfd", border: "1px solid #e0d4f7", borderRadius: 14, padding: 16, margin: "16px 0" }}>
         <div style={{ fontFamily: "ui-monospace,monospace", fontSize: ".95rem", wordBreak: "break-all", marginBottom: 10 }}>{result.link}</div>
         <button onClick={() => copy(result.link)} style={{ background: "linear-gradient(100deg,#7c3aed,#ec4899)", color: "#fff", fontWeight: 700, border: "none", padding: "10px 18px", borderRadius: 999, cursor: "pointer" }}>Copiar link</button>
@@ -51,14 +51,14 @@ export default function AfiliadosPage() {
     <main style={wrap}>
       {brand}
       <div style={{ display: "inline-block", background: "#f1ecfd", color: "#7c3aed", fontWeight: 700, fontSize: ".78rem", padding: "5px 12px", borderRadius: 999, margin: "18px 0 10px" }}>PROGRAMA DE AFILIADOS</div>
-      <h1 style={{ fontSize: "1.7rem", lineHeight: 1.15, margin: "0 0 10px" }}>Monetiza tu contenido legal: gana <span style={{ color: "#7c3aed" }}>30%</span> por cada abogado que se suscriba con tu link.</h1>
-      <p style={{ color: "#6b5d78", margin: "0 0 16px" }}>Tu audiencia ya confía en ti. Recomienda Jurovia —la IA legal que a los abogados les encanta— y gana una comisión por cada suscripción. Gratis, sin exclusividad, con un panel para ver tus ganancias.</p>
+      <h1 style={{ fontSize: "1.7rem", lineHeight: 1.15, margin: "0 0 10px" }}>Monetiza tu contenido legal: gana <span style={{ color: "#7c3aed" }}>30% recurrente</span> por cada abogado que se suscriba con tu link.</h1>
+      <p style={{ color: "#6b5d78", margin: "0 0 16px" }}>Tu audiencia ya confía en ti. Recomienda Jurovia —la IA legal que a los abogados les encanta— y gana el 30% cada mes que tu cliente siga activo (hasta 12 meses). Gratis, sin exclusividad, con un panel para ver tus ganancias.</p>
 
       <div style={{ display: "grid", gap: 8, margin: "0 0 20px" }}>
         {[["🔗", "Recibe tu link único y compártelo en tu contenido"],
-          ["💸", "Ganas 30% por cada suscripción que venga de tu link"],
-          ["📊", "Panel propio: clics, ventas y ganancias en tiempo real"],
-          ["🏦", "Pago por transferencia · sin costo ni permanencia"]].map(([e, t]) => (
+          ["💸", "Ganas 30% recurrente cada mes que tu cliente siga activo (hasta 12 meses)"],
+          ["📊", "Panel propio: clics, pruebas, ventas y ganancias en tiempo real"],
+          ["🏦", "Pago por transferencia · sin costo ni exclusividad"]].map(([e, t]) => (
           <div key={t} style={{ display: "flex", gap: 10, background: "#fff", border: "1px solid #eadff5", borderRadius: 12, padding: "10px 13px", fontSize: ".92rem" }}>
             <span style={{ fontSize: "1.1rem" }}>{e}</span><span>{t}</span>
           </div>
@@ -73,7 +73,7 @@ export default function AfiliadosPage() {
         <div style={{ marginTop: 10 }}><span style={label}>WhatsApp (opcional)</span><input style={input} placeholder="+57…" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
         <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 14, fontSize: ".85rem", color: "#5b4d68" }}>
           <input type="checkbox" checked={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.checked })} style={{ marginTop: 3 }} />
-          <span>Acepto las <a href="/afiliados/terminos" target="_blank" style={{ color: "#7c3aed" }}>condiciones del programa</a> y el tratamiento de mis datos.</span>
+          <span>Acepto las <a href="/afiliados/terminos" target="_blank" style={{ color: "#7c3aed" }}>condiciones del programa</a>, la <a href="/afiliados/politica-de-contenido" target="_blank" style={{ color: "#7c3aed" }}>Política de Contenido</a> y el tratamiento de mis datos.</span>
         </label>
         {err && <div style={{ color: "#c23b52", fontSize: ".85rem", marginTop: 10 }}>{err}</div>}
         <button type="submit" disabled={busy} style={{ width: "100%", marginTop: 14, background: "linear-gradient(100deg,#7c3aed,#ec4899)", color: "#fff", fontWeight: 800, fontSize: "1.05rem", border: "none", padding: "14px", borderRadius: 12, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1 }}>
