@@ -577,6 +577,18 @@ export const api = {
     } catch { /* ignore */ }
     return jpost<{ transaction_id?: string }>(b, t, "/api/billing/checkout", { tier, interval: interval || "month", trial: !!trial, fbp: fb?.fbp, fbc: fb?.fbc, affiliate_ref }, {});
   },
+  // Atribución del funnel de afiliados: marca 'register' (post-login) o 'trial' (primer mensaje). Fail-open.
+  affiliateAttribute: (b: string, t: string, stage: "register" | "trial") => {
+    let code: string | undefined; let content: string | undefined;
+    try {
+      const raw = localStorage.getItem("jurovia_aff");
+      if (raw) { const o = JSON.parse(raw); if (o?.code && (!o.ts || Date.now() - o.ts < 60 * 864e5)) { code = o.code; content = o.c; } }
+    } catch { /* ignore */ }
+    if (!code) return Promise.resolve({ ok: false });
+    let session_id: string | undefined;
+    try { session_id = localStorage.getItem("juridica_guest_id") || undefined; } catch { /* ignore */ }
+    return jpost<{ ok: boolean }>(b, t, "/api/affiliates/attribute", { code, stage, content, session_id }, { ok: false });
+  },
   // Afiliados (admin)
   adminAffiliates: (b: string, t: string) => jget<{ items: any[]; count: number }>(b, t, "/api/admin/affiliates", { items: [], count: 0 }),
   adminAffiliateSave: (b: string, t: string, body: Record<string, unknown>) => jpost<{ ok?: boolean; id?: string; code?: string; link?: string }>(b, t, "/api/admin/affiliates", body, {}),

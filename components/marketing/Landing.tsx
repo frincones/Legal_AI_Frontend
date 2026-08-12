@@ -312,15 +312,20 @@ export default function Landing({ authed, backendUrl }: { authed: boolean; backe
   const affDoneRef = useRef(false);
   useEffect(() => {
     if (affDoneRef.current) return;
-    let code = "";
-    try { code = new URLSearchParams(window.location.search).get("ref") || ""; } catch { return; }
+    let code = ""; let content = "";
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      code = sp.get("ref") || ""; content = (sp.get("c") || "").trim().slice(0, 80);   // ?c=<pieza> → atribución por contenido
+    } catch { return; }
     if (!code.trim()) return;
     affDoneRef.current = true;
-    try { localStorage.setItem("jurovia_aff", JSON.stringify({ code: code.trim(), ts: Date.now() })); } catch { /* noop */ }
+    let sid: string | undefined;
+    try { sid = localStorage.getItem("juridica_guest_id") || undefined; } catch { /* noop */ }
+    try { localStorage.setItem("jurovia_aff", JSON.stringify({ code: code.trim(), ts: Date.now(), c: content || undefined })); } catch { /* noop */ }
     try {
       fetch(`${backendUrl}/api/affiliates/click`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code.trim(), landing: window.location.pathname }), keepalive: true,
+        body: JSON.stringify({ code: code.trim(), landing: window.location.pathname, content: content || undefined, session_id: sid }), keepalive: true,
       }).catch(() => {});
     } catch { /* noop */ }
   }, [backendUrl]);

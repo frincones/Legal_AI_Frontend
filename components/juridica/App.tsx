@@ -146,10 +146,12 @@ export default function JuridicaApp({
   // F3 — Atribución de referidos: captura el ?ref= al montar y lo guarda para reclamarlo post-login.
   useEffect(() => {
     try {
-      const code = new URLSearchParams(window.location.search).get("ref");
+      const sp = new URLSearchParams(window.location.search);
+      const code = sp.get("ref");
       if (code) {
+        const content = (sp.get("c") || "").trim().slice(0, 80);         // ?c=<pieza> → atribución por contenido
         localStorage.setItem("jurovia_ref", code);                       // referido (turnos) — se reclama y borra
-        localStorage.setItem("jurovia_aff", JSON.stringify({ code, ts: Date.now() }));  // afiliado (comisión) — durable hasta la compra
+        localStorage.setItem("jurovia_aff", JSON.stringify({ code, ts: Date.now(), c: content || undefined }));  // afiliado (comisión) — durable hasta la compra
       }
     } catch { /* ignore */ }
   }, []);
@@ -164,6 +166,15 @@ export default function JuridicaApp({
       try { await missionApi.referralClaim(backendUrl, accessToken, code as string); } catch { /* ignore */ }
       finally { try { localStorage.removeItem("jurovia_ref"); } catch { /* ignore */ } }
     })();
+  }, [backendUrl, accessToken]);
+
+  // Funnel de afiliados: atribuye el REGISTRO al afiliado apenas hay sesión (idempotente en el backend).
+  useEffect(() => {
+    if (!backendUrl || !accessToken) return;
+    let has = false;
+    try { has = !!localStorage.getItem("jurovia_aff"); } catch { /* ignore */ }
+    if (!has) return;
+    missionApi.affiliateAttribute(backendUrl, accessToken, "register").catch(() => {});
   }, [backendUrl, accessToken]);
   const toastId = useRef(0);
 

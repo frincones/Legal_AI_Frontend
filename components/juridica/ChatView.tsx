@@ -389,6 +389,13 @@ export function ChatView({
     const msg = input.trim();
     if (!msg && !(documentIds && documentIds.length)) return;
     setInput("");
+    // Funnel de afiliados: marca 'activó prueba' una sola vez (si el usuario llegó por link de afiliado). Fail-open.
+    try {
+      if (localStorage.getItem("jurovia_aff") && !localStorage.getItem("jurovia_aff_act")) {
+        localStorage.setItem("jurovia_aff_act", "1");
+        api.affiliateAttribute(backendUrl, accessToken, "trial").catch(() => {});
+      }
+    } catch { /* ignore */ }
     runMessage(msg, documentIds);
   }
 
