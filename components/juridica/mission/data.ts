@@ -651,7 +651,8 @@ export const api = {
     }
   },
   // ── CRM de ventas (admin) ──
-  adminCrm: (b: string, t: string) => jget<CrmBoard>(b, t, "/api/admin/crm", { stages: [], items: [], counts: {}, enabled: false, wa_enabled: false }),
+  adminCrm: (b: string, t: string, segment?: string) => jget<CrmBoard>(b, t, `/api/admin/crm${segment ? `?segment=${encodeURIComponent(segment)}` : ""}`, { stages: [], items: [], counts: {}, enabled: false, wa_enabled: false }),
+  adminInfluencersImport: (b: string, t: string, items: { phone: string; name?: string }[], send: boolean) => jpost<{ loaded: number; sent: number; skipped: number; sending_enabled?: boolean; note?: string }>(b, t, "/api/admin/influencers/import", { items, send }, { loaded: 0, sent: 0, skipped: 0 }),
   adminCrmThread: (b: string, t: string, convId: string) => jget<CrmThread>(b, t, `/api/admin/crm/thread?conversation_id=${encodeURIComponent(convId)}`, { messages: [], state: {}, conversation: {} }),
   adminCrmReply: (b: string, t: string, convId: string, text: string) => jpost<{ ok?: boolean; wa_message_id?: string | null }>(b, t, "/api/admin/crm/reply", { conversation_id: convId, text }, {}),
   adminCrmStage: (b: string, t: string, convId: string, stage: string) => jpost<{ ok?: boolean; stage?: string }>(b, t, "/api/admin/crm/stage", { conversation_id: convId, stage }, {}),

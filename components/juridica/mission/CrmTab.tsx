@@ -11,6 +11,7 @@ const STAGE_LABEL: Record<string, string> = {
   probando: "🔥 Probando", en_cierre: "💳 En cierre", cliente: "🏆 Cliente",
   trial_vencido: "⏳ Trial vencido", reactivacion: "♻️ Reactivación",
   no_recordatorios: "🔕 No recordatorios",
+  invitado: "✉️ Invitado", interesado: "👀 Interesado", afiliado: "🤝 Afiliado", descartado: "🗑️ Descartado",
 };
 
 // Color del punto de estado por etapa del CRM de email (temperatura / embudo).
@@ -26,12 +27,12 @@ function fmtWhen(iso: string | null): string {
 }
 
 export function CrmTab({ backendUrl, accessToken }: { backendUrl: string; accessToken: string }) {
-  const [tab, setTab] = useState<"whatsapp" | "email">("whatsapp");
+  const [tab, setTab] = useState<"whatsapp" | "email" | "influencers">("whatsapp");
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
         <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, marginRight: 6 }}>CRM de ventas</h2>
-        {([["whatsapp", "📱 WhatsApp"], ["email", "📧 Email"]] as const).map(([k, label]) => (
+        {([["whatsapp", "📱 WhatsApp"], ["email", "📧 Email"], ["influencers", "🎬 Influencers"]] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)} style={{
             fontSize: 13, fontWeight: 700, padding: "7px 14px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
             border: "1px solid " + (tab === k ? "var(--brand,#7c3aed)" : "var(--border)"),
@@ -41,21 +42,67 @@ export function CrmTab({ backendUrl, accessToken }: { backendUrl: string; access
         ))}
       </div>
       {tab === "whatsapp" ? <WaBoard backendUrl={backendUrl} accessToken={accessToken} />
+        : tab === "influencers" ? <WaBoard backendUrl={backendUrl} accessToken={accessToken} segment="influencer" />
         : <EmailBoardTab backendUrl={backendUrl} accessToken={accessToken} />}
     </div>
   );
 }
 
-function WaBoard({ backendUrl, accessToken }: { backendUrl: string; accessToken: string }) {
+function InfluencerImport({ backendUrl, accessToken, onDone }: { backendUrl: string; accessToken: string; onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  function parse(): { phone: string; name?: string }[] {
+    return text.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+      const [phone, ...rest] = l.split(/[,;\t]/).map((s) => s.trim());
+      return { phone, name: rest.join(" ") || undefined };
+    }).filter((x) => x.phone);
+  }
+  async function run(send: boolean) {
+    const items = parse();
+    if (!items.length) { setMsg("Pega al menos una línea: teléfono, nombre"); return; }
+    if (send && !window.confirm(`¿Enviar el opener de WhatsApp a ${items.length} influencers? (solo sale si influencer_outreach_enabled está ON)`)) return;
+    setBusy(true); setMsg(null);
+    const r = await api.adminInfluencersImport(backendUrl, accessToken, items, send);
+    setBusy(false);
+    setMsg(`Cargados: ${r.loaded} · Enviados: ${r.sent} · Omitidos: ${r.skipped}${r.note ? ` — ${r.note}` : ""}`);
+    onDone();
+  }
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 12, marginBottom: 14, background: "var(--bg-elevated)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <b style={{ fontSize: 13 }}>🎬 Cargar influencers</b>
+        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>una línea por persona: <code>+57300…, Nombre</code></span>
+        <span style={{ flex: 1 }} />
+        <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => setOpen((v) => !v)}>{open ? "Ocultar" : "Abrir"}</button>
+      </div>
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder={"+573001112233, Ana Torres\n+573004445566, Juan Pérez"} style={{ width: "100%", fontFamily: "var(--font-mono, monospace)", fontSize: 13, border: "1px solid var(--border)", borderRadius: 8, padding: 10, background: "var(--bg-surface)", color: "var(--text)" }} />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button className="btn btn-secondary" disabled={busy} onClick={() => run(false)}>Cargar al CRM (sin enviar)</button>
+            <button className="btn btn-primary" disabled={busy} onClick={() => run(true)}>Enviar openers</button>
+          </div>
+          {msg && <div style={{ marginTop: 8, fontSize: 12.5, color: "var(--text-muted)" }}>{msg}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WaBoard({ backendUrl, accessToken, segment }: { backendUrl: string; accessToken: string; segment?: "influencer" }) {
   const [board, setBoard] = useState<CrmBoard | null>(null);
   const [loading, setLoading] = useState(true);
   const [sel, setSel] = useState<CrmItem | null>(null);
   const [hover, setHover] = useState<{ c: CrmItem; x: number; y: number } | null>(null);
+  const isInfluencer = segment === "influencer";
 
   const load = useCallback(() => {
     setLoading(true);
-    api.adminCrm(backendUrl, accessToken).then((d) => { setBoard(d); setLoading(false); });
-  }, [backendUrl, accessToken]);
+    api.adminCrm(backendUrl, accessToken, segment).then((d) => { setBoard(d); setLoading(false); });
+  }, [backendUrl, accessToken, segment]);
   useEffect(() => { load(); }, [load]);
 
   if (loading && !board) return <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>Cargando CRM…</div>;
@@ -64,8 +111,9 @@ function WaBoard({ backendUrl, accessToken }: { backendUrl: string; accessToken:
 
   return (
     <div>
+      {isInfluencer && <InfluencerImport backendUrl={backendUrl} accessToken={accessToken} onDone={load} />}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>Kanban por etapa · pasa el mouse sobre una tarjeta para ver el detalle, o haz clic para abrir la conversación.</p>
+        <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>{isInfluencer ? "Reclutamiento de afiliados · Camila conversa y resuelve dudas; los que piden STOP van a 🗑️ Descartado." : "Kanban por etapa · pasa el mouse sobre una tarjeta para ver el detalle, o haz clic para abrir la conversación."}</p>
         <span style={{ flex: 1 }} />
         {board && !board.enabled && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--warning, #B8820E)", background: "rgba(184,130,14,.12)", borderRadius: 999, padding: "5px 11px" }}>Agente OFF (sales_agent_enabled)</span>}
         {board && board.enabled && !board.wa_enabled && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--warning, #B8820E)", background: "rgba(184,130,14,.12)", borderRadius: 999, padding: "5px 11px" }}>WhatsApp OFF</span>}
