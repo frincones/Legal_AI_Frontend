@@ -837,14 +837,31 @@ export function UpgradeModal({ open, onClose, backendUrl, accessToken, initialTi
         const selPlan = plans.find((p) => p.tier === tier);
         // valor para Meta = total cobrado (anual = total/año; mensual = /mes)
         priceRef.current = (effCycle === "annual" && selPlan?.annual) ? selPlan.annual.usd : (selPlan?.price_usd ?? null);
-        const r = await api.billingCheckout(backendUrl, accessToken, tier, fbCookies(), false, effCycle);   // Opción B: suscripción directa (sin trial), ciclo elegido
-        if (!r?.transaction_id) throw new Error("no txn");
+        // Paso 1: crear la transacción en el backend (Paddle). Aislamos su error del overlay.
+        let txnId: string | undefined;
+        try {
+          const r = await api.billingCheckout(backendUrl, accessToken, tier, fbCookies(), false, effCycle);   // Opción B: suscripción directa (sin trial), ciclo elegido
+          txnId = r?.transaction_id;
+        } catch (e) {
+          console.error("[checkout] fallo al crear la transacción:", e);
+          track("checkout_error", { tier, step: "create_txn" });
+          if (!cancelled) setErr("No se pudo iniciar el pago. Intenta de nuevo.");
+          return;
+        }
+        if (!txnId) { track("checkout_error", { tier, step: "no_txn" }); if (!cancelled) setErr("No se pudo iniciar el pago. Intenta de nuevo."); return; }
         if (cancelled) return;
-        paddleRef.current!.Checkout?.open({
-          transactionId: r.transaction_id,
-          settings: { theme: "light", locale: "es", showAddDiscounts: false, showAddTaxId: false, allowLogout: false, successUrl: (typeof window !== "undefined" ? window.location.origin : "https://juroviapp.com") + "/chat?purchased=1" },
-        });
-      } catch { if (!cancelled) setErr("No se pudo iniciar el pago. Intenta de nuevo."); }
+        // Paso 2: abrir el overlay de Paddle.js. Suele fallar por bloqueadores/InPrivate (iframe de Paddle bloqueado).
+        try {
+          paddleRef.current!.Checkout?.open({
+            transactionId: txnId,
+            settings: { theme: "light", locale: "es", showAddDiscounts: false, showAddTaxId: false, allowLogout: false, successUrl: (typeof window !== "undefined" ? window.location.origin : "https://juroviapp.com") + "/chat?purchased=1" },
+          });
+        } catch (e) {
+          console.error("[checkout] fallo al abrir el overlay de Paddle:", e);
+          track("checkout_error", { tier, step: "paddle_open" });
+          if (!cancelled) setErr("No se pudo abrir la pasarela de pago. Desactiva el modo incógnito o un bloqueador e intenta de nuevo.");
+        }
+      } catch (e) { console.error("[checkout] error inesperado:", e); if (!cancelled) setErr("No se pudo iniciar el pago. Intenta de nuevo."); }
       finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
