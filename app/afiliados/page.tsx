@@ -20,8 +20,10 @@ export default function AfiliadosPage() {
         body: JSON.stringify({ name: form.name, email: form.email, instagram: form.instagram, phone: form.phone, accepted_terms: form.terms }),
       });
       const j = await r.json();
-      if (r.ok && j.link) setResult({ link: j.link, existing: j.existing });
-      else setErr(j.detail || "No se pudo registrar. Intenta de nuevo.");
+      if (r.ok && j.link) {
+        try { if (j.id) localStorage.setItem("jurovia_aff_id", j.id); } catch { /* ignore */ }  // token del panel (sin login)
+        setResult({ link: j.link, existing: j.existing });
+      } else setErr(j.detail || "No se pudo registrar. Intenta de nuevo.");
     } catch { setErr("Error de red. Intenta de nuevo."); }
     setBusy(false);
   }
@@ -50,7 +52,7 @@ export default function AfiliadosPage() {
       {brand}
       <div style={{ display: "inline-block", background: "#f1ecfd", color: "#7c3aed", fontWeight: 700, fontSize: ".78rem", padding: "5px 12px", borderRadius: 999, margin: "18px 0 10px" }}>PROGRAMA DE AFILIADOS</div>
       <h1 style={{ fontSize: "1.7rem", lineHeight: 1.15, margin: "0 0 10px" }}>Monetiza tu contenido legal: gana <span style={{ color: "#7c3aed" }}>30%</span> por cada abogado que se suscriba con tu link.</h1>
-      <p style={{ color: "#6b5d78", margin: "0 0 16px" }}>Tu audiencia ya confía en ti. Recomienda Jurovia —la IA legal que a los abogados les encanta— y gana comisión recurrente. Gratis, sin exclusividad, con un panel para ver tus ganancias.</p>
+      <p style={{ color: "#6b5d78", margin: "0 0 16px" }}>Tu audiencia ya confía en ti. Recomienda Jurovia —la IA legal que a los abogados les encanta— y gana una comisión por cada suscripción. Gratis, sin exclusividad, con un panel para ver tus ganancias.</p>
 
       <div style={{ display: "grid", gap: 8, margin: "0 0 20px" }}>
         {[["🔗", "Recibe tu link único y compártelo en tu contenido"],
