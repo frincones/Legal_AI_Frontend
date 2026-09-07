@@ -371,6 +371,8 @@ export function Composer({
   onOpenIntegrations,
   mode,
   onMode,
+  sensitive,
+  onSensitive,
   audiencias,
   audienciaOpen,
   onAudienciaOpenChange,
@@ -381,6 +383,8 @@ export function Composer({
   // mode/jurisdiction quedan opcionales por compatibilidad con los llamadores; ya no se renderizan.
   mode?: string;
   onMode?: (m: string) => void;
+  sensitive?: boolean;                 // modo Caso sensible (anonimiza PII antes de enviar)
+  onSensitive?: (v: boolean) => void;
   jurisdiction?: string;
   onJurisdiction?: (j: string) => void;
   style?: "elevated" | "bordered" | "pill";
@@ -427,6 +431,9 @@ export function Composer({
   // ── Menú "⊕" (acciones) + selector de modo + integraciones (Composio) ──
   const [plusOpen, setPlusOpen] = useState(false);
   const [modeOpen, setModeOpen] = useState(false);
+  // Aviso de confidencialidad (una vez por navegador, dismissible). Solo en el composer principal.
+  const [noticeHidden, setNoticeHidden] = useState(true);
+  useEffect(() => { try { setNoticeHidden(localStorage.getItem("jv_conf_notice") === "1"); } catch { setNoticeHidden(false); } }, []);
   // Especialistas por área (opt-in). Se cargan de /api/especialistas cuando el chat cablea el selector.
   const [esps, setEsps] = useState<{ builtins: { id: string; name: string; materia?: string }[]; custom: { id: string; name: string; materia?: string }[] }>({ builtins: [], custom: [] });
   const [espEnabled, setEspEnabled] = useState(false);
@@ -535,6 +542,19 @@ export function Composer({
             {attachEnabled && <PlusItem icon="paperclip" title="Adjuntar documentos" desc="PDF, Word, Excel, audio, imágenes" onClick={() => { fileRef.current?.click(); setPlusOpen(false); }} />}
             {audienciasEnabled && <PlusItem icon="play" title="Analizar audiencia" desc="Video/audio o enlace (YouTube, Rama Judicial)" onClick={() => { setAudModal(true); setPlusOpen(false); }} />}
             <PlusItem icon="search" title="Verificar norma o sentencia" desc="Contra la fuente oficial" onClick={() => seed("Verifica si está vigente: ")} />
+            {onSensitive && (
+              <button onClick={() => onSensitive(!sensitive)} className="focus-ring"
+                style={{ display: "flex", gap: 11, alignItems: "center", width: "100%", padding: "9px 10px", border: "none", background: "transparent", borderRadius: "var(--r-sm)", cursor: "pointer", textAlign: "left" }}>
+                <span style={{ width: 30, height: 30, borderRadius: 9, display: "grid", placeItems: "center", background: sensitive ? "var(--primary-soft)" : "var(--bg-base)", color: sensitive ? "var(--primary)" : "var(--text-muted)", flexShrink: 0 }}><Icon name="lock" size={16} /></span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 650, color: "var(--text)" }}>Caso sensible</div>
+                  <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>Oculta cédulas, correos y teléfonos antes de enviar</div>
+                </div>
+                <span style={{ width: 34, height: 20, borderRadius: 999, background: sensitive ? "var(--aurora)" : "var(--bg-elevated-2)", position: "relative", flexShrink: 0, transition: "background .15s" }}>
+                  <span style={{ position: "absolute", top: 2, left: sensitive ? 16 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left .15s", boxShadow: "0 1px 2px rgba(0,0,0,.2)" }} />
+                </span>
+              </button>
+            )}
             {(integrations.length > 0 || onOpenIntegrations) && <div style={{ height: 1, background: "var(--border)", margin: "6px 8px" }} />}
             {integrations.length > 0 && (
               <div style={{ display: "flex", gap: 7, padding: "6px 8px 3px", flexWrap: "wrap" }}>
@@ -608,6 +628,16 @@ export function Composer({
             )}
           </div>
         </>
+      )}
+      {!compact && !noticeHidden && (
+        <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 13px", marginBottom: 9, borderRadius: "var(--r-md)", background: "var(--primary-soft)", border: "1px solid var(--border)" }}>
+          <Icon name="lock" size={15} style={{ color: "var(--primary)", flexShrink: 0 }} />
+          <span style={{ flex: 1, fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.4 }}>
+            <b style={{ color: "var(--text)" }}>Privado y confidencial.</b> Tratamos tu información con confidencialidad: no se comparte con terceros ni se usa para entrenar modelos de IA.
+          </span>
+          <button onClick={() => { setNoticeHidden(true); try { localStorage.setItem("jv_conf_notice", "1"); } catch { /* noop */ } }} className="focus-ring" title="Entendido"
+            style={{ border: "none", background: "transparent", color: "var(--text-muted)", cursor: "pointer", padding: 2, flexShrink: 0 }}><Icon name="x" size={15} /></button>
+        </div>
       )}
       <div className="composer-shell" style={{ borderRadius: style === "pill" ? 28 : "var(--r-xl)", overflow: "hidden", transition: "box-shadow .2s, border-color .2s", position: "relative", ...shellStyle }}>
       <div

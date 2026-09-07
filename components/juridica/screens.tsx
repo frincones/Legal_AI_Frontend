@@ -77,6 +77,8 @@ export function Home({
   setDraft,
   mode,
   setMode,
+  sensitive,
+  setSensitive,
   backendUrl,
   accessToken,
   blocked,
@@ -90,6 +92,8 @@ export function Home({
   setDraft: (v: string) => void;
   mode?: string;
   setMode: (m: string) => void;
+  sensitive?: boolean;
+  setSensitive?: (v: boolean) => void;
   jurisdiction?: string;
   setJurisdiction?: (j: string) => void;
   backendUrl?: string;
@@ -155,6 +159,8 @@ export function Home({
             onQuickSend={(text, docs) => onSubmit(text, undefined, docs)}
             mode={mode}
             onMode={setMode}
+            sensitive={sensitive}
+            onSensitive={setSensitive}
             onOpenIntegrations={() => onNavigate("settings")}
             style={composerStyle}
             autoFocus

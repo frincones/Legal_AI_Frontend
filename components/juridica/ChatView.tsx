@@ -121,6 +121,8 @@ export function ChatView({
   loadSessionId,
   mode,
   setMode,
+  sensitive,
+  setSensitive,
   jurisdiction,
   setJurisdiction,
   matterId,
@@ -138,6 +140,8 @@ export function ChatView({
   loadSessionId?: string;   // abrir una conversación existente desde 'Recientes'
   mode: string;
   setMode: (m: string) => void;
+  sensitive?: boolean;
+  setSensitive?: (v: boolean) => void;
   jurisdiction: string;
   setJurisdiction: (j: string) => void;
   matterId?: string;        // Mission Control: liga el chat a una misión (expediente)
@@ -152,6 +156,7 @@ export function ChatView({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [activityIdx, setActivityIdx] = useState<number | null>(null);  // qué turno tiene el sidebar abierto
+  const [redactedNote, setRedactedNote] = useState<{ total: number; items: Record<string, number> } | null>(null);  // modo Caso sensible: qué se ocultó
   const sessionId = useRef<string>(loadSessionId || crypto.randomUUID());
   const scrollRef = useRef<HTMLDivElement>(null);
   const started = useRef(false);
@@ -214,6 +219,7 @@ export function ChatView({
     const displayMsg = userMsg || "📎 Documento adjunto";
     const reuse = !!opts?.reuse;
     const auto = opts?.auto ?? 1;  // presupuesto de auto-reintentos ante corte de red SSE
+    setRedactedNote(null);         // limpia el aviso de "datos ocultos" del turno anterior
 
     if (reuse) {
       // Reintento: resetea el turno del asistente existente (no duplica la burbuja del usuario).
@@ -232,7 +238,7 @@ export function ChatView({
       const res = await fetch(`${backendUrl}/api/chat/${sessionId.current}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ message: sendText, matter_id: effectiveMatterId, document_ids: documentIds, area }),
+        body: JSON.stringify({ message: sendText, matter_id: effectiveMatterId, document_ids: documentIds, area, sensitive: !!sensitive }),
       });
       if (!res.ok || !res.body) throw new Error(`backend ${res.status}`);
       trackChatUsage("registrado");  // Meta Pixel · activación (1×/sesión)
@@ -245,6 +251,7 @@ export function ChatView({
           });
         else if (event === "thinking") patchTurn((t) => (t.thinking += data.text));
         else if (event === "agent_step") patchTurn((t) => (t.agent = data.agent));
+        else if (event === "redacted") setRedactedNote({ total: data.total, items: data.items || {} });
         // Fase en curso: anuncia la actividad ANTES de su ventana muda (p. ej. "Redactando el documento…")
         else if (event === "phase") patchTurn((t) => { t.activity = { name: data.name, label: labelFor(data.name), startedAt: Date.now() }; });
         // Verificación de fuentes: muestra las normas/sentencias que se están verificando.
@@ -548,6 +555,11 @@ export function ChatView({
               />
             ) : null;
           })()}
+          {redactedNote && redactedNote.total > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", marginBottom: 8, borderRadius: "var(--r-md)", background: "var(--primary-soft)", border: "1px solid var(--border)", fontSize: 12.5, color: "var(--text-secondary)" }}>
+              🔒 <span>Modo Caso sensible: oculté <b style={{ color: "var(--text)" }}>{redactedNote.total}</b> {redactedNote.total === 1 ? "dato sensible" : "datos sensibles"} antes de enviar ({Object.entries(redactedNote.items).map(([k, v]) => `${v} ${k}`).join(" · ")}).</span>
+            </div>
+          )}
           <Composer
             value={input}
             onChange={setInput}
@@ -564,6 +576,8 @@ export function ChatView({
             onOpenActa={onOpenActa}
             mode={mode}
             onMode={setMode}
+            sensitive={sensitive}
+            onSensitive={setSensitive}
             placeholder={compact ? "Pregúntale a esta misión…" : "Escribe un mensaje de seguimiento…"}
           />
           <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.45 }}>{AI_DISCLAIMER}</p>

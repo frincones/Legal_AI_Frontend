@@ -22,12 +22,13 @@ function detectPlugin(v: string): { plugin: string; matter_type: string } {
 }
 
 export function NuevaMision({
-  backendUrl, accessToken, onCreated, pushToast, blocked, mode, onMode, onAsk,
+  backendUrl, accessToken, onCreated, pushToast, blocked, mode, onMode, onAsk, sensitive, onSensitive,
 }: {
   backendUrl: string; accessToken: string;
   onCreated: (missionId: string, prompt: string, documentIds?: string[]) => void; pushToast: (t: string, k?: string) => void;
   blocked?: boolean;
   mode?: string; onMode?: (m: string) => void;
+  sensitive?: boolean; onSensitive?: (v: boolean) => void;
   onAsk?: (text: string, mode: string, documentIds?: string[]) => void;  // Pregunta/Especialista → chat Q&A directo
 }) {
   const [draft, setDraft] = useState("");
@@ -79,6 +80,8 @@ export function NuevaMision({
           blocked={blocked}
           mode={mode}
           onMode={onMode}
+          sensitive={sensitive}
+          onSensitive={onSensitive}
           placeholder="Ej. Quiero cobrar una deuda de $50M con un pagaré vencido contra Jorge Molina…"
         />
         <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.45 }}>{AI_DISCLAIMER}</p>

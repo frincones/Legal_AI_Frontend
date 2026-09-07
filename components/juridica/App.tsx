@@ -95,6 +95,7 @@ export default function JuridicaApp({
   const [collapsed, setCollapsed] = useState(false);
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState("Documento");
+  const [sensitive, setSensitive] = useState(false);   // modo Caso sensible (anonimiza PII antes de enviar)
   const [jurisdiction, setJurisdiction] = useState("Colombia · Nacional");
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -535,7 +536,7 @@ export default function JuridicaApp({
   else if (missionMode && route === "expediente" && currentMissionId)
     main = <MissionDetail backendUrl={backendUrl} accessToken={accessToken} missionId={currentMissionId} onBack={() => go("expedientes")} onOpenChat={openMissionChat} onApprove={() => setApprovalOpen(true)} pushToast={pushToast} onOpenArtifact={openArtifactInCanvas} />;
   else if (missionMode && route === "mission")
-    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt, docs) => { openMissionChat(id, prompt, docs); }} onAsk={(text, m, docs) => submitToChat(text, m, docs)} mode={mode} onMode={setMode} pushToast={pushToast} blocked={creditsBlocked} />;
+    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt, docs) => { openMissionChat(id, prompt, docs); }} onAsk={(text, m, docs) => submitToChat(text, m, docs)} mode={mode} onMode={setMode} sensitive={sensitive} onSensitive={setSensitive} pushToast={pushToast} blocked={creditsBlocked} />;
   else if (route === "admin" && isAdmin)
     main = <AdminPanel backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />;
   else if (missionMode && route === "terminos")
@@ -553,6 +554,8 @@ export default function JuridicaApp({
         setDraft={setDraft}
         mode={mode}
         setMode={setMode}
+        sensitive={sensitive}
+        setSensitive={setSensitive}
         jurisdiction={jurisdiction}
         setJurisdiction={setJurisdiction}
         backendUrl={backendUrl}
@@ -573,6 +576,8 @@ export default function JuridicaApp({
         loadSessionId={openSessionId}
         mode={mode}
         setMode={setMode}
+        sensitive={sensitive}
+        setSensitive={setSensitive}
         jurisdiction={jurisdiction}
         setJurisdiction={setJurisdiction}
         matterId={chatMatterId}
