@@ -208,7 +208,8 @@ export function ChatView({
     const hasDocs = !!(documentIds && documentIds.length);
     if (!userMsg && !hasDocs) return;
     const baseMsg = userMsg || "Te adjunto mi caso. Organízalo: identifica las partes y el tipo de proceso, verifica las normas o sentencias citadas, calcula los términos que apliquen y dime la siguiente mejor acción.";
-    // Subtle prefix when asking a question (vs drafting a document)
+    // Subtle prefix when asking a question (vs drafting a document). Especialista → sin prefijo + area real.
+    const area = mode && mode.startsWith("esp:") ? mode.slice(4) : undefined;
     const sendText = mode === "Pregunta" ? `Consulta legal: ${baseMsg}` : baseMsg;
     const displayMsg = userMsg || "📎 Documento adjunto";
     const reuse = !!opts?.reuse;
@@ -231,7 +232,7 @@ export function ChatView({
       const res = await fetch(`${backendUrl}/api/chat/${sessionId.current}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ message: sendText, matter_id: effectiveMatterId, document_ids: documentIds }),
+        body: JSON.stringify({ message: sendText, matter_id: effectiveMatterId, document_ids: documentIds, area }),
       });
       if (!res.ok || !res.body) throw new Error(`backend ${res.status}`);
       trackChatUsage("registrado");  // Meta Pixel · activación (1×/sesión)
@@ -561,6 +562,8 @@ export function ChatView({
             sessionId={sessionId.current}
             onQuickSend={(text, docs) => runMessage(text, docs)}
             onOpenActa={onOpenActa}
+            mode={mode}
+            onMode={setMode}
             placeholder={compact ? "Pregúntale a esta misión…" : "Escribe un mensaje de seguimiento…"}
           />
           <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.45 }}>{AI_DISCLAIMER}</p>

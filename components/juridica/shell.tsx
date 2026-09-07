@@ -427,6 +427,40 @@ export function Composer({
   // ── Menú "⊕" (acciones) + selector de modo + integraciones (Composio) ──
   const [plusOpen, setPlusOpen] = useState(false);
   const [modeOpen, setModeOpen] = useState(false);
+  // Especialistas por área (opt-in). Se cargan de /api/especialistas cuando el chat cablea el selector.
+  const [esps, setEsps] = useState<{ builtins: { id: string; name: string; materia?: string }[]; custom: { id: string; name: string; materia?: string }[] }>({ builtins: [], custom: [] });
+  const [espEnabled, setEspEnabled] = useState(false);
+  const espLoaded = useRef(false);
+  const [espCreating, setEspCreating] = useState(false);
+  const [espForm, setEspForm] = useState({ name: "", materia: "", fuentes: "" });
+  const [espBusy, setEspBusy] = useState(false);
+  useEffect(() => {
+    if (espLoaded.current || !onMode || !backendUrl || !accessToken) return;
+    espLoaded.current = true;
+    fetch(`${backendUrl}/api/especialistas`, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.enabled) { setEspEnabled(true); setEsps({ builtins: d.builtins || [], custom: d.custom || [] }); } })
+      .catch(() => {});
+  }, [onMode, backendUrl, accessToken]);
+  const espLabel = (m?: string): string | null => {
+    if (!m || !m.startsWith("esp:")) return null;
+    const id = m.slice(4);
+    return [...esps.builtins, ...esps.custom].find((e) => e.id === id)?.name || "Especialista";
+  };
+  async function createEsp() {
+    if (!espForm.name.trim() || !backendUrl || !accessToken) return;
+    setEspBusy(true);
+    try {
+      const r = await fetch(`${backendUrl}/api/especialistas`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` }, body: JSON.stringify(espForm) });
+      const j = await r.json();
+      if (r.ok && j.id) {
+        setEsps((s) => ({ ...s, custom: [{ id: j.id, name: j.name, materia: espForm.materia }, ...s.custom] }));
+        setEspForm({ name: "", materia: "", fuentes: "" }); setEspCreating(false);
+        onMode?.("esp:" + j.id); setModeOpen(false);
+      }
+    } catch { /* ignore */ }
+    setEspBusy(false);
+  }
   const [integrations, setIntegrations] = useState<{ toolkit: string; label: string; connected?: boolean }[]>([]);
   const intLoaded = useRef(false);
   useEffect(() => {
@@ -526,7 +560,7 @@ export function Composer({
       {modeOpen && onMode && (
         <>
           <div onClick={() => setModeOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 39 }} />
-          <div className="fade-up" style={{ position: "absolute", bottom: "calc(100% + 8px)", right: 56, width: 244, background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", boxShadow: "var(--sh-pop)", padding: 6, zIndex: 40 }}>
+          <div className="fade-up" style={{ position: "absolute", bottom: "calc(100% + 8px)", right: 56, width: 268, maxHeight: 420, overflowY: "auto", background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", boxShadow: "var(--sh-pop)", padding: 6, zIndex: 40 }}>
             {([["Pregunta", "Respuesta rápida, verificada"], ["Documento", "Genera un escrito en el Canvas"]] as [string, string][]).map(([m, d]) => (
               <button key={m} onClick={() => { onMode(m); setModeOpen(false); }} className="focus-ring"
                 style={{ display: "flex", gap: 10, alignItems: "flex-start", width: "100%", padding: "9px 10px", border: "none", background: mode === m ? "var(--primary-soft)" : "transparent", borderRadius: "var(--r-sm)", cursor: "pointer", textAlign: "left" }}>
@@ -537,6 +571,41 @@ export function Composer({
                 {mode === m && <Icon name="check" size={15} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 2 }} />}
               </button>
             ))}
+            {espEnabled && (
+              <>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--text-muted)", padding: "10px 10px 4px" }}>Especialistas por área</div>
+                {[...esps.builtins, ...esps.custom].map((e) => (
+                  <button key={e.id} onClick={() => { onMode("esp:" + e.id); setModeOpen(false); }} className="focus-ring"
+                    style={{ display: "flex", gap: 10, alignItems: "center", width: "100%", padding: "9px 10px", border: "none", background: mode === "esp:" + e.id ? "var(--primary-soft)" : "transparent", borderRadius: "var(--r-sm)", cursor: "pointer", textAlign: "left" }}>
+                    <span style={{ fontSize: 14 }}>⚖️</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 650, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.name}</div>
+                      {e.materia && <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>{e.materia}</div>}
+                    </div>
+                    {mode === "esp:" + e.id && <Icon name="check" size={15} style={{ color: "var(--primary)", flexShrink: 0 }} />}
+                  </button>
+                ))}
+                {!espCreating ? (
+                  <button onClick={() => setEspCreating(true)} className="focus-ring"
+                    style={{ display: "flex", gap: 10, alignItems: "center", width: "100%", padding: "9px 10px", border: "none", background: "transparent", borderRadius: "var(--r-sm)", cursor: "pointer", textAlign: "left", color: "var(--primary)" }}>
+                    <Icon name="plus" size={15} stroke={2.2} /><span style={{ fontSize: 13, fontWeight: 650 }}>Crear el tuyo</span>
+                  </button>
+                ) : (
+                  <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 7 }}>
+                    <input autoFocus value={espForm.name} onChange={(e) => setEspForm({ ...espForm, name: e.target.value })} placeholder="Nombre (ej. Pensiones)"
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text)", fontSize: 12.5 }} />
+                    <input value={espForm.materia} onChange={(e) => setEspForm({ ...espForm, materia: e.target.value })} placeholder="Materia (ej. pensiones)"
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text)", fontSize: 12.5 }} />
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={createEsp} disabled={espBusy || !espForm.name.trim()} className="focus-ring"
+                        style={{ flex: 1, padding: "8px", borderRadius: 8, border: "none", background: "var(--aurora)", color: "#fff", fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: espBusy || !espForm.name.trim() ? 0.6 : 1 }}>{espBusy ? "Guardando…" : "Guardar"}</button>
+                      <button onClick={() => { setEspCreating(false); setEspForm({ name: "", materia: "", fuentes: "" }); }} className="focus-ring"
+                        style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", color: "var(--text-secondary)", fontSize: 12.5, cursor: "pointer" }}>Cancelar</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </>
       )}
@@ -634,7 +703,7 @@ export function Composer({
               <button onClick={() => { setPlusOpen(false); setModeOpen((o) => !o); }} className="focus-ring"
                 style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 34, padding: "0 11px", borderRadius: "var(--r-pill)", border: "1px solid var(--border)", background: "var(--bg-base)", color: "var(--text-secondary)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer" }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--aurora)" }} />
-                {mode === "Documento" ? "Documento" : "Pregunta"}
+                {mode?.startsWith("esp:") ? (espLabel(mode) || "Especialista") : mode === "Documento" ? "Documento" : "Pregunta"}
                 <Icon name="chevronDown" size={15} style={{ color: "var(--text-muted)" }} />
               </button>
             )}
