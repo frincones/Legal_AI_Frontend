@@ -22,11 +22,13 @@ function detectPlugin(v: string): { plugin: string; matter_type: string } {
 }
 
 export function NuevaMision({
-  backendUrl, accessToken, onCreated, pushToast, blocked,
+  backendUrl, accessToken, onCreated, pushToast, blocked, mode, onMode, onAsk,
 }: {
   backendUrl: string; accessToken: string;
   onCreated: (missionId: string, prompt: string, documentIds?: string[]) => void; pushToast: (t: string, k?: string) => void;
   blocked?: boolean;
+  mode?: string; onMode?: (m: string) => void;
+  onAsk?: (text: string, mode: string, documentIds?: string[]) => void;  // Pregunta/Especialista → chat Q&A directo
 }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,6 +36,11 @@ export function NuevaMision({
   async function submit(text?: string, documentIds?: string[]) {
     const v = (text ?? draft).trim();
     if ((!v && !(documentIds && documentIds.length)) || busy) return;
+    // Modo Pregunta o Especialista → consulta directa (chat Q&A con área), NO crea expediente.
+    if (onAsk && (mode === "Pregunta" || (mode && mode.startsWith("esp:")))) {
+      onAsk(v || "Te adjunto un documento, analízalo.", mode, documentIds);
+      return;
+    }
     setBusy(true);
     pushToast("Creando el expediente y poniendo a trabajar al agente…", "primary");
     const goal = v || "Trabaja el documento que adjunté.";
@@ -70,6 +77,8 @@ export function NuevaMision({
           backendUrl={backendUrl}
           accessToken={accessToken}
           blocked={blocked}
+          mode={mode}
+          onMode={onMode}
           placeholder="Ej. Quiero cobrar una deuda de $50M con un pagaré vencido contra Jorge Molina…"
         />
         <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.45 }}>{AI_DISCLAIMER}</p>

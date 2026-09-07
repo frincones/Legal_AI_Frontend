@@ -535,7 +535,7 @@ export default function JuridicaApp({
   else if (missionMode && route === "expediente" && currentMissionId)
     main = <MissionDetail backendUrl={backendUrl} accessToken={accessToken} missionId={currentMissionId} onBack={() => go("expedientes")} onOpenChat={openMissionChat} onApprove={() => setApprovalOpen(true)} pushToast={pushToast} onOpenArtifact={openArtifactInCanvas} />;
   else if (missionMode && route === "mission")
-    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt, docs) => { openMissionChat(id, prompt, docs); }} pushToast={pushToast} blocked={creditsBlocked} />;
+    main = <NuevaMision backendUrl={backendUrl} accessToken={accessToken} onCreated={(id, prompt, docs) => { openMissionChat(id, prompt, docs); }} onAsk={(text, m, docs) => submitToChat(text, m, docs)} mode={mode} onMode={setMode} pushToast={pushToast} blocked={creditsBlocked} />;
   else if (route === "admin" && isAdmin)
     main = <AdminPanel backendUrl={backendUrl} accessToken={accessToken} pushToast={pushToast} />;
   else if (missionMode && route === "terminos")
